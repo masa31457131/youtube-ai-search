@@ -26,19 +26,17 @@ index = None     # FAISS index
 def fetch_youtube_videos():
     global video_data
     video_data.clear()
-    next_page = ""
-    while True:
-        url = f"https://www.googleapis.com/youtube/v3/search?key={API_KEY}&channelId={CHANNEL_ID}&part=snippet&type=video&maxResults=50&pageToken={next_page}"
-        res = requests.get(url)
-        data = res.json()
-        for item in data.get("items", []):
-            snippet = item["snippet"]
-            title = snippet["title"]
-            description = snippet["description"]
-            video_id = item["id"]["videoId"]
-            video_url = f"https://www.youtube.com/watch?v={video_id}"
-            thumbnail = snippet["thumbnails"]["medium"]["url"]
-            video_data.append((title, description, video_url, thumbnail))
+    url = f"https://www.googleapis.com/youtube/v3/search?key={API_KEY}&channelId={CHANNEL_ID}&part=snippet&type=video&maxResults=50"
+    res = requests.get(url)
+    data = res.json()
+    for item in data.get("items", []):
+        snippet = item["snippet"]
+        title = snippet["title"]
+        description = snippet["description"]
+        video_id = item["id"]["videoId"]
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        thumbnail = snippet["thumbnails"]["medium"]["url"]
+        video_data.append((title, description, video_url, thumbnail))
         next_page = data.get("nextPageToken", "")
         if not next_page:
             break

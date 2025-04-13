@@ -84,7 +84,12 @@
       const query = document.getElementById("searchInput").value;
       if (!query) return;
 
-      const res = await fetch(`http://localhost:8000/search?query=${encodeURIComponent(query)}`);
+      const API_BASE = "https://youtube-ai-search.onrender.com";
+
+      async function search() {
+      const query = document.getElementById("searchInput").value;
+      if (!query) return;
+      const res = await fetch(`${API_BASE}/search?query=${encodeURIComponent(query)}`);
       const data = await res.json();
 
       const results = document.getElementById("results");

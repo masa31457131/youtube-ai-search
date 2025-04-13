@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTubeチャンネルAI検索</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f9f9f9;
+      padding: 2rem;
+    }
+
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+
+    #searchInput {
+      width: 100%;
+      max-width: 500px;
+      padding: 10px;
+      font-size: 1rem;
+      margin: 1rem auto;
+      display: block;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    #results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      margin-top: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: transform 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+    }
+
+    .card img {
+      width: 100%;
+      height: auto;
+    }
+
+    .card-body {
+      padding: 15px;
+    }
+
+    .card-body a {
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: #333;
+      text-decoration: none;
+    }
+
+    .card-body p {
+      font-size: 0.9rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
+
+    @media screen and (max-width: 480px) {
+      #searchInput {
+        width: 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>🔍 AI検索　YouTubeチャンネル動画</h2>
+  <input type="text" id="searchInput" placeholder="例: プロッターが起動しない" />
+  <div id="results"></div>
+
+  <script>
+    async function search() {
+      const query = document.getElementById("searchInput").value;
+      if (!query) return;
+
+      const res = await fetch(`http://localhost:8000/search?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      const results = document.getElementById("results");
+      results.innerHTML = '';
+
+      if (data.length === 0) {
+        results.innerHTML = '<p>動画が見つかりませんでした。</p>';
+        return;
+      }
+
+      data.forEach(video => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${video.thumbnail}" alt="thumbnail">
+          <div class="card-body">
+            <a href="${video.url}" target="_blank">${video.title}</a>
+            <p>${video.description}</p>
+          </div>
+        `;
+        results.appendChild(card);
+      });
+    }
+
+    document.getElementById("searchInput").addEventListener("input", () => {
+      const q = document.getElementById("searchInput").value;
+      if (q.length >= 2) {
+        search();
+      }
+    });
+  </script>
+</body>
+</html>

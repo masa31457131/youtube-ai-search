@@ -26,7 +26,7 @@ app.add_middleware(
 )
 
 # モデル・データ・インデックスの定義
-model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+model = SentenceTransformer("all-MiniLM-L6-v2")
 video_data = []  # [(title, description, url, thumbnail), ...]
 index = None     # FAISS index
 

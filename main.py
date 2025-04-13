@@ -73,3 +73,12 @@ def search(query: str = Query(..., description="検索キーワード")):
                 "thumbnail": thumbnail
             })
     return results
+
+from fastapi.staticfiles import StaticFiles
+import pathlib
+
+# frontend フォルダのパスを取得
+frontend_path = pathlib.Path(__file__).parent / "frontend"
+
+# "/" に frontend/index.html をルートとしてマウント
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

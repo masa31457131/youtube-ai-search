@@ -26,7 +26,7 @@ app.add_middleware(
 )
 
 # モデル・データ・インデックスの定義
-model = SentenceTransformer("all-MiniLM-L6-v2")
+model = SentenceTransformer("sentence-transformers/paraphrase-albert-small-v2")
 video_data = []  # [(title, description, url, thumbnail), ...]
 index = None     # FAISS index
 
@@ -37,7 +37,7 @@ def fetch_youtube_videos():
     video_data.clear()
     next_page = ""
     while True:
-        url = f"https://www.googleapis.com/youtube/v3/search?key={API_KEY}&channelId={CHANNEL_ID}&part=snippet&type=video&maxResults=50&pageToken={next_page}"
+        url = f"https://www.googleapis.com/youtube/v3/search?key={API_KEY}&channelId={CHANNEL_ID}&part=snippet&type=video&maxResults=30"
         res = requests.get(url)
         data = res.json()
 

@@ -23,21 +23,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 軽量かつ高性能な意味検索モデル
+# 軽量かつ精度の高い意味検索モデル
 model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
 
 video_data = []  # [(title, desc, url, thumbnail)]
 index = None     # FAISS index
 
 
-# 最大300件まで動画を取得（ページネーション対応）
+# 最大100件まで動画を取得（ページネーション対応）
 def fetch_youtube_videos():
     global video_data
     video_data.clear()
 
     next_page_token = ""
     total_fetched = 0
-    max_videos = 300
+    max_videos = 100  # ここを100に設定
 
     while total_fetched < max_videos:
         url = (
@@ -72,7 +72,7 @@ def fetch_youtube_videos():
             break
 
 
-# ベクトル検索用インデックスを構築
+# 検索用ベクトルインデックスを作成
 def build_search_index():
     global index
     texts = [f"{title}. {desc}" for title, desc, _, _ in video_data]
@@ -85,7 +85,7 @@ def build_search_index():
     index.add(embeddings)
 
 
-# アプリ起動時に動画取得＆検索準備
+# 起動時にデータ取得・検索準備
 @app.on_event("startup")
 def startup_event():
     print("📺 YouTube動画取得中...")
@@ -94,7 +94,7 @@ def startup_event():
     print(f"✅ 動画数: {len(video_data)} 件 取得・検索準備完了")
 
 
-# 検索APIエンドポイント
+# 検索API
 @app.get("/search")
 def search(query: str = Query(..., description="検索キーワード")):
     q_embedding = model.encode([query])
@@ -112,6 +112,6 @@ def search(query: str = Query(..., description="検索キーワード")):
     return results
 
 
-# フロントエンドをルートにマウント
+# frontend/index.html を配信
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

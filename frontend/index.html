@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>YouTube 音声検索AI</title>
+  <meta charset="UTF-8">
+  <title>音声検索AI</title>
   <style>
     body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
     #searchInput { width: 100%; max-width: 500px; padding: 10px; font-size: 1rem; margin: 1rem auto; display: block; border-radius: 8px; border: 1px solid #ccc; }
@@ -17,7 +17,7 @@
 </head>
 <body>
   <h2>🎙️ YouTube 音声検索 AI</h2>
-  <input type="text" id="searchInput" placeholder="例: トラブル対応の説明" />
+  <input type="text" id="searchInput" placeholder="検索ワードを入力..." />
   <div id="results"></div>
   <script>
     async function search() {
@@ -27,10 +27,6 @@
       const data = await res.json();
       const results = document.getElementById("results");
       results.innerHTML = "";
-      if (data.length === 0) {
-        results.innerHTML = "<p>見つかりませんでした。</p>";
-        return;
-      }
       data.forEach(video => {
         const card = document.createElement("div");
         card.className = "card";
@@ -39,7 +35,7 @@
           <div class="card-body">
             <a href="${video.url}" target="_blank">${video.title}</a>
             <p>${video.description}</p>
-            <p><strong>文字起こし:</strong> ${video.transcript}</p>
+            <p><strong>文字起こし:</strong> ${video.transcript.slice(0, 100)}...</p>
           </div>`;
         results.appendChild(card);
       });

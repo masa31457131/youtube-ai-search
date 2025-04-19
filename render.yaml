@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: youtube-whisper-search
+    env: python
+    buildCommand: |
+      apt-get update && apt-get install -y ffmpeg
+      pip install -r requirements.txt
+    startCommand: uvicorn main:app --host=0.0.0.0 --port=10000
+    envVars:
+      - key: YOUTUBE_API_KEY
+        value: YOUR_API_KEY_HERE
+      - key: CHANNEL_ID
+        value: YOUR_CHANNEL_ID_HERE

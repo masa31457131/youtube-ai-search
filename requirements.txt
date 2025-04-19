@@ -1,6 +1,9 @@
 fastapi
 uvicorn
-faiss-cpu
 sentence-transformers
+faiss-cpu
 requests
 python-dotenv
+pytube
+openai-whisper
+ffmpeg-python

@@ -1,19 +1,20 @@
+
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sentence_transformers import SentenceTransformer
 import faiss
-import requests
 import os
+import pathlib
+import whisper
+import requests
 from dotenv import load_dotenv
 from fastapi.staticfiles import StaticFiles
-import pathlib
+from pytube import YouTube
 
-# 環境変数読み込み
 load_dotenv()
 API_KEY = os.getenv("YOUTUBE_API_KEY")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
-# FastAPI 初期化
 app = FastAPI()
 
 app.add_middleware(
@@ -23,22 +24,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 軽量で高精度な意味検索モデル
 model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+whisper_model = whisper.load_model("base")
+video_data = []
+index = None
 
-video_data = []  # [(title, desc, url, thumbnail)]
-index = None     # FAISS index
+def download_and_transcribe(video_id):
+    yt = YouTube(f"https://www.youtube.com/watch?v={video_id}")
+    audio_stream = yt.streams.filter(only_audio=True).first()
+    audio_path = f"audio_{video_id}.mp4"
+    audio_stream.download(filename=audio_path)
+    result = whisper_model.transcribe(audio_path, language="ja")
+    os.remove(audio_path)
+    return result["text"]
 
-
-# 最大50件まで動画を取得（1ページのみ）
 def fetch_youtube_videos():
     global video_data
     video_data.clear()
 
-    url = (
-        f"https://www.googleapis.com/youtube/v3/search?key={API_KEY}"
-        f"&channelId={CHANNEL_ID}&part=snippet&type=video&maxResults=50"
-    )
+    url = f"https://www.googleapis.com/youtube/v3/search?key={API_KEY}&channelId={CHANNEL_ID}&part=snippet&type=video&maxResults=5"
     res = requests.get(url)
     data = res.json()
 
@@ -46,9 +50,6 @@ def fetch_youtube_videos():
         raise RuntimeError(f"YouTube APIエラー: {data['error']['message']}")
 
     items = data.get("items", [])
-    if not items:
-        raise RuntimeError("動画が取得できませんでした。APIキーまたはチャンネルIDが正しいか確認してください。")
-
     for item in items:
         snippet = item["snippet"]
         title = snippet["title"]
@@ -56,49 +57,43 @@ def fetch_youtube_videos():
         video_id = item["id"]["videoId"]
         video_url = f"https://www.youtube.com/watch?v={video_id}"
         thumbnail = snippet["thumbnails"]["medium"]["url"]
-        video_data.append((title, description, video_url, thumbnail))
+        try:
+            transcript = download_and_transcribe(video_id)
+        except Exception as e:
+            transcript = ""
+            print(f"文字起こし失敗: {e}")
+        video_data.append((title, description, transcript, video_url, thumbnail))
 
-
-# ベクトルインデックス作成
 def build_search_index():
     global index
-    texts = [f"{title}. {desc}" for title, desc, _, _ in video_data]
+    texts = [f"{title}. {desc}. {transcript}" for title, desc, transcript, _, _ in video_data]
     embeddings = model.encode(texts, convert_to_numpy=True)
-
-    if len(embeddings) == 0:
-        raise RuntimeError("動画がありません。YouTube APIからの取得に失敗しています。")
-
     index = faiss.IndexFlatL2(embeddings.shape[1])
     index.add(embeddings)
 
-
-# 起動時にデータ取得とインデックス構築
 @app.on_event("startup")
 def startup_event():
-    print("📺 YouTube動画取得中...")
+    print("📺 動画・音声取得中...")
     fetch_youtube_videos()
     build_search_index()
-    print(f"✅ 動画数: {len(video_data)} 件 取得・検索準備完了")
+    print(f"✅ 準備完了（動画数: {len(video_data)}）")
 
-
-# 検索APIエンドポイント
 @app.get("/search")
-def search(query: str = Query(..., description="検索キーワード")):
+def search(query: str = Query(...)):
     q_embedding = model.encode([query])
     D, I = index.search(q_embedding, k=10)
     results = []
     for idx in I[0]:
         if idx < len(video_data):
-            title, desc, url, thumbnail = video_data[idx]
+            title, desc, transcript, url, thumbnail = video_data[idx]
             results.append({
                 "title": title,
                 "description": desc,
+                "transcript": transcript[:100] + "...",
                 "url": url,
                 "thumbnail": thumbnail
             })
     return results
 
-
-# frontend/index.html を配信
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

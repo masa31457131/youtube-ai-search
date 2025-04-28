@@ -1,5 +1,4 @@
-
-from fastapi import FastAPI, Query, Request, Response, HTTPException, Depends
+from fastapi import FastAPI, Query, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,16 +8,16 @@ import faiss
 import json
 import os
 import pathlib
-from collections import Counter
-import csv
 import io
+import csv
 import secrets
+from collections import Counter
 
 app = FastAPI()
 security = HTTPBasic()
 
 USERNAME = "admin"
-PASSWORD = "pass123"  # 必要に応じて変更可能
+PASSWORD = "pass123"  # 必要に応じて変更
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +26,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-model = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+# ✅ 日本語特化 SentenceTransformer モデル
+model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
+
 video_data = []
 index = None
 search_log_file = "search_logs.json"
@@ -50,17 +51,14 @@ def startup_event():
     build_search_index()
 
 def log_search_query(query: str):
-    try:
-        if os.path.exists(search_log_file):
-            with open(search_log_file, "r", encoding="utf-8") as f:
-                log = json.load(f)
-        else:
-            log = []
-        log.append(query)
-        with open(search_log_file, "w", encoding="utf-8") as f:
-            json.dump(log, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[ERROR] 検索ログ保存に失敗: {e}")
+    if os.path.exists(search_log_file):
+        with open(search_log_file, "r", encoding="utf-8") as f:
+            log = json.load(f)
+    else:
+        log = []
+    log.append(query)
+    with open(search_log_file, "w", encoding="utf-8") as f:
+        json.dump(log, f, ensure_ascii=False, indent=2)
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, USERNAME)
@@ -114,5 +112,6 @@ def export_csv(username: str = Depends(authenticate)):
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
 
+# フロントエンドHTMLを提供
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

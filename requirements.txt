@@ -6,3 +6,5 @@ requests
 python-dotenv
 yt-dlp
 openai-whisper
+transformers
+torch

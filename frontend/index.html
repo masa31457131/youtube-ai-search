@@ -1,42 +1,109 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>音声検索AI</title>
-<style>
-body { font-family: sans-serif; padding: 2rem; background: #f5f5f5; }
-#searchInput { width: 100%; max-width: 500px; padding: 10px; font-size: 1rem; margin: 1rem auto; display: block; border-radius: 8px; border: 1px solid #ccc; }
-#results { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; margin-top: 2rem; }
-.card { background: white; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden; }
-.card img { width: 100%; }
-.card-body { padding: 1rem; }
-.card-body a { font-weight: bold; font-size: 1.1rem; color: #333; text-decoration: none; }
-.card-body p { font-size: 0.85rem; color: #666; margin-top: 0.5rem; }
-</style>
+  <meta charset="UTF-8" />
+  <title>音声検索AI - サポート検索</title>
+  <style>
+    body {
+      font-family: "Meiryo", "Yu Gothic", sans-serif;
+      margin: 0;
+      background: #fff;
+      color: #333;
+    }
+    header {
+      background: #005BAC;
+      color: white;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    main {
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+    #searchInput {
+      width: 100%;
+      max-width: 500px;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+    }
+    #results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .card img {
+      width: 100%;
+    }
+    .card-body {
+      padding: 1rem;
+    }
+    .card-body a {
+      font-weight: bold;
+      color: #005BAC;
+      font-size: 1rem;
+      text-decoration: none;
+    }
+    .card-body a:hover {
+      text-decoration: underline;
+    }
+    .card-body p {
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      line-height: 1.5;
+    }
+  </style>
 </head>
 <body>
-<h2>🎙️ YouTube 音声検索 AI</h2>
-<input type="text" id="searchInput" placeholder="検索ワードを入力..." />
-<div id="results"></div>
+  <header>
+    <h1>サポート動画検索システム</h1>
+  </header>
+  <main>
+    <input type="text" id="searchInput" placeholder="キーワードを入力して検索..." />
+    <div id="results"></div>
+  </main>
 
-<script>
-async function search() {
-  const query = document.getElementById("searchInput").value;
-  if (!query) return;
-  const res = await fetch(`/search?query=${encodeURIComponent(query)}`);
-  const data = await res.json();
-  const results = document.getElementById("results");
-  results.innerHTML = "";
-  data.forEach(video => {
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML = `<img src="${video.thumbnail}" alt="thumbnail"><div class="card-body"><a href="${video.url}" target="_blank">${video.title}</a><p>${video.description}</p><p><strong>文字起こし:</strong> ${video.transcript.slice(0, 100)}...</p></div>`;
-    results.appendChild(card);
-  });
-}
-document.getElementById("searchInput").addEventListener("input", () => {
-  if (document.getElementById("searchInput").value.length >= 2) search();
-});
-</script>
+  <script>
+    async function search() {
+      const query = document.getElementById("searchInput").value;
+      if (!query) return;
+
+      const res = await fetch(`/search?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      const results = document.getElementById("results");
+      results.innerHTML = "";
+
+      data.forEach(video => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${video.thumbnail}" alt="thumbnail">
+          <div class="card-body">
+            <a href="${video.url}" target="_blank">${video.title}</a>
+            <p>${video.description}</p>
+            <p><strong>文字起こし:</strong> ${video.transcript.slice(0, 100)}...</p>
+          </div>`;
+        results.appendChild(card);
+      });
+    }
+
+    document.getElementById("searchInput").addEventListener("input", () => {
+      if (document.getElementById("searchInput").value.length >= 2) search();
+    });
+  </script>
 </body>
 </html>

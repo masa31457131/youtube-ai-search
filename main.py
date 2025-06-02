@@ -11,8 +11,10 @@ import pathlib
 import io
 import csv
 import secrets
-from collections import Counter
+import html
 import re
+from collections import Counter, defaultdict
+from datetime import datetime
 
 app = FastAPI()
 security = HTTPBasic()
@@ -57,12 +59,13 @@ def startup_event():
     build_search_index()
 
 def log_search_query(query: str):
+    entry = {"query": query, "timestamp": datetime.now().isoformat()}
     if os.path.exists(search_log_file):
         with open(search_log_file, "r", encoding="utf-8") as f:
             log = json.load(f)
     else:
         log = []
-    log.append(query)
+    log.append(entry)
     with open(search_log_file, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
 
@@ -87,13 +90,27 @@ def expand_query(query: str) -> str:
             expansion.extend(synonyms)
     return query + " " + " ".join(expansion)
 
+def highlight(text, query):
+    pattern = re.escape(query)
+    return re.sub(pattern, lambda m: f"<mark>{html.escape(m.group(0))}</mark>", text, flags=re.IGNORECASE)
+
 @app.get("/search")
 def search(query: str = Query(...)):
     log_search_query(query)
     expanded_query = expand_query(query)
     q_embedding = model.encode([expanded_query])
     D, I = index.search(q_embedding, k=10)
-    results = [video_data[i] for i in I[0] if i < len(video_data)]
+
+    results = []
+    for j, i in enumerate(I[0]):
+        if i < len(video_data):
+            item = video_data[i].copy()
+            item["title"] = highlight(item["title"], query)
+            item["description"] = highlight(item["description"], query)
+            item.pop("transcript", None)  # 文字起こしを除外
+            item["score"] = float(D[0][j])
+            item["embed_url"] = f"https://www.youtube.com/embed/{item['video_id']}"
+            results.append(item)
     return results
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -104,13 +121,14 @@ def admin_dashboard(username: str = Depends(authenticate)):
     with open(search_log_file, "r", encoding="utf-8") as f:
         logs = json.load(f)
 
-    counts = Counter(logs).most_common()
-    html = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
+    counts = Counter(entry["query"] for entry in logs).most_common()
+    html_content = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
     for word, count in counts:
-        html += f"<li><strong>{word}</strong>: {count} 回</li>"
-    html += "</ul>"
-    html += '<a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a>'
-    return html
+        html_content += f"<li><strong>{html.escape(word)}</strong>: {count} 回</li>"
+    html_content += "</ul>"
+    html_content += '<a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a><br>'
+    html_content += '<a href="/admin/graph" target="_blank">📊 日別トラフィックグラフを見る</a>'
+    return html_content
 
 @app.get("/admin/export_csv")
 def export_csv(username: str = Depends(authenticate)):
@@ -120,17 +138,76 @@ def export_csv(username: str = Depends(authenticate)):
     with open(search_log_file, "r", encoding="utf-8") as f:
         logs = json.load(f)
 
-    counts = Counter(logs).most_common()
+    counts = Counter(entry["query"] for entry in logs).most_common()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["検索キーワード", "回数"])
     for word, count in counts:
         writer.writerow([word, count])
 
-    response = StreamingResponse(iter([output.getvalue()]),
-                                 media_type="text/csv")
+    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
+
+@app.get("/admin/search_stats")
+def search_stats(username: str = Depends(authenticate)):
+    if not os.path.exists(search_log_file):
+        return {}
+
+    with open(search_log_file, "r", encoding="utf-8") as f:
+        logs = json.load(f)
+
+    day_counts = defaultdict(int)
+    for entry in logs:
+        date = entry["timestamp"][:10]
+        day_counts[date] += 1
+
+    return dict(sorted(day_counts.items()))
+
+@app.get("/admin/graph", response_class=HTMLResponse)
+def graph_page(username: str = Depends(authenticate)):
+    return """
+    <html>
+    <head>
+        <title>検索トラフィックグラフ</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <h2>📊 日別検索トラフィック</h2>
+        <canvas id="trafficChart" width="800" height="400"></canvas>
+        <script>
+            async function fetchData() {
+                const res = await fetch('/admin/search_stats', {
+                    headers: { 'Authorization': 'Basic ' + btoa('admin:pass123') }
+                });
+                const data = await res.json();
+                const labels = Object.keys(data);
+                const counts = Object.values(data);
+
+                const ctx = document.getElementById('trafficChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: '検索回数',
+                            data: counts,
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            x: { title: { display: true, text: '日付' } },
+                            y: { title: { display: true, text: '検索回数' }, beginAtZero: true }
+                        }
+                    }
+                });
+            }
+            fetchData();
+        </script>
+    </body>
+    </html>
+    """
 
 # フロントエンドHTMLを提供
 frontend_path = pathlib.Path(__file__).parent / "frontend"

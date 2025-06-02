@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sentence_transformers import SentenceTransformer
@@ -11,9 +11,8 @@ import pathlib
 import io
 import csv
 import secrets
-import html
-import re
 from collections import Counter, defaultdict
+import re
 from datetime import datetime
 
 app = FastAPI()
@@ -29,7 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 日本語特化 SentenceTransformer モデル
 model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
 
 video_data = []
@@ -45,7 +43,10 @@ def load_data():
     global video_data, text_corpus
     with open("data.json", "r", encoding="utf-8") as f:
         video_data = json.load(f)
-    text_corpus = [clean_text(f"{v['title']}。{v['description']}。{v['transcript']}") for v in video_data]
+    text_corpus = [
+        clean_text(f"{v['title']}。{v['description']}。{v.get('transcript', '')}")
+        for v in video_data
+    ]
 
 def build_search_index():
     global index
@@ -59,13 +60,16 @@ def startup_event():
     build_search_index()
 
 def log_search_query(query: str):
-    entry = {"query": query, "timestamp": datetime.now().isoformat()}
+    log_entry = {
+        "query": query,
+        "timestamp": datetime.utcnow().strftime("%Y-%m-%d")
+    }
     if os.path.exists(search_log_file):
         with open(search_log_file, "r", encoding="utf-8") as f:
             log = json.load(f)
     else:
         log = []
-    log.append(entry)
+    log.append(log_entry)
     with open(search_log_file, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
 
@@ -76,7 +80,6 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="認証に失敗しました", headers={"WWW-Authenticate": "Basic"})
     return credentials.username
 
-# ✅ クエリ補強関数（同義語拡張）
 def expand_query(query: str) -> str:
     synonym_map = {
         "袖": ["そで", "スリーブ"],
@@ -90,9 +93,11 @@ def expand_query(query: str) -> str:
             expansion.extend(synonyms)
     return query + " " + " ".join(expansion)
 
-def highlight(text, query):
-    pattern = re.escape(query)
-    return re.sub(pattern, lambda m: f"<mark>{html.escape(m.group(0))}</mark>", text, flags=re.IGNORECASE)
+def highlight_text(text, query):
+    if not query:
+        return text
+    pattern = re.compile(re.escape(query), re.IGNORECASE)
+    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", text)
 
 @app.get("/search")
 def search(query: str = Query(...)):
@@ -102,15 +107,23 @@ def search(query: str = Query(...)):
     D, I = index.search(q_embedding, k=10)
 
     results = []
-    for j, i in enumerate(I[0]):
-        if i < len(video_data):
-            item = video_data[i].copy()
-            item["title"] = highlight(item["title"], query)
-            item["description"] = highlight(item["description"], query)
-            item.pop("transcript", None)  # 文字起こしを除外
-            item["score"] = float(D[0][j])
-            item["embed_url"] = f"https://www.youtube.com/embed/{item['video_id']}"
-            results.append(item)
+    for i in I[0]:
+        if i >= len(video_data):
+            continue
+        v = video_data[i]
+        title = highlight_text(v["title"], query)
+        description = highlight_text(v["description"], query)
+        url = v["url"]
+        video_id = url.split("v=")[-1]
+        embed_url = f"https://www.youtube.com/embed/{video_id}"
+        thumbnail = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+        results.append({
+            "title": title,
+            "description": description,
+            "url": url,
+            "embed_url": embed_url,
+            "thumbnail": thumbnail
+        })
     return results
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -121,14 +134,34 @@ def admin_dashboard(username: str = Depends(authenticate)):
     with open(search_log_file, "r", encoding="utf-8") as f:
         logs = json.load(f)
 
-    counts = Counter(entry["query"] for entry in logs).most_common()
-    html_content = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
-    for word, count in counts:
-        html_content += f"<li><strong>{html.escape(word)}</strong>: {count} 回</li>"
-    html_content += "</ul>"
-    html_content += '<a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a><br>'
-    html_content += '<a href="/admin/graph" target="_blank">📊 日別トラフィックグラフを見る</a>'
-    return html_content
+    by_date = defaultdict(int)
+    for entry in logs:
+        by_date[entry["timestamp"]] += 1
+
+    html = """
+    <h2>検索ログ（🗓 日別グラフ）</h2>
+    <canvas id="logChart" width="600" height="300"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      const data = {
+        labels: %s,
+        datasets: [{
+          label: '検索回数',
+          data: %s,
+          backgroundColor: 'rgba(0, 123, 255, 0.5)'
+        }]
+      };
+      const config = {
+        type: 'bar',
+        data: data,
+        options: { scales: { y: { beginAtZero: true } } }
+      };
+      new Chart(document.getElementById('logChart'), config);
+    </script>
+    """ % (json.dumps(list(by_date.keys())), json.dumps(list(by_date.values())))
+
+    html += '<br><a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a>'
+    return html
 
 @app.get("/admin/export_csv")
 def export_csv(username: str = Depends(authenticate)):
@@ -138,77 +171,20 @@ def export_csv(username: str = Depends(authenticate)):
     with open(search_log_file, "r", encoding="utf-8") as f:
         logs = json.load(f)
 
-    counts = Counter(entry["query"] for entry in logs).most_common()
+    by_date = defaultdict(int)
+    for entry in logs:
+        by_date[entry["timestamp"]] += 1
+
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["検索キーワード", "回数"])
-    for word, count in counts:
-        writer.writerow([word, count])
+    writer.writerow(["日付", "検索回数"])
+    for date, count in sorted(by_date.items()):
+        writer.writerow([date, count])
 
-    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
+    response = StreamingResponse(iter([output.getvalue()]),
+                                 media_type="text/csv")
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
 
-@app.get("/admin/search_stats")
-def search_stats(username: str = Depends(authenticate)):
-    if not os.path.exists(search_log_file):
-        return {}
-
-    with open(search_log_file, "r", encoding="utf-8") as f:
-        logs = json.load(f)
-
-    day_counts = defaultdict(int)
-    for entry in logs:
-        date = entry["timestamp"][:10]
-        day_counts[date] += 1
-
-    return dict(sorted(day_counts.items()))
-
-@app.get("/admin/graph", response_class=HTMLResponse)
-def graph_page(username: str = Depends(authenticate)):
-    return """
-    <html>
-    <head>
-        <title>検索トラフィックグラフ</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    </head>
-    <body>
-        <h2>📊 日別検索トラフィック</h2>
-        <canvas id="trafficChart" width="800" height="400"></canvas>
-        <script>
-            async function fetchData() {
-                const res = await fetch('/admin/search_stats', {
-                    headers: { 'Authorization': 'Basic ' + btoa('admin:pass123') }
-                });
-                const data = await res.json();
-                const labels = Object.keys(data);
-                const counts = Object.values(data);
-
-                const ctx = document.getElementById('trafficChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: '検索回数',
-                            data: counts,
-                            backgroundColor: 'rgba(54, 162, 235, 0.6)'
-                        }]
-                    },
-                    options: {
-                        scales: {
-                            x: { title: { display: true, text: '日付' } },
-                            y: { title: { display: true, text: '検索回数' }, beginAtZero: true }
-                        }
-                    }
-                });
-            }
-            fetchData();
-        </script>
-    </body>
-    </html>
-    """
-
-# フロントエンドHTMLを提供
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

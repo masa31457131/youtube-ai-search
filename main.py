@@ -11,9 +11,8 @@ import pathlib
 import io
 import csv
 import secrets
-from collections import Counter, defaultdict
+from collections import Counter
 import re
-from datetime import datetime
 
 app = FastAPI()
 security = HTTPBasic()
@@ -28,11 +27,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ 日本語特化 SentenceTransformer モデル
 model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
 
 video_data = []
-text_corpus = []
 index = None
+text_corpus = []
 
 search_log_file = "search_logs.json"
 
@@ -43,10 +43,7 @@ def load_data():
     global video_data, text_corpus
     with open("data.json", "r", encoding="utf-8") as f:
         video_data = json.load(f)
-    text_corpus = [
-        clean_text(f"{v['title']}。{v['description']}。{v.get('transcript', '')}")
-        for v in video_data
-    ]
+    text_corpus = [clean_text(f"{v['title']}。{v['description']}。{v['transcript']}") for v in video_data]
 
 def build_search_index():
     global index
@@ -60,20 +57,23 @@ def startup_event():
     build_search_index()
 
 def log_search_query(query: str):
-    log = []
     if os.path.exists(search_log_file):
         with open(search_log_file, "r", encoding="utf-8") as f:
             log = json.load(f)
-    log.append({"query": query, "date": datetime.now().strftime("%Y-%m-%d")})
+    else:
+        log = []
+    log.append(query)
     with open(search_log_file, "w", encoding="utf-8") as f:
         json.dump(log, f, ensure_ascii=False, indent=2)
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
-    if not (secrets.compare_digest(credentials.username, USERNAME) and
-            secrets.compare_digest(credentials.password, PASSWORD)):
+    correct_username = secrets.compare_digest(credentials.username, USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, PASSWORD)
+    if not (correct_username and correct_password):
         raise HTTPException(status_code=401, detail="認証に失敗しました", headers={"WWW-Authenticate": "Basic"})
     return credentials.username
 
+# ✅ クエリ補強関数（同義語拡張）
 def expand_query(query: str) -> str:
     synonym_map = {
         "袖": ["そで", "スリーブ"],
@@ -91,21 +91,9 @@ def expand_query(query: str) -> str:
 def search(query: str = Query(...)):
     log_search_query(query)
     expanded_query = expand_query(query)
-    q_embedding = model.encode([expanded_query], convert_to_numpy=True)
+    q_embedding = model.encode([expanded_query])
     D, I = index.search(q_embedding, k=10)
-
-    results = []
-    for idx in I[0]:
-        if idx < len(video_data):
-            v = video_data[idx]
-            highlighted_title = re.sub(f"({re.escape(query)})", r"<mark>\1</mark>", v["title"], flags=re.IGNORECASE)
-            highlighted_description = re.sub(f"({re.escape(query)})", r"<mark>\1</mark>", v["description"], flags=re.IGNORECASE)
-            results.append({
-                "title": highlighted_title,
-                "description": highlighted_description,
-                "url": v["url"],
-                "thumbnail": v.get("thumbnail", f"https://i.ytimg.com/vi/{v['url'].split('v=')[-1]}/mqdefault.jpg")
-            })
+    results = [video_data[i] for i in I[0] if i < len(video_data)]
     return results
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -116,21 +104,11 @@ def admin_dashboard(username: str = Depends(authenticate)):
     with open(search_log_file, "r", encoding="utf-8") as f:
         logs = json.load(f)
 
-    counts = Counter([log["query"] for log in logs]).most_common()
-    daily_counts = defaultdict(int)
-    for log in logs:
-        daily_counts[log["date"]] += 1
-
-    html = "<h2>検索ログ集計</h2><ul>"
+    counts = Counter(logs).most_common()
+    html = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
     for word, count in counts:
         html += f"<li><strong>{word}</strong>: {count} 回</li>"
     html += "</ul>"
-
-    html += "<h3>📅 日別検索件数</h3><ul>"
-    for day, count in sorted(daily_counts.items()):
-        html += f"<li>{day}: {count} 件</li>"
-    html += "</ul>"
-
     html += '<a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a>'
     return html
 
@@ -142,7 +120,7 @@ def export_csv(username: str = Depends(authenticate)):
     with open(search_log_file, "r", encoding="utf-8") as f:
         logs = json.load(f)
 
-    counts = Counter([log["query"] for log in logs]).most_common()
+    counts = Counter(logs).most_common()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["検索キーワード", "回数"])
@@ -154,5 +132,6 @@ def export_csv(username: str = Depends(authenticate)):
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
 
+# フロントエンドHTMLを提供
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

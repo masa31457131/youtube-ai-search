@@ -27,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 日本語特化モデル
+# ✅ モデルの読み込み（日本語特化）
 model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
 
 video_data = []
@@ -42,7 +42,16 @@ def load_data():
     global video_data, text_corpus
     with open("data.json", "r", encoding="utf-8") as f:
         video_data = json.load(f)
-    text_corpus = [clean_text(f"{v['title']}。{v['description']}。{v.get('transcript','')}") for v in video_data]
+
+    # ✅ サムネイル補完（video_id から取得）
+    for v in video_data:
+        if not v.get("thumbnail") and v.get("video_id"):
+            v["thumbnail"] = f"https://img.youtube.com/vi/{v['video_id']}/mqdefault.jpg"
+
+    text_corpus = [
+        clean_text(f"{v['title']}。{v.get('description', '')}。{v.get('transcript', '')}")
+        for v in video_data
+    ]
 
 def build_search_index():
     global index
@@ -72,7 +81,6 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="認証に失敗しました", headers={"WWW-Authenticate": "Basic"})
     return credentials.username
 
-# ✅ クエリ補強（シンプル版）
 def expand_query(query: str) -> str:
     synonym_map = {
         "袖": ["そで", "スリーブ"],
@@ -124,7 +132,7 @@ def export_csv(username: str = Depends(authenticate)):
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
 
-# ✅ フロントエンド静的ファイル (HTML/CSS/JS)
+# ✅ フロントエンド提供
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 

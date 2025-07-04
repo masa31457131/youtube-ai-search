@@ -27,7 +27,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ モデルの読み込み（日本語特化）
 model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
 
 video_data = []
@@ -43,7 +42,6 @@ def load_data():
     with open("data.json", "r", encoding="utf-8") as f:
         video_data = json.load(f)
 
-    # ✅ サムネイル補完（video_id から取得）
     for v in video_data:
         if not v.get("thumbnail") and v.get("video_id"):
             v["thumbnail"] = f"https://img.youtube.com/vi/{v['video_id']}/mqdefault.jpg"
@@ -132,7 +130,6 @@ def export_csv(username: str = Depends(authenticate)):
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
 
-# ✅ フロントエンド提供
 frontend_path = pathlib.Path(__file__).parent / "frontend"
 app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 

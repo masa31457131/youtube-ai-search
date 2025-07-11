@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, util
+import torch
 import faiss
 import json
 import os
@@ -27,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ 日本語特化 SentenceTransformer モデル
+# ✅ 日本語特化 Sentence-BERT モデル
 model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
 
 video_data = []
@@ -36,6 +37,16 @@ text_corpus = []
 
 search_log_file = "search_logs.json"
 
+# ✅ 類義語辞書の読み込み
+def load_synonyms():
+    try:
+        with open("synonyms.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+synonym_map = load_synonyms()
+
 def clean_text(text):
     return re.sub(r"[ \n\r\t]+", " ", text).strip()
 
@@ -43,7 +54,15 @@ def load_data():
     global video_data, text_corpus
     with open("data.json", "r", encoding="utf-8") as f:
         video_data = json.load(f)
-    text_corpus = [clean_text(f"{v['title']}。{v['description']}。{v['transcript']}") for v in video_data]
+
+    for v in video_data:
+        if not v.get("thumbnail") and v.get("video_id"):
+            v["thumbnail"] = f"https://img.youtube.com/vi/{v['video_id']}/mqdefault.jpg"
+
+    text_corpus.clear()
+    for v in video_data:
+        combined = clean_text(f"{v['title']}。{v.get('description', '')}。{v.get('transcript', '')}")
+        text_corpus.append(combined)
 
 def build_search_index():
     global index
@@ -73,18 +92,25 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
         raise HTTPException(status_code=401, detail="認証に失敗しました", headers={"WWW-Authenticate": "Basic"})
     return credentials.username
 
-# ✅ クエリ補強関数（同義語拡張）
+# ✅ 類義語展開（JSON + BERT自動）
 def expand_query(query: str) -> str:
-    synonym_map = {
-        "袖": ["そで", "スリーブ"],
-        "型紙": ["パターン", "テンプレート"],
-        "修正": ["変更", "編集", "調整"],
-        "動画": ["ビデオ", "映像", "ムービー"],
-    }
     expansion = []
     for word, synonyms in synonym_map.items():
         if word in query:
             expansion.extend(synonyms)
+
+    # BERTベースの類似語を自動で追加
+    candidate_words = list(set(" ".join(text_corpus).split()))
+    candidate_embeddings = model.encode(candidate_words, convert_to_tensor=True)
+    query_embedding = model.encode(query, convert_to_tensor=True)
+    cos_scores = util.cos_sim(query_embedding, candidate_embeddings)[0]
+    top_results = torch.topk(cos_scores, k=3)
+
+    for idx in top_results.indices:
+        similar_word = candidate_words[idx]
+        if similar_word not in query:
+            expansion.append(similar_word)
+
     return query + " " + " ".join(expansion)
 
 @app.get("/search")
@@ -108,8 +134,7 @@ def admin_dashboard(username: str = Depends(authenticate)):
     html = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
     for word, count in counts:
         html += f"<li><strong>{word}</strong>: {count} 回</li>"
-    html += "</ul>"
-    html += '<a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a>'
+    html += "</ul><a href='/admin/export_csv' target='_blank'>📥 CSVをダウンロード</a>"
     return html
 
 @app.get("/admin/export_csv")
@@ -127,11 +152,17 @@ def export_csv(username: str = Depends(authenticate)):
     for word, count in counts:
         writer.writerow([word, count])
 
-    response = StreamingResponse(iter([output.getvalue()]),
-                                 media_type="text/csv")
+    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
     response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
     return response
 
-# フロントエンドHTMLを提供
+# ✅ フロントエンド表示
 frontend_path = pathlib.Path(__file__).parent / "frontend"
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
+app.mount("/static", StaticFiles(directory=frontend_path), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+def serve_index():
+    index_file = frontend_path / "index.html"
+    if not index_file.exists():
+        raise HTTPException(status_code=404, detail="index.html が見つかりません")
+    return index_file.read_text(encoding="utf-8")

@@ -1,1 +1,70 @@
-<!DOCTYPE html><html><head><title>Search</title></head><body><h1>Search Test Page</h1></body></html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>音声検索AI</title>
+  <style>
+    body {
+      font-family: "Yu Gothic", "游ゴシック", "Meiryo", sans-serif;
+      background-color: #FFFFFF;
+      color: #333333;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #005BAC;
+      color: #FFFFFF;
+      padding: 20px;
+      text-align: center;
+    }
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    #searchInput {
+      width: 100%;
+      max-width: 500px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #CCCCCC;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    #results {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      border: 1px solid #CCCCCC;
+      border-radius: 4px;
+      overflow: hidden;
+      background-color: #FFFFFF;
+    }
+    .card img {
+      width: 100%;
+      height: auto;
+    }
+    .card-body {
+      padding: 10px;
+    }
+    .card-body a {
+      color: #005BAC;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .card-body p {
+      font-size: 14px;
+      color: #333333;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>音声検索AI</h1>
+  </header>
+  <main>
+    <input type

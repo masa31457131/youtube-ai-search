@@ -1,68 +1,137 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import json
-import faiss
-import numpy as np
+from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sentence_transformers import SentenceTransformer
-import uvicorn
+import faiss
+import json
 import os
+import pathlib
+import io
+import csv
+import secrets
+from collections import Counter
+import re
 
 app = FastAPI()
+security = HTTPBasic()
 
-# CORS設定（必要に応じてドメイン制限可）
+USERNAME = "admin"
+PASSWORD = "pass123"
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# モデルとデータの読み込み
+# ✅ 日本語特化 SentenceTransformer モデル
 model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
 
-with open("data/video_data.json", "r", encoding="utf-8") as f:
-    video_data = json.load(f)
+video_data = []
+index = None
+text_corpus = []
 
-# ✅ タイトル + 説明 + 文字起こし を全文ベクトル化
-texts = [
-    f"タイトル: {v['title']} 説明: {v.get('description', '')} 本文: {v.get('transcript', '')}"
-    for v in video_data
-]
-embeddings = model.encode(texts, convert_to_numpy=True)
+search_log_file = "search_logs.json"
 
-# faissに埋め込みを登録
-dimension = embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)
-index.add(embeddings)
+def clean_text(text):
+    return re.sub(r"[ \n\r\t]+", " ", text).strip()
+
+def load_data():
+    global video_data, text_corpus
+    with open("data.json", "r", encoding="utf-8") as f:
+        video_data = json.load(f)
+    text_corpus = [clean_text(f"{v['title']}。{v['description']}。{v['transcript']}") for v in video_data]
+
+def build_search_index():
+    global index
+    embeddings = model.encode(text_corpus, convert_to_numpy=True)
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(embeddings)
+
+@app.on_event("startup")
+def startup_event():
+    load_data()
+    build_search_index()
+
+def log_search_query(query: str):
+    if os.path.exists(search_log_file):
+        with open(search_log_file, "r", encoding="utf-8") as f:
+            log = json.load(f)
+    else:
+        log = []
+    log.append(query)
+    with open(search_log_file, "w", encoding="utf-8") as f:
+        json.dump(log, f, ensure_ascii=False, indent=2)
+
+def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, USERNAME)
+    correct_password = secrets.compare_digest(credentials.password, PASSWORD)
+    if not (correct_username and correct_password):
+        raise HTTPException(status_code=401, detail="認証に失敗しました", headers={"WWW-Authenticate": "Basic"})
+    return credentials.username
+
+# ✅ クエリ補強関数（同義語拡張）
+def expand_query(query: str) -> str:
+    synonym_map = {
+        "袖": ["そで", "スリーブ"],
+        "型紙": ["パターン", "テンプレート"],
+        "修正": ["変更", "編集", "調整"],
+        "動画": ["ビデオ", "映像", "ムービー"],
+    }
+    expansion = []
+    for word, synonyms in synonym_map.items():
+        if word in query:
+            expansion.extend(synonyms)
+    return query + " " + " ".join(expansion)
 
 @app.get("/search")
-async def search(request: Request):
-    query = request.query_params.get("q", "")
-    if not query:
-        return JSONResponse(content={"error": "検索語が指定されていません"}, status_code=400)
+def search(query: str = Query(...)):
+    log_search_query(query)
+    expanded_query = expand_query(query)
+    q_embedding = model.encode([expanded_query])
+    D, I = index.search(q_embedding, k=10)
+    results = [video_data[i] for i in I[0] if i < len(video_data)]
+    return results
 
-    # ✅ クエリに意味補強を追加
-    enhanced_query = f"この文章の意味に関連する内容を検索: {query}"
-    q_embedding = model.encode([enhanced_query], convert_to_numpy=True)
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(username: str = Depends(authenticate)):
+    if not os.path.exists(search_log_file):
+        return "<h2>まだ検索ログはありません。</h2>"
 
-    k = 10  # 上位10件を返す
-    D, I = index.search(q_embedding, k)
+    with open(search_log_file, "r", encoding="utf-8") as f:
+        logs = json.load(f)
 
-    results = []
-    for i, idx in enumerate(I[0]):
-        if idx < len(video_data):
-            video = video_data[idx]
-            results.append({
-                "title": video["title"],
-                "video_id": video["video_id"],
-                "url": f"https://www.youtube.com/watch?v={video['video_id']}",
-                "transcript": video.get("transcript", "")[:300] + "...",  # 抜粋表示
-            })
+    counts = Counter(logs).most_common()
+    html = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
+    for word, count in counts:
+        html += f"<li><strong>{word}</strong>: {count} 回</li>"
+    html += "</ul>"
+    html += '<a href="/admin/export_csv" target="_blank">📥 CSVをダウンロード</a>'
+    return html
 
-    return {"results": results}
+@app.get("/admin/export_csv")
+def export_csv(username: str = Depends(authenticate)):
+    if not os.path.exists(search_log_file):
+        raise HTTPException(status_code=404, detail="ログが見つかりません")
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    with open(search_log_file, "r", encoding="utf-8") as f:
+        logs = json.load(f)
+
+    counts = Counter(logs).most_common()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["検索キーワード", "回数"])
+    for word, count in counts:
+        writer.writerow([word, count])
+
+    response = StreamingResponse(iter([output.getvalue()]),
+                                 media_type="text/csv")
+    response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
+    return response
+
+# フロントエンドHTMLを提供
+frontend_path = pathlib.Path(__file__).parent / "frontend"
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")

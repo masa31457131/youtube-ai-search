@@ -135,7 +135,7 @@ def build_search_index() -> None:
     index = faiss.IndexFlatIP(dim)  # 内積 = コサイン類似度（正規化済みベクトル）
     index.add(embeddings)
 
-
+"""旧バージョン　2025/12/09
 def expand_query_with_synonyms(query: str) -> str:
     """クエリに類義語を足して検索の網を広げる"""
     if not synonyms:
@@ -148,7 +148,46 @@ def expand_query_with_synonyms(query: str) -> str:
         if t in synonyms:
             expanded.extend(synonyms[t])
     return " ".join(expanded)
+"""
 
+def expand_query_with_synonyms(query: str) -> str:
+    """
+    クエリを類義語付きで拡張する。
+    - トークン単位の一致
+    - クエリ文字列に key が部分一致した場合 も展開
+    - 重複は順番を保ったまま削除
+    """
+    if not synonyms:
+        return query
+
+    # 元クエリ（正規化前）をそのまま保持
+    original_query = query
+    tokens = list(filter(None, re.split(r"\s+", original_query)))
+
+    expanded = []
+
+    # 1) トークン単位で synonyms を適用
+    for t in tokens:
+        expanded.append(t)
+        if t in synonyms:
+            expanded.extend(synonyms[t])
+
+    # 2) 「プロット 出力」みたいに複数語に分かれていても、
+    #    文字列として key が含まれていれば類義語を追加
+    for key, syns in synonyms.items():
+        if key in original_query and key not in tokens:
+            expanded.append(key)
+            expanded.extend(syns)
+
+    # 3) 順番を保ったまま重複削除
+    seen = set()
+    unique = []
+    for w in expanded:
+        if w not in seen:
+            seen.add(w)
+            unique.append(w)
+
+    return " ".join(unique)
 
 def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
     """ベクトル検索 + タイトルキーワード補正で精度を高めた検索"""

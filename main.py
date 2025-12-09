@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from sentence_transformers import SentenceTransformer, util
+
+from sentence_transformers import SentenceTransformer
 import torch
 import faiss
 import json
@@ -12,155 +13,273 @@ import pathlib
 import io
 import csv
 import secrets
-from collections import Counter
+from datetime import datetime
+from typing import List, Dict, Any, Optional
 import re
+import numpy as np
 
-app = FastAPI()
-security = HTTPBasic()
+# ============================================
+# 設定
+# ============================================
 
-USERNAME = "admin"
-PASSWORD = "pass123"
+APP_TITLE = "音声検索AI - サポート検索 (高速・高精度版)"
 
+# 埋め込みモデル（日本語を含む多言語に強い & 高速）
+DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
+
+# 検索結果の件数
+DEFAULT_TOP_K = 10
+
+# 管理用のBasic認証
+ADMIN_USER = os.getenv("ADMIN_USER", "admin")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "changeme")  # 本番では必ず変更してください
+
+# ファイルパス
+BASE_DIR = pathlib.Path(__file__).parent
+DATA_PATH = BASE_DIR / "data.json"
+SYNONYMS_PATH = BASE_DIR / "synonyms.json"
+SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
+
+
+# ============================================
+# グローバル変数
+# ============================================
+
+app = FastAPI(title=APP_TITLE)
+
+# CORS（フロントが別ドメインでも動くようにゆるめに許可）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ✅ 日本語特化 Sentence-BERT モデル
-model = SentenceTransformer("sonoisa/sentence-bert-base-ja-mean-tokens")
+security = HTTPBasic()
 
-video_data = []
-index = None
-text_corpus = []
+videos: List[Dict[str, Any]] = []
+text_corpus: List[str] = []
+synonyms: Dict[str, List[str]] = {}
 
-search_log_file = "search_logs.json"
+model: Optional[SentenceTransformer] = None
+index: Optional[faiss.IndexFlatIP] = None  # コサイン類似度用に内積Indexを使用
 
-# ✅ 類義語辞書の読み込み
-def load_synonyms():
-    try:
-        with open("synonyms.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {}
 
-synonym_map = load_synonyms()
+# ============================================
+# 前処理ユーティリティ
+# ============================================
 
-def clean_text(text):
-    return re.sub(r"[ \n\r\t]+", " ", text).strip()
+def normalize_text(text: str) -> str:
+    """ひらがな/カタカナはそのまま、英数字は小文字・空白整理だけ行う簡易正規化"""
+    text = text.lower()
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
-def load_data():
-    global video_data, text_corpus
-    with open("data.json", "r", encoding="utf-8") as f:
-        video_data = json.load(f)
 
-    for v in video_data:
-        if not v.get("thumbnail") and v.get("video_id"):
-            v["thumbnail"] = f"https://img.youtube.com/vi/{v['video_id']}/mqdefault.jpg"
+def load_data() -> None:
+    """動画データと類義語辞書を読み込む"""
+    global videos, synonyms, text_corpus
 
-    text_corpus.clear()
-    for v in video_data:
-        combined = clean_text(f"{v['title']}。{v.get('description', '')}。{v.get('transcript', '')}")
-        text_corpus.append(combined)
+    if not DATA_PATH.exists():
+        raise RuntimeError(f"data.json が見つかりません: {DATA_PATH}")
+    with open(DATA_PATH, encoding="utf-8") as f:
+        videos = json.load(f)
 
-def build_search_index():
+    if SYNONYMS_PATH.exists():
+        with open(SYNONYMS_PATH, encoding="utf-8") as f:
+            synonyms = json.load(f)
+    else:
+        synonyms = {}
+
+    # 検索用コーパスを構築
+    text_corpus = []
+    for v in videos:
+        title = normalize_text(v.get("title", ""))
+        desc = normalize_text(v.get("description", ""))
+        trans = normalize_text(v.get("transcript", ""))
+
+        # タイトルを重み付け（2倍）して精度を上げる
+        combined = f"{title} [SEP] {desc} [SEP] {trans}"
+        combined_weighted = f"{title} {title} {combined}"
+        text_corpus.append(combined_weighted)
+
+
+def get_model() -> SentenceTransformer:
+    """SentenceTransformer モデルを lazy にロード"""
+    global model
+    if model is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        model = SentenceTransformer(EMBEDDING_MODEL, device=device)
+    return model
+
+
+def build_search_index() -> None:
+    """テキストコーパスから FAISS IndexFlatIP を構築（コサイン類似度）"""
     global index
-    embeddings = model.encode(text_corpus, convert_to_numpy=True)
-    index = faiss.IndexFlatL2(embeddings.shape[1])
+
+    if not text_corpus:
+        index = None
+        return
+
+    m = get_model()
+    embeddings = m.encode(text_corpus, convert_to_numpy=True, show_progress_bar=False)
+
+    # コサイン類似度用に正規化
+    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    embeddings = embeddings / norms
+
+    dim = embeddings.shape[1]
+    index = faiss.IndexFlatIP(dim)  # 内積 = コサイン類似度（正規化済みベクトル）
     index.add(embeddings)
 
+
+def expand_query_with_synonyms(query: str) -> str:
+    """クエリに類義語を足して検索の網を広げる"""
+    if not synonyms:
+        return query
+
+    tokens = list(filter(None, re.split(r"\s+", query)))
+    expanded: List[str] = []
+    for t in tokens:
+        expanded.append(t)
+        if t in synonyms:
+            expanded.extend(synonyms[t])
+    return " ".join(expanded)
+
+
+def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
+    """ベクトル検索 + タイトルキーワード補正で精度を高めた検索"""
+    if index is None or not videos:
+        return []
+
+    m = get_model()
+
+    # 正規化したクエリ
+    normalized_query = normalize_text(query)
+
+    # 類義語展開したクエリで埋め込みを作成
+    q_for_embed = expand_query_with_synonyms(normalized_query)
+    q_emb = m.encode([q_for_embed], convert_to_numpy=True, show_progress_bar=False)
+
+    # 正規化（コサイン類似度用）
+    norms = np.linalg.norm(q_emb, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    q_emb = q_emb / norms
+
+    # 一度広めに候補取得（速度と精度のバランスのため top_k * 5）
+    k = min(top_k * 5, len(videos))
+    sims, idxs = index.search(q_emb, k)
+    sims = sims[0]
+    idxs = idxs[0]
+
+    query_tokens = set(normalized_query.split())
+    results: List[tuple[float, Dict[str, Any]]] = []
+
+    for sim, idx in zip(sims, idxs):
+        if idx < 0 or idx >= len(videos):
+            continue
+        v = videos[idx]
+
+        # タイトル・説明を使った簡易キーワードスコア
+        text_for_kw = normalize_text(
+            (v.get("title", "") or "") + " " + (v.get("description", "") or "")
+        )
+        kw_score = 0.0
+        if query_tokens:
+            hit = sum(1 for t in query_tokens if t and t in text_for_kw)
+            kw_score = hit / len(query_tokens)
+
+        # ベクトル類似度とキーワードスコアを統合
+        final_score = 0.85 * float(sim) + 0.15 * kw_score
+
+        results.append((final_score, v))
+
+    # スコアでソートして上位 top_k 件を返す
+    results.sort(key=lambda x: x[0], reverse=True)
+    top = results[:top_k]
+    return [v for _, v in top]
+
+
+def log_search_query(query: str, hits_count: int) -> None:
+    """検索ログを CSV に保存"""
+    header = ["timestamp", "query", "hits"]
+    now = datetime.utcnow().isoformat()
+    row = [now, query, str(hits_count)]
+    file_exists = SEARCH_LOG_PATH.exists()
+
+    with open(SEARCH_LOG_PATH, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(header)
+        writer.writerow(row)
+
+
+def verify_admin(credentials: HTTPBasicCredentials = Depends(security)) -> str:
+    """Basic 認証の検証"""
+    correct_username = secrets.compare_digest(credentials.username, ADMIN_USER)
+    correct_password = secrets.compare_digest(credentials.password, ADMIN_PASS)
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+
+# ============================================
+# FastAPI イベント & エンドポイント
+# ============================================
+
 @app.on_event("startup")
-def startup_event():
+def on_startup() -> None:
+    """アプリ起動時にデータ読み込みとインデックス構築をまとめて実行"""
     load_data()
     build_search_index()
 
-def log_search_query(query: str):
-    if os.path.exists(search_log_file):
-        with open(search_log_file, "r", encoding="utf-8") as f:
-            log = json.load(f)
-    else:
-        log = []
-    log.append(query)
-    with open(search_log_file, "w", encoding="utf-8") as f:
-        json.dump(log, f, ensure_ascii=False, indent=2)
 
-def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, USERNAME)
-    correct_password = secrets.compare_digest(credentials.password, PASSWORD)
-    if not (correct_username and correct_password):
-        raise HTTPException(status_code=401, detail="認証に失敗しました", headers={"WWW-Authenticate": "Basic"})
-    return credentials.username
-
-# ✅ 類義語展開（JSON + BERT自動）
-def expand_query(query: str) -> str:
-    expansion = []
-    for word, synonyms in synonym_map.items():
-        if word in query:
-            expansion.extend(synonyms)
-
-    # BERTベースの類似語を自動で追加
-    candidate_words = list(set(" ".join(text_corpus).split()))
-    candidate_embeddings = model.encode(candidate_words, convert_to_tensor=True)
-    query_embedding = model.encode(query, convert_to_tensor=True)
-    cos_scores = util.cos_sim(query_embedding, candidate_embeddings)[0]
-    top_results = torch.topk(cos_scores, k=3)
-
-    for idx in top_results.indices:
-        similar_word = candidate_words[idx]
-        if similar_word not in query:
-            expansion.append(similar_word)
-
-    return query + " " + " ".join(expansion)
-
-@app.get("/search")
-def search(query: str = Query(...)):
-    log_search_query(query)
-    expanded_query = expand_query(query)
-    q_embedding = model.encode([expanded_query])
-    D, I = index.search(q_embedding, k=10)
-    results = [video_data[i] for i in I[0] if i < len(video_data)]
+@app.get("/search", summary="動画検索", tags=["search"])
+def search_endpoint(
+    query: str = Query(..., min_length=1, description="検索クエリ"),
+    top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
+):
+    """クエリに応じて動画リストを返すエンドポイント"""
+    results = search_core(query, top_k=top_k)
+    log_search_query(query, len(results))
     return results
 
-@app.get("/admin", response_class=HTMLResponse)
-def admin_dashboard(username: str = Depends(authenticate)):
-    if not os.path.exists(search_log_file):
-        return "<h2>まだ検索ログはありません。</h2>"
 
-    with open(search_log_file, "r", encoding="utf-8") as f:
-        logs = json.load(f)
+@app.get("/logs/export", summary="検索ログCSVダウンロード", tags=["admin"])
+def export_logs(username: str = Depends(verify_admin)):
+    """検索ログを CSV としてダウンロード"""
+    if not SEARCH_LOG_PATH.exists():
+        raise HTTPException(status_code=404, detail="検索ログがまだありません")
 
-    counts = Counter(logs).most_common()
-    html = "<h2>検索ログ集計（CSVエクスポート付き）</h2><ul>"
-    for word, count in counts:
-        html += f"<li><strong>{word}</strong>: {count} 回</li>"
-    html += "</ul><a href='/admin/export_csv' target='_blank'>📥 CSVをダウンロード</a>"
-    return html
+    with open(SEARCH_LOG_PATH, "r", encoding="utf-8") as f:
+        csv_data = f.read()
 
-@app.get("/admin/export_csv")
-def export_csv(username: str = Depends(authenticate)):
-    if not os.path.exists(search_log_file):
-        raise HTTPException(status_code=404, detail="ログが見つかりません")
+    headers = {
+        "Content-Disposition": 'attachment; filename="search_logs.csv"'
+    }
+    return StreamingResponse(
+        iter([csv_data]),
+        media_type="text/csv",
+        headers=headers,
+    )
 
-    with open(search_log_file, "r", encoding="utf-8") as f:
-        logs = json.load(f)
 
-    counts = Counter(logs).most_common()
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["検索キーワード", "回数"])
-    for word, count in counts:
-        writer.writerow([word, count])
+# ============================================
+# フロントエンド（静的ファイル）配信
+# ============================================
 
-    response = StreamingResponse(iter([output.getvalue()]), media_type="text/csv")
-    response.headers["Content-Disposition"] = "attachment; filename=search_logs.csv"
-    return response
-
-# ✅ フロントエンド表示
-frontend_path = pathlib.Path(__file__).parent / "frontend"
+frontend_path = BASE_DIR / "frontend"
 app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-@app.get("/", response_class=HTMLResponse)
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_index():
     index_file = frontend_path / "index.html"
     if not index_file.exists():

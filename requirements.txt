@@ -1,1 +1,11 @@
-fastapi\nuvicorn\nsentence-transformers\nfaiss-cpu\nrequests\npython-dotenv\nyt-dlp\nopenai-whisper\ntransformers\ntorch\n
+fastapi
+uvicorn[standard]
+sentence-transformers
+faiss-cpu
+requests
+python-dotenv
+yt-dlp
+openai-whisper
+transformers
+torch
+numpy

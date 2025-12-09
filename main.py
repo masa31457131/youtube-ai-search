@@ -35,7 +35,7 @@ DEFAULT_TOP_K = 10
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "changeme")  # 本番では必ず変更してください
 
-# ファイルパス
+# ファイルパス（data.json / synonyms.json / search_logs.csv を同じディレクトリに置く）
 BASE_DIR = pathlib.Path(__file__).parent
 DATA_PATH = BASE_DIR / "data.json"
 SYNONYMS_PATH = BASE_DIR / "synonyms.json"
@@ -72,14 +72,22 @@ index: Optional[faiss.IndexFlatIP] = None  # コサイン類似度用に内積In
 # ============================================
 
 def normalize_text(text: str) -> str:
-    """ひらがな/カタカナはそのまま、英数字は小文字・空白整理だけ行う簡易正規化"""
+    """
+    簡易正規化:
+    - 英数字を小文字化
+    - 連続スペースを 1つに
+    - 前後の空白を除去
+    """
     text = text.lower()
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
 
 def load_data() -> None:
-    """動画データと類義語辞書を読み込む"""
+    """
+    動画データ (data.json) と 類義語辞書 (synonyms.json) を読み込む。
+    ついでに検索用コーパスも構築する。
+    """
     global videos, synonyms, text_corpus
 
     if not DATA_PATH.exists():
@@ -96,18 +104,20 @@ def load_data() -> None:
     # 検索用コーパスを構築
     text_corpus = []
     for v in videos:
-        title = normalize_text(v.get("title", ""))
-        desc = normalize_text(v.get("description", ""))
-        trans = normalize_text(v.get("transcript", ""))
+        title = normalize_text(v.get("title", "") or "")
+        desc = normalize_text(v.get("description", "") or "")
+        trans = normalize_text(v.get("transcript", "") or "")
 
-        # タイトルを重み付け（2倍）して精度を上げる
+        # タイトルに重みを持たせる（2倍くらい）
         combined = f"{title} [SEP] {desc} [SEP] {trans}"
         combined_weighted = f"{title} {title} {combined}"
         text_corpus.append(combined_weighted)
 
 
 def get_model() -> SentenceTransformer:
-    """SentenceTransformer モデルを lazy にロード"""
+    """
+    SentenceTransformer モデルを lazy にロード
+    """
     global model
     if model is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -116,7 +126,9 @@ def get_model() -> SentenceTransformer:
 
 
 def build_search_index() -> None:
-    """テキストコーパスから FAISS IndexFlatIP を構築（コサイン類似度）"""
+    """
+    テキストコーパスから FAISS IndexFlatIP を構築（コサイン類似度）
+    """
     global index
 
     if not text_corpus:
@@ -135,53 +147,37 @@ def build_search_index() -> None:
     index = faiss.IndexFlatIP(dim)  # 内積 = コサイン類似度（正規化済みベクトル）
     index.add(embeddings)
 
-"""旧バージョン　2025/12/09
-def expand_query_with_synonyms(query: str) -> str:
-    """クエリに類義語を足して検索の網を広げる"""
-    if not synonyms:
-        return query
-
-    tokens = list(filter(None, re.split(r"\s+", query)))
-    expanded: List[str] = []
-    for t in tokens:
-        expanded.append(t)
-        if t in synonyms:
-            expanded.extend(synonyms[t])
-    return " ".join(expanded)
-"""
 
 def expand_query_with_synonyms(query: str) -> str:
     """
     クエリを類義語付きで拡張する。
-    - トークン単位の一致
-    - クエリ文字列に key が部分一致した場合 も展開
+    - スペースでトークン分割して key と一致するものは synonyms[key] を展開
+    - クエリ文字列に key が部分一致した場合も類義語を追加（例: 「プロット 出力」など）
     - 重複は順番を保ったまま削除
     """
     if not synonyms:
         return query
 
-    # 元クエリ（正規化前）をそのまま保持
     original_query = query
     tokens = list(filter(None, re.split(r"\s+", original_query)))
 
-    expanded = []
+    expanded: List[str] = []
 
-    # 1) トークン単位で synonyms を適用
+    # 1) トークン単位での類義語展開
     for t in tokens:
         expanded.append(t)
         if t in synonyms:
             expanded.extend(synonyms[t])
 
-    # 2) 「プロット 出力」みたいに複数語に分かれていても、
-    #    文字列として key が含まれていれば類義語を追加
+    # 2) 部分一致による展開（例: 「プロット出力」が2語に分かれていても拾う）
     for key, syns in synonyms.items():
         if key in original_query and key not in tokens:
             expanded.append(key)
             expanded.extend(syns)
 
-    # 3) 順番を保ったまま重複削除
+    # 3) 順番を保ったまま重複を除去
     seen = set()
-    unique = []
+    unique: List[str] = []
     for w in expanded:
         if w not in seen:
             seen.add(w)
@@ -189,14 +185,18 @@ def expand_query_with_synonyms(query: str) -> str:
 
     return " ".join(unique)
 
+
 def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
-    """ベクトル検索 + タイトルキーワード補正で精度を高めた検索"""
+    """
+    ベクトル検索 + タイトル/説明キーワード補正で精度を高めた検索。
+    類義語を使って意味的な範囲も広げる。
+    """
     if index is None or not videos:
         return []
 
     m = get_model()
 
-    # 正規化したクエリ
+    # ユーザクエリを正規化
     normalized_query = normalize_text(query)
 
     # 類義語展開したクエリで埋め込みを作成
@@ -222,7 +222,7 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
             continue
         v = videos[idx]
 
-        # タイトル・説明を使った簡易キーワードスコア
+        # タイトル + 説明を使った簡易キーワードスコア
         text_for_kw = normalize_text(
             (v.get("title", "") or "") + " " + (v.get("description", "") or "")
         )
@@ -243,7 +243,9 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
 
 
 def log_search_query(query: str, hits_count: int) -> None:
-    """検索ログを CSV に保存"""
+    """
+    検索ログを CSV に保存
+    """
     header = ["timestamp", "query", "hits"]
     now = datetime.utcnow().isoformat()
     row = [now, query, str(hits_count)]
@@ -257,7 +259,9 @@ def log_search_query(query: str, hits_count: int) -> None:
 
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)) -> str:
-    """Basic 認証の検証"""
+    """
+    管理者向けBasic認証
+    """
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USER)
     correct_password = secrets.compare_digest(credentials.password, ADMIN_PASS)
     if not (correct_username and correct_password):
@@ -275,7 +279,9 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)) -> str:
 
 @app.on_event("startup")
 def on_startup() -> None:
-    """アプリ起動時にデータ読み込みとインデックス構築をまとめて実行"""
+    """
+    アプリ起動時にデータ読み込みとインデックス構築をまとめて実行
+    """
     load_data()
     build_search_index()
 
@@ -285,7 +291,9 @@ def search_endpoint(
     query: str = Query(..., min_length=1, description="検索クエリ"),
     top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
 ):
-    """クエリに応じて動画リストを返すエンドポイント"""
+    """
+    クエリに応じて動画リストを返すエンドポイント
+    """
     results = search_core(query, top_k=top_k)
     log_search_query(query, len(results))
     return results
@@ -293,7 +301,9 @@ def search_endpoint(
 
 @app.get("/logs/export", summary="検索ログCSVダウンロード", tags=["admin"])
 def export_logs(username: str = Depends(verify_admin)):
-    """検索ログを CSV としてダウンロード"""
+    """
+    検索ログを CSV としてダウンロード
+    """
     if not SEARCH_LOG_PATH.exists():
         raise HTTPException(status_code=404, detail="検索ログがまだありません")
 

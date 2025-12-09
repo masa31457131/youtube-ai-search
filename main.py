@@ -77,6 +77,9 @@ def normalize_text(text: str) -> str:
     - 英数字を小文字化
     - 連続スペースを 1つに
     - 前後の空白を除去
+
+    日本語については、ここでは形態素解析などは行わず、
+    SentenceTransformer の意味ベクトルに任せる方針。
     """
     text = text.lower()
     text = re.sub(r"\s+", " ", text)
@@ -154,6 +157,9 @@ def expand_query_with_synonyms(query: str) -> str:
     - スペースでトークン分割して key と一致するものは synonyms[key] を展開
     - クエリ文字列に key が部分一致した場合も類義語を追加（例: 「プロット 出力」など）
     - 重複は順番を保ったまま削除
+
+    単語クエリでも、「プロット出力の方法がわからない」のような
+    短い文章クエリでも動くように、文字列全体を見て判定している。
     """
     if not synonyms:
         return query
@@ -190,6 +196,9 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
     """
     ベクトル検索 + タイトル/説明キーワード補正で精度を高めた検索。
     類義語を使って意味的な範囲も広げる。
+
+    - query は「単語1つ」でも「短い文章」でもOK。
+    - 埋め込みモデルが文全体の意味を捉えるので、文章検索もそのまま動く。
     """
     if index is None or not videos:
         return []
@@ -214,6 +223,8 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
     sims = sims[0]
     idxs = idxs[0]
 
+    # 「文章」のときは単語分割の効果は小さいので、
+    # ここはあくまで軽い補正として利用（ベクトル類似度がメイン）
     query_tokens = set(normalized_query.split())
     results: List[tuple[float, Dict[str, Any]]] = []
 
@@ -288,11 +299,20 @@ def on_startup() -> None:
 
 @app.get("/search", summary="動画検索", tags=["search"])
 def search_endpoint(
-    query: str = Query(..., min_length=1, description="検索クエリ"),
+    query: str = Query(
+        ...,
+        min_length=1,
+        description="検索クエリ（単語1つでも、短い文章でもOKです）",
+    ),
     top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
 ):
     """
-    クエリに応じて動画リストを返すエンドポイント
+    クエリに応じて動画リストを返すエンドポイント。
+
+    例:
+    - 「プロット出力」
+    - 「プロッターが動かないときの対処方法」
+    - 「パターンマジックでピンタック展開する手順」
     """
     results = search_core(query, top_k=top_k)
     log_search_query(query, len(results))

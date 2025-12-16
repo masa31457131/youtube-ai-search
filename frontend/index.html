@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>音声検索AI - サポート検索</title>
+  <title>サポート検索（動画 + FAQ）</title>
   <style>
     body {
       font-family: "Meiryo", "Yu Gothic", sans-serif;
@@ -21,88 +21,225 @@
       font-size: 1.5rem;
     }
     main {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 2rem auto;
       padding: 0 2rem;
     }
+
     #searchInput {
       width: 100%;
-      max-width: 500px;
+      max-width: 620px;
       padding: 10px;
       font-size: 1rem;
       border: 1px solid #ccc;
-      border-radius: 5px;
+      border-radius: 8px;
       margin-bottom: 1rem;
     }
-    #results {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
+
+    .section-title{
+      margin: 1.2rem 0 0.6rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
+    .badge{
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: #e8f1fb;
+      color: #005BAC;
+      border: 1px solid #cfe3fb;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.2rem;
+    }
+
     .card {
-      border: 1px solid #ddd;
-      border-radius: 6px;
+      border: 1px solid #e1e1e1;
+      border-radius: 10px;
       overflow: hidden;
       background: #fff;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
     }
-    .card img {
-      width: 100%;
-    }
+
     .card-body {
       padding: 1rem;
     }
-    .card-body a {
-      font-weight: bold;
+
+    .muted {
+      color: #666;
+      font-size: 0.85rem;
+    }
+
+    /* FAQ */
+    .faq-item summary{
+      cursor: pointer;
+      padding: 0.9rem 1rem;
+      font-weight: 700;
+      list-style: none;
+    }
+    .faq-item summary::-webkit-details-marker{ display:none; }
+    .faq-meta{
+      padding: 0 1rem 0.6rem;
+      display:flex;
+      gap:0.5rem;
+      flex-wrap:wrap;
+    }
+    .pill{
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+      color: #444;
+    }
+    .steps{
+      padding: 0 1.2rem 1rem;
+      margin: 0;
+    }
+    .steps li{
+      margin: 0.35rem 0;
+      line-height: 1.5;
+    }
+
+    /* Video cards */
+    .video-card img { width: 100%; }
+    .video-card a {
+      font-weight: 700;
       color: #005BAC;
       font-size: 1rem;
       text-decoration: none;
     }
-    .card-body a:hover {
-      text-decoration: underline;
-    }
-    .card-body p {
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-      line-height: 1.5;
+    .video-card a:hover { text-decoration: underline; }
+
+    .empty {
+      border: 1px dashed #ddd;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #fcfcfc;
+      color: #666;
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>サポート動画検索システム</h1>
+    <h1>サポート検索（動画 + FAQ）</h1>
   </header>
+
   <main>
-    <input type="text" id="searchInput" placeholder="キーワードを入力して検索..." />
-    <div id="results"></div>
+    <input type="text" id="searchInput" placeholder="キーワードを入力して検索…" />
+
+    <div class="section-title">FAQ候補 <span class="badge" id="faqCount">0</span></div>
+    <div id="faqResults" class="grid"></div>
+
+    <div class="section-title">関連動画 <span class="badge" id="videoCount">0</span></div>
+    <div id="videoResults" class="grid"></div>
   </main>
 
   <script>
-    async function search() {
-      const query = document.getElementById("searchInput").value;
-      if (!query) return;
+    const $ = (id) => document.getElementById(id);
 
-      const res = await fetch(`/search?query=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      const results = document.getElementById("results");
-      results.innerHTML = "";
+    let timer = null;
 
-      data.forEach(video => {
+    function esc(s){
+      return String(s ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderFaq(list){
+      $("faqCount").textContent = list.length;
+
+      const root = $("faqResults");
+      root.innerHTML = "";
+
+      if(!list.length){
+        root.innerHTML = '<div class="empty">FAQ候補はありません（またはFAQデータ未配置です）。</div>';
+        return;
+      }
+
+      list.forEach(item => {
+        const steps = Array.isArray(item.steps) ? item.steps : [];
         const card = document.createElement("div");
         card.className = "card";
+
         card.innerHTML = `
-          <img src="${video.thumbnail}" alt="thumbnail">
-          <div class="card-body">
-            <a href="${video.url}" target="_blank">${video.title}</a>
-            <p>${video.description}</p>
-            <p><strong>文字起こし:</strong> ${video.transcript.slice(0, 100)}...</p>
-          </div>`;
-        results.appendChild(card);
+          <details class="faq-item">
+            <summary>${esc(item.question || "")}</summary>
+            <div class="faq-meta">
+              ${item.category ? `<span class="pill">カテゴリ: ${esc(item.category)}</span>` : ""}
+              ${item.intent ? `<span class="pill">intent: ${esc(item.intent)}</span>` : ""}
+              ${item.id ? `<span class="pill">ID: ${esc(item.id)}</span>` : ""}
+            </div>
+            ${steps.length ? `
+              <ol class="steps">
+                ${steps.map(s => `<li>${esc(s)}</li>`).join("")}
+              </ol>
+            ` : `<div class="muted" style="padding:0 1rem 1rem;">手順情報がありません。</div>`}
+          </details>
+        `;
+        root.appendChild(card);
       });
     }
 
-    document.getElementById("searchInput").addEventListener("input", () => {
-      if (document.getElementById("searchInput").value.length >= 2) search();
+    function renderVideos(list){
+      $("videoCount").textContent = list.length;
+
+      const root = $("videoResults");
+      root.innerHTML = "";
+
+      if(!list.length){
+        root.innerHTML = '<div class="empty">該当する動画が見つかりませんでした。</div>';
+        return;
+      }
+
+      list.forEach(v => {
+        const card = document.createElement("div");
+        card.className = "card video-card";
+        card.innerHTML = `
+          <img src="${esc(v.thumbnail)}" alt="thumbnail">
+          <div class="card-body">
+            <a href="${esc(v.url)}" target="_blank" rel="noreferrer noopener">${esc(v.title)}</a>
+            <p class="muted">${esc(v.description || "")}</p>
+            <p><strong>文字起こし:</strong> ${esc((v.transcript || "").slice(0, 120))}…</p>
+          </div>`;
+        root.appendChild(card);
+      });
+    }
+
+    async function doSearch(query){
+      if (!query || query.length < 2) {
+        $("faqResults").innerHTML = "";
+        $("videoResults").innerHTML = "";
+        $("faqCount").textContent = "0";
+        $("videoCount").textContent = "0";
+        return;
+      }
+
+      // FAQ候補と動画検索を並列に実行（片方が失敗しても表示は継続）
+      const faqReq = fetch(`/faq/search?query=${encodeURIComponent(query)}`).then(r => r.ok ? r.json() : []);
+      const vidReq = fetch(`/search?query=${encodeURIComponent(query)}`).then(r => r.ok ? r.json() : []);
+
+      const [faqList, videoList] = await Promise.allSettled([faqReq, vidReq]);
+
+      renderFaq(faqList.status === "fulfilled" ? (faqList.value || []) : []);
+      renderVideos(videoList.status === "fulfilled" ? (videoList.value || []) : []);
+    }
+
+    $("searchInput").addEventListener("input", () => {
+      const q = $("searchInput").value.trim();
+      clearTimeout(timer);
+      timer = setTimeout(() => doSearch(q), 250);
     });
   </script>
 </body>

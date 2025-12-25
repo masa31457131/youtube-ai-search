@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>サポート検索（動画 + FAQ）</title>
+  <style>
+    body {
+      font-family: "Meiryo", "Yu Gothic", sans-serif;
+      margin: 0;
+      background: #fff;
+      color: #333;
+    }
+    header {
+      background: #005BAC;
+      color: white;
+      padding: 1rem 2rem;
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+    main {
+      max-width: 1100px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+
+    #searchInput {
+      width: 100%;
+      max-width: 620px;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .section-title{
+      margin: 1.2rem 0 0.6rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .badge{
+      display: inline-block;
+      font-size: 0.75rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: #e8f1fb;
+      color: #005BAC;
+      border: 1px solid #cfe3fb;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.2rem;
+    }
+
+    .card {
+      border: 1px solid #e1e1e1;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+
+    .card-body {
+      padding: 1rem;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 0.85rem;
+    }
+
+    /* FAQ */
+    .faq-item summary{
+      cursor: pointer;
+      padding: 0.9rem 1rem;
+      font-weight: 700;
+      list-style: none;
+    }
+    .faq-item summary::-webkit-details-marker{ display:none; }
+    .faq-meta{
+      padding: 0 1rem 0.6rem;
+      display:flex;
+      gap:0.5rem;
+      flex-wrap:wrap;
+    }
+    .pill{
+      font-size: 0.75rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid #ddd;
+      background: #fafafa;
+      color: #444;
+    }
+    .steps{
+      padding: 0 1.2rem 1rem;
+      margin: 0;
+    }
+    .steps li{
+      margin: 0.35rem 0;
+      line-height: 1.5;
+    }
+
+    /* Video cards */
+    .video-card img { width: 100%; }
+    .video-card a {
+      font-weight: 700;
+      color: #005BAC;
+      font-size: 1rem;
+      text-decoration: none;
+    }
+    .video-card a:hover { text-decoration: underline; }
+
+    .empty {
+      border: 1px dashed #ddd;
+      border-radius: 10px;
+      padding: 1rem;
+      background: #fcfcfc;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>サポート検索（動画 + FAQ）</h1>
+  </header>
+
+  <main>
+    <input type="text" id="searchInput" placeholder="キーワードを入力して検索…" />
+
+    <div class="section-title">FAQ候補 <span class="badge" id="faqCount">0</span>
+    <div class="pager">
+      <button id="faqPrev" disabled>前の10件</button>
+      <button id="faqNext" disabled>次の10件</button>
+      <span id="faqPageInfo" class="muted"></span>
+    </div>
+</div>
+    <div id="faqResults" class="grid"></div>
+
+    <div class="section-title">関連動画 <span class="badge" id="videoCount">0</span>
+    <div class="pager">
+      <button id="videoPrev" disabled>前の10件</button>
+      <button id="videoNext" disabled>次の10件</button>
+      <span id="videoPageInfo" class="muted"></span>
+    </div>
+</div>
+    <div id="videoResults" class="grid"></div>
+  </main>
+
+  <script>
+
+    const PAGE_SIZE = 10;
+
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => (s ?? "").toString()
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+
+    let timer = null;
+
+    // ページ状態（offset方式）
+    let faqOffset = 0;
+    let videoOffset = 0;
+    let lastQuery = "";
+
+    // Accordion state
+    let expandedFaqId = null;
+
+    // Modal state
+    let modalType = null; // "video" | "faq"
+    let modalUrl = null;
+
+    function setPager(kind, hasMore, offset, countOnPage){
+      const isFaq = kind === "faq";
+      const prevBtn = $(isFaq ? "faqPrev" : "videoPrev");
+      const nextBtn = $(isFaq ? "faqNext" : "videoNext");
+      const info = $(isFaq ? "faqPageInfo" : "videoPageInfo");
+      if(!prevBtn || !nextBtn || !info) return;
+
+      prevBtn.disabled = offset <= 0;
+      nextBtn.disabled = !hasMore;
+
+      if(countOnPage === 0){
+        info.textContent = "";
+        return;
+      }
+      const start = offset + 1;
+      const end = offset + countOnPage;
+      info.textContent = `${start}-${end}`;
+    }
+
+    async function fetchPaged(url){
+      const r = await fetch(url);
+      if(!r.ok){
+        return { items: [], has_more: false, offset: 0, limit: PAGE_SIZE, total_visible: 0 };
+      }
+      return r.json();
+    }
+
+    // ===== Modal =====
+    function openModal({title, bodyHtml, type, url}){
+      modalType = type || null;
+      modalUrl = url || null;
+
+      if($("modalTitle")) $("modalTitle").textContent = title || "";
+      if($("modalBody")) $("modalBody").innerHTML = bodyHtml || "";
+      if($("modalOverlay")) $("modalOverlay").classList.remove("hidden");
+
+      // FAQは「新しいタブで開く」を非表示
+      if($("modalOpenNewTab")){
+        $("modalOpenNewTab").style.display = (modalType === "faq") ? "none" : "inline-block";
+      }
+    }
+
+    function closeModal(){
+      if($("modalOverlay")) $("modalOverlay").classList.add("hidden");
+      if($("modalBody")) $("modalBody").innerHTML = "";
+      modalType = null;
+      modalUrl = null;
+    }
+
+    if($("modalClose")) $("modalClose").addEventListener("click", (e)=>{ e.stopPropagation(); closeModal(); });
+    if($("modalOverlay")) $("modalOverlay").addEventListener("click", ()=> closeModal());
+    if($("modalBox")) $("modalBox").addEventListener("click", (e)=> e.stopPropagation());
+
+    if($("modalOpenNewTab")) $("modalOpenNewTab").addEventListener("click", (e)=>{
+      e.stopPropagation();
+      if(modalUrl){
+        closeModal();
+        window.open(modalUrl, "_blank", "noopener,noreferrer");
+      }
+    });
+
+    function getYouTubeId(url){
+      try{
+        const u = new URL(url);
+        const v = u.searchParams.get("v");
+        if(v) return v;
+        if(u.hostname.includes("youtu.be")){
+          return u.pathname.replace("/","").trim();
+        }
+        const m = u.pathname.match(/\/embed\/([^\/]+)/);
+        if(m) return m[1];
+      }catch(e){}
+      return null;
+    }
+
+    // ===== FAQ Rendering =====
+    function renderFaq(items, meta){
+      const root = $("faqResults");
+      if(!root) return;
+      root.innerHTML = "";
+      if($("faqCount")) $("faqCount").textContent = String(meta.total_visible ?? (items?.length || 0));
+
+      if(!items || items.length === 0){
+        root.innerHTML = `<p class="muted">FAQの該当結果はありません。</p>`;
+        setPager("faq", false, faqOffset, 0);
+        return;
+      }
+
+      for(const f of items){
+        const id = f.id || "";
+        const title = f.question || "";
+
+        const wrap = document.createElement("div");
+
+        if(expandedFaqId !== id){
+          wrap.className = "faq-title-only";
+          wrap.innerHTML = `<div class="title">${esc(title)}</div>`;
+          wrap.addEventListener("click", ()=>{
+            expandedFaqId = id;
+            renderFaq(items, meta);
+          });
+        } else {
+          const metaLine = [
+            f.category ? `カテゴリ: ${esc(f.category)}` : "",
+            (Array.isArray(f.keywords) && f.keywords.length) ? `KW: ${esc(f.keywords.join(", "))}` : ""
+          ].filter(Boolean).join(" / ");
+
+          const steps = Array.isArray(f.steps) ? f.steps : [];
+          const stepsHtml = steps.length
+            ? `<ol>${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>`
+            : `<p class="muted">（手順がありません）</p>`;
+
+          wrap.className = "faq-expanded";
+          wrap.innerHTML = `
+            <div class="title" style="font-weight:800;">${esc(title)}</div>
+            ${metaLine ? `<div class="meta">${metaLine}</div>` : ""}
+            ${stepsHtml}
+            <button class="detail-btn">詳細を表示</button>
+          `;
+
+          wrap.addEventListener("click", ()=>{
+            expandedFaqId = null;
+            renderFaq(items, meta);
+          });
+
+          const btn = wrap.querySelector(".detail-btn");
+          if(btn){
+            btn.addEventListener("click", (e)=>{
+              e.stopPropagation();
+              const fullMeta = [
+                f.id ? `ID: ${esc(f.id)}` : "",
+                f.category ? `カテゴリ: ${esc(f.category)}` : "",
+                (Array.isArray(f.keywords) && f.keywords.length) ? `KW: ${esc(f.keywords.join(", "))}` : ""
+              ].filter(Boolean).join(" / ");
+
+              openModal({
+                title: title,
+                type: "faq",
+                url: null,
+                bodyHtml: `
+                  ${fullMeta ? `<div class="muted" style="margin-bottom:10px;">${fullMeta}</div>` : ""}
+                  ${stepsHtml}
+                `
+              });
+            });
+          }
+        }
+
+        root.appendChild(wrap);
+      }
+
+      setPager("faq", !!meta.has_more, faqOffset, items.length);
+    }
+
+    // ===== Video Rendering =====
+    function renderVideos(items, meta){
+      const root = $("videoResults");
+      if(!root) return;
+      root.innerHTML = "";
+      if($("videoCount")) $("videoCount").textContent = String(meta.total_visible ?? (items?.length || 0));
+
+      if(!items || items.length === 0){
+        root.innerHTML = `<p class="muted">動画の該当結果はありません。</p>`;
+        setPager("video", false, videoOffset, 0);
+        return;
+      }
+
+      for(const v of items){
+        const url = v.url || "#";
+        const title = v.title || "";
+        const desc = v.description || "";
+        const thumb = v.thumbnail || "";
+
+        const card = document.createElement("div");
+        card.className = "video-card";
+        card.innerHTML = `
+          <div class="video-row">
+            ${thumb ? `<img class="video-thumb" src="${esc(thumb)}" alt="thumbnail">` : ""}
+            <div style="flex:1;">
+              <div class="video-title">${esc(title)}</div>
+              <div class="muted">${esc(desc)}</div>
+            </div>
+          </div>
+        `;
+
+        card.addEventListener("click", ()=>{
+          const vid = getYouTubeId(url);
+          const embed = vid ? `https://www.youtube.com/embed/${vid}?autoplay=1` : url;
+          openModal({
+            title: title,
+            type: "video",
+            url: url,
+            bodyHtml: `
+              <iframe src="${esc(embed)}"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+              <div class="muted" style="margin-top:10px;">
+                ※「新しいタブで開く」を押すと、このウインドウを閉じて別タブで再生します。
+              </div>
+            `
+          });
+        });
+
+        root.appendChild(card);
+      }
+
+      setPager("video", !!meta.has_more, videoOffset, items.length);
+    }
+
+    // ===== Page loaders =====
+    async function loadFaqPage(){
+      const q = (lastQuery || "").trim();
+      if(!q){
+        renderFaq([], {has_more:false, total_visible:0});
+        return;
+      }
+      const url = `/faq/search?query=${encodeURIComponent(q)}&offset=${faqOffset}&limit=${PAGE_SIZE}&paged=1`;
+      const data = await fetchPaged(url);
+      expandedFaqId = null;
+      renderFaq(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
+    }
+
+    async function loadVideoPage(){
+      const q = (lastQuery || "").trim();
+      if(!q){
+        renderVideos([], {has_more:false, total_visible:0});
+        return;
+      }
+      const url = `/search?query=${encodeURIComponent(q)}&offset=${videoOffset}&limit=${PAGE_SIZE}&paged=1`;
+      const data = await fetchPaged(url);
+      renderVideos(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
+    }
+
+    async function doSearch(query){
+      lastQuery = (query ?? "").toString().trim();
+      faqOffset = 0;
+      videoOffset = 0;
+      expandedFaqId = null;
+
+      if (!lastQuery) {
+        if($("faqResults")) $("faqResults").innerHTML = "";
+        if($("videoResults")) $("videoResults").innerHTML = "";
+        if($("faqCount")) $("faqCount").textContent = "0";
+        if($("videoCount")) $("videoCount").textContent = "0";
+        setPager("faq", false, 0, 0);
+        setPager("video", false, 0, 0);
+        return;
+      }
+
+      await Promise.allSettled([loadFaqPage(), loadVideoPage()]);
+    }
+
+    // ===== Events =====
+    if($("faqPrev")) $("faqPrev").addEventListener("click", async () => { faqOffset = Math.max(0, faqOffset - PAGE_SIZE); await loadFaqPage(); });
+    if($("faqNext")) $("faqNext").addEventListener("click", async () => { faqOffset = faqOffset + PAGE_SIZE; await loadFaqPage(); });
+    if($("videoPrev")) $("videoPrev").addEventListener("click", async () => { videoOffset = Math.max(0, videoOffset - PAGE_SIZE); await loadVideoPage(); });
+    if($("videoNext")) $("videoNext").addEventListener("click", async () => { videoOffset = videoOffset + PAGE_SIZE; await loadVideoPage(); });
+
+    if($("searchInput")){
+      $("searchInput").addEventListener("input", () => {
+        const q = $("searchInput").value;
+        clearTimeout(timer);
+        timer = setTimeout(() => doSearch(q), 250);
+      });
+      // Enterでフォーム送信されないように
+      $("searchInput").addEventListener("keydown", (e)=>{
+        if(e.key === "Enter"){ e.preventDefault(); }
+      });
+    }
+
+    // 初期状態
+    setPager("faq", false, 0, 0);
+    setPager("video", false, 0, 0);
+
+  </script>
+
+  <!-- Modal Overlay -->
+  <div id="modalOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal" id="modalBox">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-actions">
+          <button id="modalOpenNewTab" class="modal-btn">新しいタブで開く</button>
+          <button id="modalClose" class="modal-btn primary">閉じる</button>
+        </div>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+</body>
+</html>

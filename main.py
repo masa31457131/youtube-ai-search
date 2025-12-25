@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import re
 import numpy as np
-from collections import defaultdict, Counter
+from collections import Counter
 
 # ============================================
 # 設定
@@ -53,12 +53,19 @@ app.add_middleware(
 
 security = HTTPBasic()
 
+# 動画検索用
 videos: List[Dict[str, Any]] = []
 text_corpus: List[str] = []
 synonyms: Dict[str, List[str]] = {}
 
 model: Optional[SentenceTransformer] = None
 index: Optional[faiss.IndexFlatIP] = None  # cosine (normalized) via inner product
+
+# FAQ検索用
+faq_data: Any = None
+faq_items_flat: List[Dict[str, Any]] = []
+faq_corpus: List[str] = []
+faq_index: Optional[faiss.IndexFlatIP] = None
 
 
 # ============================================
@@ -100,7 +107,7 @@ def safe_write_json(path: pathlib.Path, obj: Any):
 
 
 # ============================================
-# データ読み込み & 検索インデックス
+# 動画データ読み込み & インデックス
 # ============================================
 
 def load_data() -> None:
@@ -111,15 +118,15 @@ def load_data() -> None:
 
     videos = safe_load_json(DATA_PATH, default=[])
 
-    synonyms = safe_load_json(SYNONYMS_PATH, default={})
-    if not isinstance(synonyms, dict):
-        synonyms = {}
+    synonyms_loaded = safe_load_json(SYNONYMS_PATH, default={})
+    synonyms = synonyms_loaded if isinstance(synonyms_loaded, dict) else {}
 
     text_corpus = []
     for v in videos:
         title = normalize_text(v.get("title", ""))
         desc = normalize_text(v.get("description", ""))
         trans = normalize_text(v.get("transcript", ""))
+
         combined = f"{title} [SEP] {desc} [SEP] {trans}"
         combined_weighted = f"{title} {title} {combined}"  # title boost
         text_corpus.append(combined_weighted)
@@ -142,7 +149,6 @@ def build_search_index() -> None:
     m = get_model()
     emb = m.encode(text_corpus, convert_to_numpy=True, show_progress_bar=False)
 
-    # normalize for cosine
     norms = np.linalg.norm(emb, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     emb = (emb / norms).astype("float32")
@@ -196,7 +202,6 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
     q_for_embed = expand_query_with_synonyms(q_norm)
 
     q_emb = m.encode([q_for_embed], convert_to_numpy=True, show_progress_bar=False)
-
     norms = np.linalg.norm(q_emb, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
     q_emb = (q_emb / norms).astype("float32")
@@ -213,8 +218,8 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
         if idx < 0 or idx >= len(videos):
             continue
         v = videos[idx]
-        text_for_kw = normalize_text((v.get("title", "") or "") + " " + (v.get("description", "") or ""))
 
+        text_for_kw = normalize_text((v.get("title", "") or "") + " " + (v.get("description", "") or ""))
         kw_score = 0.0
         if query_tokens:
             hit = sum(1 for t in query_tokens if t and t in text_for_kw)
@@ -226,6 +231,111 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
     results.sort(key=lambda x: x[0], reverse=True)
     return [v for _, v in results[:top_k]]
 
+
+# ============================================
+# FAQ読み込み & インデックス
+# ============================================
+
+def flatten_faq(obj: Any) -> List[Dict[str, Any]]:
+    items: List[Dict[str, Any]] = []
+    if isinstance(obj, list):
+        for i, it in enumerate(obj):
+            if isinstance(it, dict):
+                it2 = dict(it)
+                it2["_key"] = str(i)
+                items.append(it2)
+        return items
+    if isinstance(obj, dict):
+        for k, it in obj.items():
+            if isinstance(it, dict):
+                it2 = dict(it)
+                it2["_key"] = str(k)
+                items.append(it2)
+        return items
+    return items
+
+
+def faq_item_to_text(item: Dict[str, Any]) -> str:
+    q = item.get("question", "") or item.get("q", "") or ""
+    a = item.get("answer", "") or item.get("a", "") or ""
+
+    steps = item.get("steps", "")
+    if isinstance(steps, list):
+        steps_text = " ".join([str(s) for s in steps])
+    else:
+        steps_text = str(steps) if steps else ""
+
+    tags = item.get("tags", "")
+    if isinstance(tags, list):
+        tags_text = " ".join([str(t) for t in tags])
+    else:
+        tags_text = str(tags) if tags else ""
+
+    category = item.get("category", "") or ""
+    intent = item.get("intent", "") or ""
+
+    combined = f"{q} {q} [SEP] {a} [SEP] {steps_text} [SEP] {tags_text} [SEP] {category} {intent}"
+    return normalize_text(combined)
+
+
+def load_faq() -> None:
+    global faq_data, faq_items_flat, faq_corpus
+    faq_data = safe_load_json(FAQ_PATH, default=[])
+    faq_items_flat = flatten_faq(faq_data)
+    faq_corpus = [faq_item_to_text(it) for it in faq_items_flat]
+
+
+def build_faq_index() -> None:
+    global faq_index
+    if not faq_corpus:
+        faq_index = None
+        return
+
+    m = get_model()
+    emb = m.encode(faq_corpus, convert_to_numpy=True, show_progress_bar=False)
+
+    norms = np.linalg.norm(emb, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    emb = (emb / norms).astype("float32")
+
+    dim = emb.shape[1]
+    faq_index = faiss.IndexFlatIP(dim)
+    faq_index.add(emb)
+
+
+def search_faq_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
+    if faq_index is None or not faq_items_flat:
+        return []
+
+    m = get_model()
+    q_norm = normalize_text(query)
+    q_for_embed = expand_query_with_synonyms(q_norm)
+
+    q_emb = m.encode([q_for_embed], convert_to_numpy=True, show_progress_bar=False)
+    norms = np.linalg.norm(q_emb, axis=1, keepdims=True)
+    norms[norms == 0] = 1.0
+    q_emb = (q_emb / norms).astype("float32")
+
+    k = min(top_k * 5, len(faq_items_flat))
+    sims, idxs = faq_index.search(q_emb, k)
+    sims = sims[0]
+    idxs = idxs[0]
+
+    results = []
+    for sim, idx in zip(sims, idxs):
+        if idx < 0 or idx >= len(faq_items_flat):
+            continue
+        it = dict(faq_items_flat[idx])
+        it["_score"] = float(sim)
+        results.append(it)
+
+    results.sort(key=lambda x: x.get("_score", 0.0), reverse=True)
+    return results[:top_k]
+
+
+# ============================================
+# 検索ログ
+# ============================================
 
 def log_search_query(query: str, hits_count: int) -> None:
     header = ["timestamp", "query", "hits"]
@@ -240,6 +350,24 @@ def log_search_query(query: str, hits_count: int) -> None:
         w.writerow(row)
 
 
+def parse_logs() -> List[dict]:
+    if not SEARCH_LOG_PATH.exists():
+        return []
+    rows = []
+    with open(SEARCH_LOG_PATH, "r", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            ts = row.get("timestamp", "")
+            q = row.get("query", "")
+            hits = int(row.get("hits", "0") or 0)
+            try:
+                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            except:
+                continue
+            rows.append({"dt": dt, "query": q, "hits": hits})
+    return rows
+
+
 # ============================================
 # 起動時
 # ============================================
@@ -248,19 +376,32 @@ def log_search_query(query: str, hits_count: int) -> None:
 def on_startup() -> None:
     load_data()
     build_search_index()
+    load_faq()
+    build_faq_index()
 
 
 # ============================================
-# 検索API
+# 検索API（フロント互換）
+#   - index.html は /search と /faq/search を別々に呼んでいる
 # ============================================
 
-@app.get("/search", summary="動画検索", tags=["search"])
+@app.get("/search", summary="動画検索（配列で返す）", tags=["search"])
 def search_endpoint(
     query: str = Query(..., min_length=1, description="検索クエリ（単語・短文OK）"),
     top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
 ):
     results = search_core(query, top_k=top_k)
+    # FAQは別APIで取るので、ここでは動画件数だけログに入れる（必要なら合算も可）
     log_search_query(query, len(results))
+    return results
+
+
+@app.get("/faq/search", summary="FAQ検索（配列で返す）", tags=["faq"])
+def faq_search_endpoint(
+    query: str = Query(..., min_length=1, description="検索クエリ（単語・短文OK）"),
+    top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
+):
+    results = search_faq_core(query, top_k=top_k)
     return results
 
 
@@ -275,10 +416,7 @@ def admin_get_synonyms(user: str = Depends(verify_admin)):
 
 @app.put("/admin/api/synonyms", tags=["admin"])
 def admin_put_synonyms(payload: Dict[str, List[str]] = Body(...), user: str = Depends(verify_admin)):
-    # 保存
     safe_write_json(SYNONYMS_PATH, payload)
-
-    # メモリ上の synonyms 更新（即反映）
     global synonyms
     synonyms = payload if isinstance(payload, dict) else {}
     return {"ok": True}
@@ -295,7 +433,6 @@ def admin_patch_synonym_term(
         current = {}
     current[term] = values
     safe_write_json(SYNONYMS_PATH, current)
-
     global synonyms
     synonyms = current
     return {"ok": True, "term": term, "values": values}
@@ -313,8 +450,7 @@ def admin_delete_synonym_term(term: str, user: str = Depends(verify_admin)):
 
 
 # ============================================
-# 管理API: faq_chatbot_fixed_only.json CRUD
-# 形式は「配列 or dict」どちらでも扱えるようにする（現場データに合わせる）
+# 管理API: FAQ CRUD（保存後に FAQ index 再構築）
 # ============================================
 
 def faq_load():
@@ -333,6 +469,8 @@ def admin_get_faq(user: str = Depends(verify_admin)):
 @app.put("/admin/api/faq", tags=["admin"])
 def admin_put_faq(payload: Any = Body(...), user: str = Depends(verify_admin)):
     faq_save(payload)
+    load_faq()
+    build_faq_index()
     return {"ok": True}
 
 
@@ -342,16 +480,18 @@ def admin_add_faq_item(item: Any = Body(...), user: str = Depends(verify_admin))
     if isinstance(data, list):
         data.append(item)
         faq_save(data)
-        return {"ok": True, "index": len(data) - 1}
-    if isinstance(data, dict):
-        # dict の場合は item に id を要求
-        _id = item.get("id")
+    elif isinstance(data, dict):
+        _id = (item or {}).get("id")
         if not _id:
             raise HTTPException(status_code=400, detail="FAQ が dict の場合、item.id が必要です")
         data[str(_id)] = item
         faq_save(data)
-        return {"ok": True, "id": str(_id)}
-    raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+    else:
+        raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+
+    load_faq()
+    build_faq_index()
+    return {"ok": True}
 
 
 @app.patch("/admin/api/faq/item/{key}", tags=["admin"])
@@ -366,14 +506,15 @@ def admin_update_faq_item(key: str, item: Any = Body(...), user: str = Depends(v
             raise HTTPException(status_code=404, detail="対象が見つかりません")
         data[idx] = item
         faq_save(data)
-        return {"ok": True, "index": idx}
-
-    if isinstance(data, dict):
+    elif isinstance(data, dict):
         data[key] = item
         faq_save(data)
-        return {"ok": True, "key": key}
+    else:
+        raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
 
-    raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+    load_faq()
+    build_faq_index()
+    return {"ok": True}
 
 
 @app.delete("/admin/api/faq/item/{key}", tags=["admin"])
@@ -383,42 +524,23 @@ def admin_delete_faq_item(key: str, user: str = Depends(verify_admin)):
         idx = int(key)
         if idx < 0 or idx >= len(data):
             raise HTTPException(status_code=404, detail="対象が見つかりません")
-        deleted = data.pop(idx)
+        data.pop(idx)
         faq_save(data)
-        return {"ok": True, "deleted_index": idx}
-
-    if isinstance(data, dict):
+    elif isinstance(data, dict):
         if key in data:
             del data[key]
             faq_save(data)
-        return {"ok": True, "deleted_key": key}
+    else:
+        raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
 
-    raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+    load_faq()
+    build_faq_index()
+    return {"ok": True}
 
 
 # ============================================
 # 管理API: 検索ログ集計（月別/日別）
 # ============================================
-
-def parse_logs() -> List[dict]:
-    if not SEARCH_LOG_PATH.exists():
-        return []
-
-    rows = []
-    with open(SEARCH_LOG_PATH, "r", encoding="utf-8") as f:
-        r = csv.DictReader(f)
-        for row in r:
-            # timestamp は ISO を想定
-            ts = row.get("timestamp", "")
-            q = row.get("query", "")
-            hits = int(row.get("hits", "0") or 0)
-            try:
-                dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
-            except:
-                continue
-            rows.append({"dt": dt, "query": q, "hits": hits})
-    return rows
-
 
 @app.get("/admin/api/logs/months", tags=["admin"])
 def admin_list_log_months(user: str = Depends(verify_admin)):
@@ -432,9 +554,6 @@ def admin_logs_summary(
     month: str = Query(..., description="YYYY-MM"),
     user: str = Depends(verify_admin),
 ):
-    """
-    指定月の「日別 件数」「上位クエリ」を返す
-    """
     rows = parse_logs()
     day_counter = Counter()
     query_counter = Counter()
@@ -448,7 +567,6 @@ def admin_logs_summary(
 
     days = [{"day": d, "count": c} for d, c in sorted(day_counter.items())]
     top_queries = [{"query": q, "count": c} for q, c in query_counter.most_common(50)]
-
     return {"month": month, "days": days, "top_queries": top_queries}
 
 
@@ -463,17 +581,15 @@ def admin_export_logs_csv(user: str = Depends(verify_admin)):
 
 
 # ============================================
-# 管理画面（静的HTML）
+# 画面配信（既存フロント + 管理UI）
 # ============================================
 
 frontend_path = BASE_DIR / "frontend"
 admin_path = BASE_DIR / "admin_ui"
 
-# 既存フロント
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-# 管理UI
 admin_path.mkdir(parents=True, exist_ok=True)
 app.mount("/admin/static", StaticFiles(directory=admin_path), name="admin_static")
 

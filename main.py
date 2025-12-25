@@ -17,15 +17,19 @@ from typing import List, Dict, Any, Optional
 import re
 import numpy as np
 from collections import Counter
+import unicodedata
 
 # ============================================
 # 設定
 # ============================================
 
-APP_TITLE = "音声検索AI - サポート検索 (高速・高精度版)"
+APP_TITLE = "サポート検索（動画 + FAQ）"
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
+
 DEFAULT_TOP_K = 10
+DEFAULT_PAGE_LIMIT = 10
+MAX_PAGE_LIMIT = 50
 
 # 管理者（Basic認証）
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -58,11 +62,11 @@ videos: List[Dict[str, Any]] = []
 text_corpus: List[str] = []
 synonyms: Dict[str, List[str]] = {}
 
-model: Optional[SentenceTransformer] = None
-index: Optional[faiss.IndexFlatIP] = None  # cosine (normalized) via inner product
+_model: Optional[SentenceTransformer] = None
+video_index: Optional[faiss.IndexFlatIP] = None  # cosine (normalized) via inner product
 
 # FAQ検索用
-faq_data: Any = None
+faq_data: Dict[str, Any] = {}
 faq_items_flat: List[Dict[str, Any]] = []
 faq_corpus: List[str] = []
 faq_index: Optional[faiss.IndexFlatIP] = None
@@ -71,8 +75,6 @@ faq_index: Optional[faiss.IndexFlatIP] = None
 # ============================================
 # 共通ユーティリティ
 # ============================================
-
-import unicodedata
 
 def normalize_text(text: str) -> str:
     """
@@ -116,57 +118,23 @@ def safe_write_json(path: pathlib.Path, obj: Any):
         raise HTTPException(status_code=500, detail=f"{path.name} の保存に失敗: {e}")
 
 
-# ============================================
-# 動画データ読み込み & インデックス
-# ============================================
-
-def load_data() -> None:
-    global videos, synonyms, text_corpus
-
-    if not DATA_PATH.exists():
-        raise RuntimeError(f"data.json が見つかりません: {DATA_PATH}")
-
-    videos = safe_load_json(DATA_PATH, default=[])
-
-    synonyms_loaded = safe_load_json(SYNONYMS_PATH, default={})
-    synonyms = synonyms_loaded if isinstance(synonyms_loaded, dict) else {}
-
-    text_corpus = []
-    for v in videos:
-        title = normalize_text(v.get("title", ""))
-        desc = normalize_text(v.get("description", ""))
-        trans = normalize_text(v.get("transcript", ""))
-
-        combined = f"{title} [SEP] {desc} [SEP] {trans}"
-        combined_weighted = f"{title} {title} {combined}"  # title boost
-        text_corpus.append(combined_weighted)
-
-
 def get_model() -> SentenceTransformer:
-    global model
-    if model is None:
+    global _model
+    if _model is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        model = SentenceTransformer(EMBEDDING_MODEL, device=device)
-    return model
+        _model = SentenceTransformer(EMBEDDING_MODEL, device=device)
+    return _model
 
 
-def build_search_index() -> None:
-    global index
-    if not text_corpus:
-        index = None
-        return
-
-    m = get_model()
-    emb = m.encode(text_corpus, convert_to_numpy=True, show_progress_bar=False)
-
-    norms = np.linalg.norm(emb, axis=1, keepdims=True)
+def normalize_embeddings(x: np.ndarray) -> np.ndarray:
+    norms = np.linalg.norm(x, axis=1, keepdims=True)
     norms[norms == 0] = 1.0
-    emb = (emb / norms).astype("float32")
+    return (x / norms).astype("float32")
 
-    dim = emb.shape[1]
-    index = faiss.IndexFlatIP(dim)
-    index.add(emb)
 
+# ============================================
+# 類義語展開
+# ============================================
 
 def expand_query_with_synonyms(query: str) -> str:
     """
@@ -186,110 +154,162 @@ def expand_query_with_synonyms(query: str) -> str:
     for t in tokens:
         expanded.append(t)
         if t in synonyms:
-            expanded.extend(synonyms[t])
+            expanded.extend([normalize_text(s) for s in synonyms[t]])
 
     for key, syns in synonyms.items():
-        if key in original_query and key not in tokens:
-            expanded.append(key)
-            expanded.extend(syns)
+        k = normalize_text(key)
+        if k and k in original_query and k not in tokens:
+            expanded.append(k)
+            expanded.extend([normalize_text(s) for s in syns])
 
     seen = set()
     unique = []
     for w in expanded:
-        if w not in seen:
+        w = normalize_text(w)
+        if w and w not in seen:
             seen.add(w)
             unique.append(w)
 
-    return " ".join(unique)
+    return " ".join(unique) if unique else query
 
 
-def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
-    if index is None or not videos:
-        return []
+# ============================================
+# 動画データ読み込み & インデックス
+# ============================================
+
+def load_videos() -> None:
+    global videos, synonyms, text_corpus
+
+    if not DATA_PATH.exists():
+        raise RuntimeError(f"data.json が見つかりません: {DATA_PATH}")
+
+    videos_loaded = safe_load_json(DATA_PATH, default=[])
+    if not isinstance(videos_loaded, list):
+        raise RuntimeError("data.json の形式が不正です（listを期待）")
+    videos = videos_loaded
+
+    synonyms_loaded = safe_load_json(SYNONYMS_PATH, default={})
+    synonyms = synonyms_loaded if isinstance(synonyms_loaded, dict) else {}
+
+    text_corpus = []
+    for v in videos:
+        title = normalize_text(v.get("title", ""))
+        desc = normalize_text(v.get("description", ""))
+        trans = normalize_text(v.get("transcript", ""))
+
+        combined = f"{title} [SEP] {desc} [SEP] {trans}"
+        # title を強める
+        combined_weighted = f"{title} {title} {title} {combined}"
+        text_corpus.append(combined_weighted)
+
+
+def build_video_index() -> None:
+    global video_index
+    if not text_corpus:
+        video_index = None
+        return
 
     m = get_model()
+    emb = m.encode(text_corpus, convert_to_numpy=True, show_progress_bar=False)
+    emb = normalize_embeddings(emb)
+
+    dim = emb.shape[1]
+    video_index = faiss.IndexFlatIP(dim)
+    video_index.add(emb)
+
+
+def search_videos_ranked(query: str, k: int) -> List[Dict[str, Any]]:
+    """
+    k件分の候補（スコア付き）を返す（内部）
+    """
+    if video_index is None or not videos:
+        return []
+
     q_norm = normalize_text(query)
     q_for_embed = expand_query_with_synonyms(q_norm)
 
+    m = get_model()
     q_emb = m.encode([q_for_embed], convert_to_numpy=True, show_progress_bar=False)
-    norms = np.linalg.norm(q_emb, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    q_emb = (q_emb / norms).astype("float32")
+    q_emb = normalize_embeddings(q_emb)
 
-    k = min(top_k * 5, len(videos))
-    sims, idxs = index.search(q_emb, k)
+    sims, idxs = video_index.search(q_emb, min(k, len(videos)))
     sims = sims[0]
     idxs = idxs[0]
 
     query_tokens = set(q_norm.split())
-    results: List[tuple[float, Dict[str, Any]]] = []
+    results: List[Dict[str, Any]] = []
 
     for sim, idx in zip(sims, idxs):
         if idx < 0 or idx >= len(videos):
             continue
-        v = videos[idx]
+        v = dict(videos[idx])
 
+        # キーワード一致（title/description）を軽くブースト
         text_for_kw = normalize_text((v.get("title", "") or "") + " " + (v.get("description", "") or ""))
         kw_score = 0.0
         if query_tokens:
             hit = sum(1 for t in query_tokens if t and t in text_for_kw)
             kw_score = hit / len(query_tokens)
 
-        final_score = 0.85 * float(sim) + 0.15 * kw_score
-        results.append((final_score, v))
+        v["_score"] = 0.9 * float(sim) + 0.1 * kw_score
+        results.append(v)
 
-    results.sort(key=lambda x: x[0], reverse=True)
-    return [v for _, v in results[:top_k]]
+    results.sort(key=lambda x: x.get("_score", 0.0), reverse=True)
+    return results
 
 
 # ============================================
-# FAQ読み込み & インデックス
+# FAQ読み込み & インデックス（meta + faqs 形式対応）
 # ============================================
+
+def load_faq_raw() -> Dict[str, Any]:
+    obj = safe_load_json(FAQ_PATH, default={"meta": {}, "faqs": []})
+    if isinstance(obj, list):
+        # 過去形式（list）の場合はラップ
+        obj = {"meta": {}, "faqs": obj}
+    if not isinstance(obj, dict):
+        obj = {"meta": {}, "faqs": []}
+    if "faqs" not in obj or not isinstance(obj["faqs"], list):
+        obj["faqs"] = []
+    if "meta" not in obj or not isinstance(obj["meta"], dict):
+        obj["meta"] = {}
+    return obj
+
+
+def save_faq_raw(obj: Dict[str, Any]) -> None:
+    # 形式を守る
+    if "faqs" not in obj or not isinstance(obj["faqs"], list):
+        raise HTTPException(status_code=400, detail="FAQの形式が不正です（faqsが必要）")
+    if "meta" not in obj or not isinstance(obj["meta"], dict):
+        obj["meta"] = {}
+    safe_write_json(FAQ_PATH, obj)
+
 
 def flatten_faq(obj: Any) -> List[Dict[str, Any]]:
     """
-    FAQ json の代表的な形式をすべて配列に正規化する
-    対応：
-      - {"faqs":[...], "meta":{...}}  ← あなたの形式
-      - {"items":[...]}
-      - [...](list)
-      - { "id": {...}, ... } (dict)
+    {"meta":..., "faqs":[...]} を前提に、配列へ正規化
     """
-    # まず「ラッパー」形式を吸収
-    if isinstance(obj, dict):
-        if "faqs" in obj and isinstance(obj["faqs"], list):
-            obj = obj["faqs"]
-        elif "items" in obj and isinstance(obj["items"], list):
-            obj = obj["items"]
+    if isinstance(obj, dict) and "faqs" in obj and isinstance(obj["faqs"], list):
+        obj = obj["faqs"]
 
     items: List[Dict[str, Any]] = []
-
     if isinstance(obj, list):
         for i, it in enumerate(obj):
             if isinstance(it, dict):
                 it2 = dict(it)
-                # id があればそれを key に
                 it2["_key"] = str(it2.get("id", i))
                 items.append(it2)
             else:
                 items.append({"_key": str(i), "raw": it})
-        return items
-
-    if isinstance(obj, dict):
-        # dict の場合（id->item 形式など）
-        for k, it in obj.items():
-            if isinstance(it, dict):
-                it2 = dict(it)
-                it2["_key"] = str(it2.get("id", k))
-                items.append(it2)
-            else:
-                items.append({"_key": str(k), "raw": it})
-        return items
-
     return items
 
 
 def faq_item_to_text(item: Dict[str, Any]) -> str:
+    """
+    重み付け：
+    - question/utterances/keywords を強く
+    - steps は長文化しやすいので先頭2行のみ
+    """
     q = normalize_text(item.get("question", "") or "")
     category = normalize_text(item.get("category", "") or "")
     intent = normalize_text(item.get("intent", "") or "")
@@ -303,19 +323,18 @@ def faq_item_to_text(item: Dict[str, Any]) -> str:
 
     steps = item.get("steps", [])
     if isinstance(steps, list):
-        # 長文に引っ張られないよう先頭だけ（必要なら 2〜3 行に増やす）
         steps_head = steps[:2]
         steps_text = " ".join([normalize_text(s) for s in steps_head if s])
     else:
-        steps_text = normalize_text(str(steps))[:200]  # 一応制限
+        steps_text = normalize_text(str(steps))[:200]
 
     parts = []
     if q:
-        parts += [q, q, q]                  # 質問を強く
+        parts += [q, q, q]
     if utter_text:
-        parts += [utter_text, utter_text]   # 言い回しも強め
+        parts += [utter_text, utter_text]
     if kw_text:
-        parts += [kw_text, kw_text, kw_text] # キーワード最重要
+        parts += [kw_text, kw_text, kw_text]
     if category:
         parts.append(category)
     if intent:
@@ -324,7 +343,29 @@ def faq_item_to_text(item: Dict[str, Any]) -> str:
         parts.append(steps_text)
 
     return " [SEP] ".join([p for p in parts if p])
-    
+
+
+def load_faq() -> None:
+    global faq_data, faq_items_flat, faq_corpus
+    faq_data = load_faq_raw()
+    faq_items_flat = flatten_faq(faq_data)
+    faq_corpus = [faq_item_to_text(it) for it in faq_items_flat]
+
+
+def build_faq_index() -> None:
+    global faq_index
+    if not faq_corpus:
+        faq_index = None
+        return
+
+    m = get_model()
+    emb = m.encode(faq_corpus, convert_to_numpy=True, show_progress_bar=False)
+    emb = normalize_embeddings(emb)
+
+    dim = emb.shape[1]
+    faq_index = faiss.IndexFlatIP(dim)
+    faq_index.add(emb)
+
 
 def faq_keyword_boost(query_norm: str, item: Dict[str, Any]) -> float:
     """
@@ -333,15 +374,13 @@ def faq_keyword_boost(query_norm: str, item: Dict[str, Any]) -> float:
     score = 0.0
     q = query_norm
 
-    # keywordsに含まれる語がクエリに含まれていれば強く加点
     kws = item.get("keywords", [])
     kw_list = kws if isinstance(kws, list) else [kws]
     for k in kw_list:
         k2 = normalize_text(str(k))
         if k2 and (k2 in q or q in k2):
-            score += 1.2  # 強め
+            score += 1.2
 
-    # question/utterances の部分一致
     question = normalize_text(item.get("question", "") or "")
     if question and (q in question or question in q):
         score += 0.8
@@ -356,68 +395,36 @@ def faq_keyword_boost(query_norm: str, item: Dict[str, Any]) -> float:
     return score
 
 
-def load_faq() -> None:
-    global faq_data, faq_items_flat, faq_corpus
-    faq_data = safe_load_json(FAQ_PATH, default=[])
-    faq_items_flat = flatten_faq(faq_data)
-    faq_corpus = [faq_item_to_text(it) for it in faq_items_flat]
-
-
-def build_faq_index() -> None:
-    global faq_index
-    if not faq_corpus:
-        faq_index = None
-        return
-
-    m = get_model()
-    emb = m.encode(faq_corpus, convert_to_numpy=True, show_progress_bar=False)
-
-    norms = np.linalg.norm(emb, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    emb = (emb / norms).astype("float32")
-
-    dim = emb.shape[1]
-    faq_index = faiss.IndexFlatIP(dim)
-    faq_index.add(emb)
-
-
-def search_faq_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
+def search_faq_ranked(query: str, k: int) -> List[Dict[str, Any]]:
     if faq_index is None or not faq_items_flat:
         return []
 
-    m = get_model()
     q_norm = normalize_text(query)
     q_for_embed = expand_query_with_synonyms(q_norm)
 
+    m = get_model()
     q_emb = m.encode([q_for_embed], convert_to_numpy=True, show_progress_bar=False)
-    norms = np.linalg.norm(q_emb, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    q_emb = (q_emb / norms).astype("float32")
+    q_emb = normalize_embeddings(q_emb)
 
-    k = min(top_k * 5, len(faq_items_flat))
-    sims, idxs = faq_index.search(q_emb, k)
+    # まず多めに候補を取って再ランキング
+    k_search = min(max(k, DEFAULT_TOP_K) * 5, len(faq_items_flat))
+    sims, idxs = faq_index.search(q_emb, k_search)
     sims = sims[0]
     idxs = idxs[0]
 
-    results = []
+    results: List[Dict[str, Any]] = []
     for sim, idx in zip(sims, idxs):
         if idx < 0 or idx >= len(faq_items_flat):
             continue
         it = dict(faq_items_flat[idx])
 
-        # ベクトルスコア
         vec = float(sim)
-
-        # 文字一致ブースト
         boost = faq_keyword_boost(q_norm, it)
-
-        # ハイブリッド最終スコア（重みはここがチューニング点）
         it["_score"] = 0.85 * vec + 0.15 * boost
-
         results.append(it)
 
     results.sort(key=lambda x: x.get("_score", 0.0), reverse=True)
-    return results[:top_k]
+    return results[:k]
 
 
 # ============================================
@@ -461,39 +468,86 @@ def parse_logs() -> List[dict]:
 
 @app.on_event("startup")
 def on_startup() -> None:
-    load_data()
-    build_search_index()
+    load_videos()
+    build_video_index()
     load_faq()
     build_faq_index()
 
 
 # ============================================
-# 検索API（フロント互換）
-#   - index.html は /search と /faq/search を別々に呼んでいる
+# 検索API（ページング対応）
+#   - paged=1 のとき {items, has_more, offset, limit, total_visible} を返す
+#   - paged=0 のとき互換のため array を返す（top_kのみ）
 # ============================================
 
-@app.get("/search", summary="動画検索（配列で返す）", tags=["search"])
-def search_endpoint(
-    query: str = Query(..., min_length=1, description="検索クエリ（単語・短文OK）"),
-    top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
+@app.get("/search", summary="動画検索", tags=["search"])
+def search_videos_endpoint(
+    query: str = Query(..., min_length=1),
+    top_k: int = Query(DEFAULT_TOP_K, ge=1, le=200),
+    paged: int = Query(0, ge=0, le=1),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
 ):
-    results = search_core(query, top_k=top_k)
-    # FAQは別APIで取るので、ここでは動画件数だけログに入れる（必要なら合算も可）
-    log_search_query(query, len(results))
-    return results
+    if paged == 0:
+        results = search_videos_ranked(query, top_k)
+        log_search_query(query, len(results))
+        # UIの都合で transcript は返すが、フロント側で非表示にしている
+        return results
+
+    # ページング: offset+limit+1 件まで取得して has_more 判定
+    need = min(offset + limit + 1, 500)  # 過剰取得を抑制（必要なら上げる）
+    ranked = search_videos_ranked(query, need)
+    items = ranked[offset: offset + limit]
+    has_more = len(ranked) > offset + limit
+
+    log_search_query(query, len(items))
+    return {
+        "items": items,
+        "offset": offset,
+        "limit": limit,
+        "has_more": has_more,
+        "total_visible": len(ranked),  # 取得できた範囲での可視総数（近似）
+    }
 
 
-@app.get("/faq/search", summary="FAQ検索（配列で返す）", tags=["faq"])
-def faq_search_endpoint(
-    query: str = Query(..., min_length=1, description="検索クエリ（単語・短文OK）"),
-    top_k: int = Query(DEFAULT_TOP_K, ge=1, le=50, description="返す件数"),
+@app.get("/faq/search", summary="FAQ検索", tags=["faq"])
+def search_faq_endpoint(
+    query: str = Query(..., min_length=1),
+    top_k: int = Query(DEFAULT_TOP_K, ge=1, le=200),
+    paged: int = Query(0, ge=0, le=1),
+    offset: int = Query(0, ge=0),
+    limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
 ):
-    results = search_faq_core(query, top_k=top_k)
-    return results
+    if paged == 0:
+        results = search_faq_ranked(query, top_k)
+        return results
+
+    need = min(offset + limit + 1, 500)
+    ranked = search_faq_ranked(query, need)
+    items = ranked[offset: offset + limit]
+    has_more = len(ranked) > offset + limit
+
+    return {
+        "items": items,
+        "offset": offset,
+        "limit": limit,
+        "has_more": has_more,
+        "total_visible": len(ranked),
+    }
+
+
+@app.get("/faq/debug", tags=["faq"])
+def faq_debug():
+    return {
+        "faq_file_exists": FAQ_PATH.exists(),
+        "faq_items_count": len(faq_items_flat),
+        "faq_index_ready": faq_index is not None,
+        "sample": faq_items_flat[0] if faq_items_flat else None,
+    }
 
 
 # ============================================
-# 管理API: synonyms.json CRUD
+# 管理API: synonyms.json CRUD + 一括生成
 # ============================================
 
 @app.get("/admin/api/synonyms", tags=["admin"])
@@ -536,93 +590,224 @@ def admin_delete_synonym_term(term: str, user: str = Depends(verify_admin)):
     return {"ok": True, "deleted": term}
 
 
+def generate_synonyms_from_data(videos_: List[Dict[str, Any]], faq_items_: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+    """
+    data.json + FAQ keywords から簡易的に “表記ゆれ” シノニムを生成
+    例：DXF / dxf / ＤＸＦ / DXFデータ など
+    """
+    def norm(s: str) -> str:
+        return unicodedata.normalize("NFKC", s or "").strip()
+
+    cand: List[str] = []
+
+    # FAQ keywords
+    for f in faq_items_:
+        kws = f.get("keywords", [])
+        if isinstance(kws, list):
+            cand += [norm(str(x)) for x in kws if str(x).strip()]
+
+    # data.json title/description
+    for v in videos_:
+        t = norm(v.get("title",""))
+        d = norm(v.get("description",""))
+        text = f"{t} {d}"
+        cand += re.findall(r"[A-Za-z0-9][A-Za-z0-9\-\_]{1,30}", text)  # DXF, SQLServer2022
+        cand += re.findall(r"[ァ-ヴー]{3,20}", text)  # カタカナ語
+
+    c = Counter([x for x in cand if x])
+    vocab = [w for w, n in c.items() if n >= 2]
+
+    syn: Dict[str, List[str]] = {}
+    for w in vocab:
+        base = norm(w)
+        if not base:
+            continue
+
+        variants = set()
+        variants.add(base)
+        variants.add(base.lower())
+        variants.add(base.upper())
+        variants.add(base.replace(" ", ""))
+
+        # ありがちな表記ゆれ（必要に応じて増やす）
+        variants.add(base.replace("II", "Ⅱ"))
+        variants.add(base.replace("ⅱ", "Ⅱ"))
+        variants.add(base.replace("２", "2"))
+
+        vals = sorted(set(v for v in variants if v) - {base})
+        if vals:
+            syn[normalize_text(base)] = [normalize_text(v) for v in vals if normalize_text(v) != normalize_text(base)]
+
+    return syn
+
+
+@app.post("/admin/api/synonyms/generate", tags=["admin"])
+def admin_generate_synonyms(user: str = Depends(verify_admin)):
+    gen = generate_synonyms_from_data(videos, faq_items_flat)
+    safe_write_json(SYNONYMS_PATH, gen)
+    global synonyms
+    synonyms = gen
+    return {"ok": True, "count": len(gen)}
+
+
 # ============================================
-# 管理API: FAQ CRUD（保存後に FAQ index 再構築）
+# 管理API: FAQ（meta + faqs 形式） CRUD
+#  - 全体取得/保存
+#  - 1件単位（idキー）
+#  - 一覧（フィルタ + offset/limit）
 # ============================================
-
-def faq_load():
-    return safe_load_json(FAQ_PATH, default=[])
-
-
-def faq_save(obj: Any):
-    safe_write_json(FAQ_PATH, obj)
-
 
 @app.get("/admin/api/faq", tags=["admin"])
 def admin_get_faq(user: str = Depends(verify_admin)):
-    return faq_load()
+    return load_faq_raw()
 
 
 @app.put("/admin/api/faq", tags=["admin"])
-def admin_put_faq(payload: Any = Body(...), user: str = Depends(verify_admin)):
-    faq_save(payload)
+def admin_put_faq(payload: Dict[str, Any] = Body(...), user: str = Depends(verify_admin)):
+    # 形式を整えて保存
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="FAQは object 形式が必要です（meta+faqs）")
+    if "faqs" not in payload or not isinstance(payload["faqs"], list):
+        raise HTTPException(status_code=400, detail="FAQは faqs(list) を含む必要があります")
+    if "meta" not in payload or not isinstance(payload["meta"], dict):
+        payload["meta"] = {}
+    save_faq_raw(payload)
+
+    # 即反映
     load_faq()
     build_faq_index()
-    return {"ok": True}
+    return {"ok": True, "count": len(payload["faqs"])}
+
+
+def find_faq_index_by_id(faqs: List[Dict[str, Any]], faq_id: str) -> int:
+    for i, it in enumerate(faqs):
+        if str(it.get("id", "")).strip() == faq_id:
+            return i
+    return -1
+
+
+@app.get("/admin/api/faq/items", tags=["admin"])
+def admin_list_faq_items(
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+    q: str = Query("", description="filter（question/keywords/category）"),
+    user: str = Depends(verify_admin),
+):
+    obj = load_faq_raw()
+    faqs = obj.get("faqs", [])
+    if not isinstance(faqs, list):
+        faqs = []
+
+    qn = normalize_text(q)
+    if qn:
+        def hit(it: Dict[str, Any]) -> bool:
+            t = " ".join([
+                str(it.get("question","")),
+                str(it.get("category","")),
+                " ".join(it.get("keywords", []) if isinstance(it.get("keywords", []), list) else [str(it.get("keywords",""))]),
+            ])
+            return qn in normalize_text(t)
+        faqs = [it for it in faqs if isinstance(it, dict) and hit(it)]
+    else:
+        faqs = [it for it in faqs if isinstance(it, dict)]
+
+    # id順に安定化（FAQ-0001 形式を想定）
+    def sort_key(it: Dict[str, Any]):
+        s = str(it.get("id",""))
+        m = re.search(r"(\d+)$", s)
+        return (s[:4], int(m.group(1)) if m else 10**9, s)
+    faqs.sort(key=sort_key)
+
+    items = faqs[offset: offset + limit]
+    has_more = len(faqs) > offset + limit
+    return {"items": items, "offset": offset, "limit": limit, "has_more": has_more, "total": len(faqs)}
+
+
+@app.get("/admin/api/faq/item/{faq_id}", tags=["admin"])
+def admin_get_faq_item(faq_id: str, user: str = Depends(verify_admin)):
+    obj = load_faq_raw()
+    faqs = obj.get("faqs", [])
+    if not isinstance(faqs, list):
+        faqs = []
+    idx = find_faq_index_by_id(faqs, faq_id)
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="FAQが見つかりません")
+    return faqs[idx]
 
 
 @app.post("/admin/api/faq/item", tags=["admin"])
-def admin_add_faq_item(item: Any = Body(...), user: str = Depends(verify_admin)):
-    data = faq_load()
-    if isinstance(data, list):
-        data.append(item)
-        faq_save(data)
-    elif isinstance(data, dict):
-        _id = (item or {}).get("id")
-        if not _id:
-            raise HTTPException(status_code=400, detail="FAQ が dict の場合、item.id が必要です")
-        data[str(_id)] = item
-        faq_save(data)
-    else:
-        raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+def admin_create_faq_item(item: Dict[str, Any] = Body(...), user: str = Depends(verify_admin)):
+    faq_id = str(item.get("id", "")).strip()
+    if not faq_id:
+        raise HTTPException(status_code=400, detail="id が必要です")
+
+    obj = load_faq_raw()
+    faqs = obj.get("faqs", [])
+    if not isinstance(faqs, list):
+        faqs = []
+
+    if find_faq_index_by_id(faqs, faq_id) >= 0:
+        raise HTTPException(status_code=409, detail="同じidが既に存在します")
+
+    faqs.append(item)
+    obj["faqs"] = faqs
+    save_faq_raw(obj)
 
     load_faq()
     build_faq_index()
-    return {"ok": True}
+    return {"ok": True, "id": faq_id}
 
 
-@app.patch("/admin/api/faq/item/{key}", tags=["admin"])
-def admin_update_faq_item(key: str, item: Any = Body(...), user: str = Depends(verify_admin)):
-    data = faq_load()
-    if isinstance(data, list):
-        try:
-            idx = int(key)
-        except:
-            raise HTTPException(status_code=400, detail="FAQ が list の場合 key は index（数値）です")
-        if idx < 0 or idx >= len(data):
-            raise HTTPException(status_code=404, detail="対象が見つかりません")
-        data[idx] = item
-        faq_save(data)
-    elif isinstance(data, dict):
-        data[key] = item
-        faq_save(data)
-    else:
-        raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+@app.patch("/admin/api/faq/item/{faq_id}", tags=["admin"])
+def admin_update_faq_item(faq_id: str, item: Dict[str, Any] = Body(...), user: str = Depends(verify_admin)):
+    faq_id = str(faq_id).strip()
+    if not faq_id:
+        raise HTTPException(status_code=400, detail="id が不正です")
 
-    load_faq()
-    build_faq_index()
-    return {"ok": True}
+    obj = load_faq_raw()
+    faqs = obj.get("faqs", [])
+    if not isinstance(faqs, list):
+        faqs = []
 
+    idx = find_faq_index_by_id(faqs, faq_id)
+    if idx < 0:
+        # ない場合は追加（運用上便利）
+        item["id"] = faq_id
+        faqs.append(item)
+        obj["faqs"] = faqs
+        save_faq_raw(obj)
+        load_faq()
+        build_faq_index()
+        return {"ok": True, "id": faq_id, "created": True}
 
-@app.delete("/admin/api/faq/item/{key}", tags=["admin"])
-def admin_delete_faq_item(key: str, user: str = Depends(verify_admin)):
-    data = faq_load()
-    if isinstance(data, list):
-        idx = int(key)
-        if idx < 0 or idx >= len(data):
-            raise HTTPException(status_code=404, detail="対象が見つかりません")
-        data.pop(idx)
-        faq_save(data)
-    elif isinstance(data, dict):
-        if key in data:
-            del data[key]
-            faq_save(data)
-    else:
-        raise HTTPException(status_code=400, detail="FAQ の形式が不正です")
+    item["id"] = faq_id
+    faqs[idx] = item
+    obj["faqs"] = faqs
+    save_faq_raw(obj)
 
     load_faq()
     build_faq_index()
-    return {"ok": True}
+    return {"ok": True, "id": faq_id, "created": False}
+
+
+@app.delete("/admin/api/faq/item/{faq_id}", tags=["admin"])
+def admin_delete_faq_item(faq_id: str, user: str = Depends(verify_admin)):
+    obj = load_faq_raw()
+    faqs = obj.get("faqs", [])
+    if not isinstance(faqs, list):
+        faqs = []
+
+    idx = find_faq_index_by_id(faqs, str(faq_id).strip())
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="FAQが見つかりません")
+
+    faqs.pop(idx)
+    obj["faqs"] = faqs
+    save_faq_raw(obj)
+
+    load_faq()
+    build_faq_index()
+    return {"ok": True, "deleted": faq_id}
 
 
 # ============================================
@@ -668,7 +853,7 @@ def admin_export_logs_csv(user: str = Depends(verify_admin)):
 
 
 # ============================================
-# 画面配信（既存フロント + 管理UI）
+# 画面配信（frontend + admin_ui）
 # ============================================
 
 frontend_path = BASE_DIR / "frontend"
@@ -704,11 +889,10 @@ def serve_admin_logs():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
-@app.get("/faq/debug", tags=["faq"])
-def faq_debug():
-    return {
-        "faq_file_exists": FAQ_PATH.exists(),
-        "faq_items_count": len(faq_items_flat),
-        "faq_index_ready": faq_index is not None,
-        "sample": faq_items_flat[0] if faq_items_flat else None,
-    }
+
+@app.get("/admin/faq", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_faq():
+    f = admin_path / "faq.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin faq.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")

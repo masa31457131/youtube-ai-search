@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>管理 - FAQフォーム編集</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;margin:0;background:#f6f7fb}
+    header{background:#111827;color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+    main{max-width:1200px;margin:0 auto;padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .card{background:#fff;border-radius:10px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    input,textarea,button,select{font:inherit}
+    textarea{width:100%;box-sizing:border-box;min-height:120px}
+    .btn{border:0;border-radius:8px;padding:10px 12px;cursor:pointer;font-weight:600}
+    .btn.primary{background:#2563eb;color:#fff}
+    .btn.danger{background:#dc2626;color:#fff}
+    .btn.gray{background:#e5e7eb}
+    .muted{color:#6b7280;font-size:.9rem}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid #e5e7eb;padding:8px;text-align:left}
+    tr:hover{background:#f9fafb;cursor:pointer}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row > *{flex:1}
+    code{background:#f3f4f6;padding:2px 6px;border-radius:6px}
+    .pill{display:inline-block; padding:2px 8px; border-radius:999px; background:#eef2ff; color:#3730a3; font-size:.8rem;}
+  </style>
+</head>
+<body>
+<header>
+  <div>管理 - FAQフォーム編集</div>
+  <div>
+    <a href="/admin" style="color:#fff;margin-right:14px;">JSON編集へ</a>
+    <a href="/admin/logs" style="color:#fff;margin-right:14px;">ログ</a>
+    <button class="btn gray" id="logoutBtn">ログアウト</button>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <h3>FAQ一覧</h3>
+    <div class="row">
+      <input id="filter" placeholder="検索（question / keywords / category）" />
+      <button class="btn gray" id="reloadBtn">再読み込み</button>
+    </div>
+
+    <div class="row" style="margin-top:8px;">
+      <button class="btn gray" id="prevList" disabled>前へ</button>
+      <button class="btn gray" id="nextList" disabled>次へ</button>
+      <span class="muted" id="listPageInfo"></span>
+    </div>
+
+    <p class="muted">行をクリックすると右側のフォームに読み込みます。</p>
+
+    <div style="max-height:68vh; overflow:auto;">
+      <table>
+        <thead><tr><th>ID</th><th>カテゴリ</th><th>質問</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="muted" id="listStatus"></div>
+  </div>
+
+  <div class="card">
+    <h3>FAQフォーム</h3>
+    <p class="muted">保存すると FAQインデックスが再構築され、検索結果に即反映されます。</p>
+
+    <div class="row">
+      <div>
+        <label>ID</label>
+        <input id="id" placeholder="FAQ-0001" />
+      </div>
+      <div>
+        <label>カテゴリ</label>
+        <input id="category" />
+      </div>
+    </div>
+
+    <label>intent</label>
+    <input id="intent" style="width:100%;box-sizing:border-box;" />
+
+    <label>question</label>
+    <input id="question" style="width:100%;box-sizing:border-box;" />
+
+    <label>utterances（1行=1つ）</label>
+    <textarea id="utterances"></textarea>
+
+    <label>keywords（1行=1つ）</label>
+    <textarea id="keywords"></textarea>
+
+    <label>steps（1行=1ステップ）</label>
+    <textarea id="steps"></textarea>
+
+    <div class="row">
+      <button class="btn primary" id="saveBtn">保存（更新）</button>
+      <button class="btn primary" id="createBtn">新規作成</button>
+      <button class="btn danger" id="deleteBtn">削除</button>
+      <button class="btn gray" id="clearBtn">クリア</button>
+    </div>
+
+    <div class="muted" id="formStatus"></div>
+  </div>
+</main>
+
+<script>
+  const storeKey = "adminBasicAuth";
+  function getAuth(){ return localStorage.getItem(storeKey); }
+  function clearAuth(){ localStorage.removeItem(storeKey); }
+
+  async function api(path, opts={}){
+    const token = getAuth();
+    if(!token) throw new Error("未ログイン");
+    const headers = Object.assign({}, opts.headers||{}, {"Authorization":`Basic ${token}`});
+    return fetch(path, {...opts, headers});
+  }
+
+  function linesToArr(s){
+    return (s||"").split("\n").map(x=>x.trim()).filter(Boolean);
+  }
+  function arrToLines(a){
+    return Array.isArray(a) ? a.join("\n") : "";
+  }
+
+  const tbody = document.getElementById("tbody");
+  let listOffset = 0;
+  const LIST_LIMIT = 50;
+  let hasMore = false;
+
+  function setListPager(){
+    document.getElementById("prevList").disabled = listOffset <= 0;
+    document.getElementById("nextList").disabled = !hasMore;
+    const start = listOffset + 1;
+    const end = listOffset + Math.min(LIST_LIMIT, Math.max(0, tbody.children.length));
+    document.getElementById("listPageInfo").textContent = tbody.children.length ? `${start}-${end}` : "";
+  }
+
+  async function reload(){
+    try{
+      const q = (document.getElementById("filter").value||"").trim();
+      const r = await api(`/admin/api/faq/items?offset=${listOffset}&limit=${LIST_LIMIT}&q=${encodeURIComponent(q)}`);
+      if(!r.ok){
+        location.href="/admin";
+        return;
+      }
+      const j = await r.json();
+      const items = j.items || [];
+      hasMore = !!j.has_more;
+
+      tbody.innerHTML = "";
+      for(const f of items){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${f.id||""}</td><td>${f.category||""}</td><td>${(f.question||"").slice(0,60)}</td>`;
+        tr.addEventListener("click", ()=>loadToForm(f));
+        tbody.appendChild(tr);
+      }
+
+      document.getElementById("listStatus").textContent =
+        `表示: ${items.length}件` + (q ? `（filter: ${q}）` : "");
+      setListPager();
+    }catch(e){
+      location.href="/admin";
+    }
+  }
+
+  function loadToForm(f){
+    document.getElementById("id").value = f.id || "";
+    document.getElementById("category").value = f.category || "";
+    document.getElementById("intent").value = f.intent || "";
+    document.getElementById("question").value = f.question || "";
+    document.getElementById("utterances").value = arrToLines(f.utterances);
+    document.getElementById("keywords").value = arrToLines(f.keywords);
+    document.getElementById("steps").value = arrToLines(f.steps);
+    document.getElementById("formStatus").textContent = `読み込み: ${f.id || ""}`;
+  }
+
+  function formToItem(){
+    const id = document.getElementById("id").value.trim();
+    return {
+      id,
+      category: document.getElementById("category").value.trim(),
+      intent: document.getElementById("intent").value.trim(),
+      question: document.getElementById("question").value.trim(),
+      utterances: linesToArr(document.getElementById("utterances").value),
+      keywords: linesToArr(document.getElementById("keywords").value),
+      steps: linesToArr(document.getElementById("steps").value),
+    };
+  }
+
+  document.getElementById("filter").addEventListener("input", ()=>{
+    listOffset = 0;
+    reload();
+  });
+  document.getElementById("reloadBtn").addEventListener("click", reload);
+  document.getElementById("prevList").addEventListener("click", ()=>{
+    listOffset = Math.max(0, listOffset - LIST_LIMIT);
+    reload();
+  });
+  document.getElementById("nextList").addEventListener("click", ()=>{
+    listOffset = listOffset + LIST_LIMIT;
+    reload();
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", ()=>{ clearAuth(); location.href="/admin"; });
+  document.getElementById("clearBtn").addEventListener("click", ()=>{
+    ["id","category","intent","question","utterances","keywords","steps"].forEach(id=>document.getElementById(id).value="");
+    document.getElementById("formStatus").textContent = "クリアしました";
+  });
+
+  document.getElementById("saveBtn").addEventListener("click", async ()=>{
+    const item = formToItem();
+    if(!item.id){ document.getElementById("formStatus").textContent = "IDが必要です"; return; }
+
+    const r = await api(`/admin/api/faq/item/${encodeURIComponent(item.id)}`, {
+      method:"PATCH",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(item)
+    });
+    const j = await r.json();
+    document.getElementById("formStatus").textContent = r.ok ? "保存しました" : ("失敗: " + (j.detail||""));
+    await reload();
+  });
+
+  document.getElementById("createBtn").addEventListener("click", async ()=>{
+    const item = formToItem();
+    if(!item.id){ document.getElementById("formStatus").textContent = "IDが必要です"; return; }
+
+    const r = await api(`/admin/api/faq/item`, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(item)
+    });
+    const j = await r.json();
+    document.getElementById("formStatus").textContent = r.ok ? "追加しました" : ("失敗: " + (j.detail||""));
+    await reload();
+  });
+
+  document.getElementById("deleteBtn").addEventListener("click", async ()=>{
+    const id = document.getElementById("id").value.trim();
+    if(!id){ document.getElementById("formStatus").textContent = "IDが必要です"; return; }
+
+    const r = await api(`/admin/api/faq/item/${encodeURIComponent(id)}`, { method:"DELETE" });
+    const j = await r.json();
+    document.getElementById("formStatus").textContent = r.ok ? "削除しました" : ("失敗: " + (j.detail||""));
+    await reload();
+  });
+
+  reload();
+</script>
+</body>
+</html>

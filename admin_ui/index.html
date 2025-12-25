@@ -27,6 +27,7 @@
 <header>
   <div>管理画面 - データ編集</div>
   <div>
+    <a href="/admin/faq" style="color:#fff; margin-right:14px;">FAQフォーム編集</a>
     <a href="/admin/logs" style="color:#fff; margin-right:14px;">検索ログ（月別/日別）</a>
     <button class="btn gray" id="logoutBtn">ログアウト</button>
   </div>
@@ -54,11 +55,12 @@
 
   <div class="card" id="editCard" style="display:none;">
     <h3>synonyms.json（編集・保存）</h3>
-    <p class="muted">JSONを直接編集して <code>保存</code>。部分更新は「term更新/削除」でも可能です。</p>
+    <p class="muted">JSONを直接編集して <code>保存</code>。また、<code>data.json</code> 解析で一括生成もできます。</p>
     <textarea id="synText"></textarea>
     <div class="row">
       <button class="btn primary" id="synSaveBtn">synonyms.json を保存（全体PUT）</button>
       <button class="btn gray" id="synReloadBtn">再読み込み</button>
+      <button class="btn primary" id="synGenBtn">data.json解析で一括生成</button>
     </div>
 
     <hr style="border:0; border-top:1px solid #e5e7eb; margin:14px 0;" />
@@ -77,29 +79,13 @@
   </div>
 
   <div class="card" id="faqCard" style="display:none;">
-    <h3>faq_chatbot_fixed_only.json（編集・保存）</h3>
-    <p class="muted">FAQは形式が「配列」でも「dict」でも扱えます。基本は全体を編集して保存でOK。</p>
+    <h3>faq_chatbot_fixed_only.json（全体JSON編集）</h3>
+    <p class="muted">全体編集が必要な場合のみ使用してください。日常運用は <a href="/admin/faq">FAQフォーム編集</a> が便利です。</p>
     <textarea id="faqText"></textarea>
     <div class="row">
       <button class="btn primary" id="faqSaveBtn">FAQ を保存（全体PUT）</button>
       <button class="btn gray" id="faqReloadBtn">再読み込み</button>
     </div>
-
-    <hr style="border:0; border-top:1px solid #e5e7eb; margin:14px 0;" />
-
-    <h4>アイテム単位で更新/削除</h4>
-    <p class="muted">FAQが配列の場合 key は index（例: 0,1,2...）。dictの場合 key は id など。</p>
-    <div class="row">
-      <input id="faqKey" placeholder="key (index or id)" />
-      <input id="faqDeleteKey" placeholder="削除 key (index or id)" />
-    </div>
-    <textarea id="faqItem" placeholder='更新するitem JSON（例: {"question":"...","answer":"...","steps":[...]}）'></textarea>
-    <div class="row">
-      <button class="btn primary" id="faqAddBtn">新規追加（POST）</button>
-      <button class="btn primary" id="faqUpdateBtn">更新（PATCH）</button>
-      <button class="btn danger" id="faqDeleteBtn">削除（DELETE）</button>
-    </div>
-
     <div class="status" id="faqStatus"></div>
   </div>
 </main>
@@ -190,6 +176,19 @@
     }
   });
 
+  document.getElementById("synGenBtn").addEventListener("click", async ()=>{
+    try{
+      const r = await api("/admin/api/synonyms/generate", { method:"POST" });
+      const j = await r.json();
+      document.getElementById("synStatus").textContent = r.ok ? `生成しました（${j.count}件）` : ("失敗: " + (j.detail||""));
+      const r2 = await api("/admin/api/synonyms");
+      const syn = await r2.json();
+      document.getElementById("synText").value = JSON.stringify(syn, null, 2);
+    }catch(e){
+      document.getElementById("synStatus").textContent = "エラー: " + e.message;
+    }
+  });
+
   document.getElementById("synTermUpsertBtn").addEventListener("click", async ()=>{
     const term = document.getElementById("synTerm").value.trim();
     const valsText = document.getElementById("synVals").value.trim();
@@ -222,7 +221,7 @@
     document.getElementById("synStatus").textContent = r.ok ? "削除しました。" : ("失敗: " + (j.detail||""));
   });
 
-  // faq
+  // faq full
   document.getElementById("faqReloadBtn").addEventListener("click", async ()=>{
     const r = await api("/admin/api/faq");
     const faq = await r.json();
@@ -245,53 +244,7 @@
     }
   });
 
-  document.getElementById("faqAddBtn").addEventListener("click", async ()=>{
-    try{
-      const item = JSON.parse(document.getElementById("faqItem").value);
-      const r = await api("/admin/api/faq/item", {
-        method:"POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(item)
-      });
-      const j = await r.json();
-      document.getElementById("faqStatus").textContent = r.ok ? "追加しました。" : ("追加失敗: " + (j.detail||""));
-    }catch(e){
-      document.getElementById("faqStatus").textContent = "item JSONが不正です。";
-    }
-  });
-
-  document.getElementById("faqUpdateBtn").addEventListener("click", async ()=>{
-    const key = document.getElementById("faqKey").value.trim();
-    if(!key){
-      document.getElementById("faqStatus").textContent = "更新 key を入力してください。";
-      return;
-    }
-    try{
-      const item = JSON.parse(document.getElementById("faqItem").value);
-      const r = await api(`/admin/api/faq/item/${encodeURIComponent(key)}`, {
-        method:"PATCH",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(item)
-      });
-      const j = await r.json();
-      document.getElementById("faqStatus").textContent = r.ok ? "更新しました。" : ("更新失敗: " + (j.detail||""));
-    }catch(e){
-      document.getElementById("faqStatus").textContent = "item JSONが不正です。";
-    }
-  });
-
-  document.getElementById("faqDeleteBtn").addEventListener("click", async ()=>{
-    const key = document.getElementById("faqDeleteKey").value.trim();
-    if(!key){
-      document.getElementById("faqStatus").textContent = "削除 key を入力してください。";
-      return;
-    }
-    const r = await api(`/admin/api/faq/item/${encodeURIComponent(key)}`, {method:"DELETE"});
-    const j = await r.json();
-    document.getElementById("faqStatus").textContent = r.ok ? "削除しました。" : ("削除失敗: " + (j.detail||""));
-  });
-
-  // 初期ロード（保存済み資格情報があれば自動ログイン）
+  // 初期ロード
   tryLoad();
 </script>
 </body>

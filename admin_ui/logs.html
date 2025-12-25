@@ -23,6 +23,7 @@
   <div>管理画面 - 検索ログ（月別 / 日別）</div>
   <div>
     <a href="/admin" style="color:#fff; margin-right:14px;">データ編集へ</a>
+    <a href="/admin/faq" style="color:#fff; margin-right:14px;">FAQフォーム編集</a>
     <button class="btn gray" id="logoutBtn">ログアウト</button>
   </div>
 </header>
@@ -93,7 +94,6 @@
     const j = await r.json();
     if(!r.ok){ st.textContent = "失敗: " + (j.detail||""); return; }
 
-    // days
     const daysBody = document.getElementById("daysBody");
     daysBody.innerHTML = "";
     (j.days || []).forEach(d=>{
@@ -102,7 +102,6 @@
       daysBody.appendChild(tr);
     });
 
-    // queries
     const qBody = document.getElementById("qBody");
     qBody.innerHTML = "";
     (j.top_queries || []).forEach(q=>{
@@ -120,7 +119,6 @@
 
   document.getElementById("loadBtn").addEventListener("click", loadSummary);
   document.getElementById("csvBtn").addEventListener("click", async ()=>{
-    // ブラウザがBasic認証ヘッダ付きで直接ダウンロードしづらいので fetch -> blob で対応
     const r = await api("/admin/api/logs/export");
     if(!r.ok){ alert("ダウンロード失敗"); return; }
     const blob = await r.blob();

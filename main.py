@@ -482,12 +482,16 @@ def on_startup() -> None:
 
 @app.get("/search", summary="動画検索", tags=["search"])
 def search_videos_endpoint(
-    query: str = Query(..., min_length=1),
+    query: str | None = Query(None),
+    q: str | None = Query(None),
     top_k: int = Query(DEFAULT_TOP_K, ge=1, le=200),
     paged: int = Query(0, ge=0, le=1),
     offset: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
 ):
+    query = (query or q or "").strip()
+    if not query:
+        return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0} if paged == 1 else []
     if paged == 0:
         results = search_videos_ranked(query, top_k)
         log_search_query(query, len(results))
@@ -512,12 +516,16 @@ def search_videos_endpoint(
 
 @app.get("/faq/search", summary="FAQ検索", tags=["faq"])
 def search_faq_endpoint(
-    query: str = Query(..., min_length=1),
+    query: str | None = Query(None),
+    q: str | None = Query(None),
     top_k: int = Query(DEFAULT_TOP_K, ge=1, le=200),
     paged: int = Query(0, ge=0, le=1),
     offset: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
 ):
+    query = (query or q or "").strip()
+    if not query:
+        return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0} if paged == 1 else []
     if paged == 0:
         results = search_faq_ranked(query, top_k)
         return results

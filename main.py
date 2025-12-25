@@ -72,8 +72,18 @@ faq_index: Optional[faiss.IndexFlatIP] = None
 # 共通ユーティリティ
 # ============================================
 
+import unicodedata
+
 def normalize_text(text: str) -> str:
-    text = (text or "").lower()
+    """
+    精度向上のための正規化
+    - NFKC（全角/半角・記号ゆれ統一）
+    - lower
+    - 連続スペースを1つ
+    """
+    text = (text or "")
+    text = unicodedata.normalize("NFKC", text)
+    text = text.lower()
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
@@ -280,60 +290,70 @@ def flatten_faq(obj: Any) -> List[Dict[str, Any]]:
 
 
 def faq_item_to_text(item: Dict[str, Any]) -> str:
-    """
-    FAQ 1件を検索用テキストに変換
-    - question/utterances/keywords/steps/answer/category/intent を網羅
-    - question/utterances は重み付け（2回入れる）
-    """
-    q = (item.get("question") or "").strip()
-    category = (item.get("category") or "").strip()
-    intent = (item.get("intent") or "").strip()
+    q = normalize_text(item.get("question", "") or "")
+    category = normalize_text(item.get("category", "") or "")
+    intent = normalize_text(item.get("intent", "") or "")
 
-    # utterances: list[str]
     utter = item.get("utterances", [])
-    if isinstance(utter, list):
-        utter_text = " ".join([str(u).strip() for u in utter if str(u).strip()])
-    else:
-        utter_text = str(utter).strip()
+    utter_text = " ".join([normalize_text(u) for u in utter]) if isinstance(utter, list) else normalize_text(str(utter))
 
-    # keywords: list[str]
     kws = item.get("keywords", [])
-    if isinstance(kws, list):
-        kw_text = " ".join([str(k).strip() for k in kws if str(k).strip()])
-    else:
-        kw_text = str(kws).strip()
+    kw_list = [normalize_text(k) for k in kws] if isinstance(kws, list) else [normalize_text(str(kws))]
+    kw_text = " ".join([k for k in kw_list if k])
 
-    # steps: list[str] or str
-    steps = item.get("steps", "")
+    steps = item.get("steps", [])
     if isinstance(steps, list):
-        steps_text = " ".join([str(s).strip() for s in steps if str(s).strip()])
+        # 長文に引っ張られないよう先頭だけ（必要なら 2〜3 行に増やす）
+        steps_head = steps[:2]
+        steps_text = " ".join([normalize_text(s) for s in steps_head if s])
     else:
-        steps_text = str(steps).strip()
+        steps_text = normalize_text(str(steps))[:200]  # 一応制限
 
-    # answer がある形式も吸収（将来用）
-    a = (item.get("answer") or item.get("a") or "").strip()
-
-    # question/utterances を重み付け（検索の“意図”に寄る）
     parts = []
     if q:
-        parts += [q, q]
+        parts += [q, q, q]                  # 質問を強く
     if utter_text:
-        parts += [utter_text, utter_text]
+        parts += [utter_text, utter_text]   # 言い回しも強め
     if kw_text:
-        parts.append(kw_text)
-
-    # 付帯情報
+        parts += [kw_text, kw_text, kw_text] # キーワード最重要
     if category:
         parts.append(category)
     if intent:
         parts.append(intent)
     if steps_text:
         parts.append(steps_text)
-    if a:
-        parts.append(a)
 
-    combined = " [SEP] ".join(parts)
-    return normalize_text(combined)
+    return " [SEP] ".join([p for p in parts if p])
+    
+
+def faq_keyword_boost(query_norm: str, item: Dict[str, Any]) -> float:
+    """
+    query と FAQ の keywords / question / utterances の一致でブースト
+    """
+    score = 0.0
+    q = query_norm
+
+    # keywordsに含まれる語がクエリに含まれていれば強く加点
+    kws = item.get("keywords", [])
+    kw_list = kws if isinstance(kws, list) else [kws]
+    for k in kw_list:
+        k2 = normalize_text(str(k))
+        if k2 and (k2 in q or q in k2):
+            score += 1.2  # 強め
+
+    # question/utterances の部分一致
+    question = normalize_text(item.get("question", "") or "")
+    if question and (q in question or question in q):
+        score += 0.8
+
+    utter = item.get("utterances", [])
+    if isinstance(utter, list):
+        for u in utter:
+            u2 = normalize_text(str(u))
+            if u2 and (u2 in q or q in u2):
+                score += 0.4
+
+    return score
 
 
 def load_faq() -> None:
@@ -384,7 +404,16 @@ def search_faq_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, An
         if idx < 0 or idx >= len(faq_items_flat):
             continue
         it = dict(faq_items_flat[idx])
-        it["_score"] = float(sim)
+
+        # ベクトルスコア
+        vec = float(sim)
+
+        # 文字一致ブースト
+        boost = faq_keyword_boost(q_norm, it)
+
+        # ハイブリッド最終スコア（重みはここがチューニング点）
+        it["_score"] = 0.85 * vec + 0.15 * boost
+
         results.append(it)
 
     results.sort(key=lambda x: x.get("_score", 0.0), reverse=True)

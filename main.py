@@ -237,44 +237,102 @@ def search_core(query: str, top_k: int = DEFAULT_TOP_K) -> List[Dict[str, Any]]:
 # ============================================
 
 def flatten_faq(obj: Any) -> List[Dict[str, Any]]:
+    """
+    FAQ json の代表的な形式をすべて配列に正規化する
+    対応：
+      - {"faqs":[...], "meta":{...}}  ← あなたの形式
+      - {"items":[...]}
+      - [...](list)
+      - { "id": {...}, ... } (dict)
+    """
+    # まず「ラッパー」形式を吸収
+    if isinstance(obj, dict):
+        if "faqs" in obj and isinstance(obj["faqs"], list):
+            obj = obj["faqs"]
+        elif "items" in obj and isinstance(obj["items"], list):
+            obj = obj["items"]
+
     items: List[Dict[str, Any]] = []
+
     if isinstance(obj, list):
         for i, it in enumerate(obj):
             if isinstance(it, dict):
                 it2 = dict(it)
-                it2["_key"] = str(i)
+                # id があればそれを key に
+                it2["_key"] = str(it2.get("id", i))
                 items.append(it2)
+            else:
+                items.append({"_key": str(i), "raw": it})
         return items
+
     if isinstance(obj, dict):
+        # dict の場合（id->item 形式など）
         for k, it in obj.items():
             if isinstance(it, dict):
                 it2 = dict(it)
-                it2["_key"] = str(k)
+                it2["_key"] = str(it2.get("id", k))
                 items.append(it2)
+            else:
+                items.append({"_key": str(k), "raw": it})
         return items
+
     return items
 
 
 def faq_item_to_text(item: Dict[str, Any]) -> str:
-    q = item.get("question", "") or item.get("q", "") or ""
-    a = item.get("answer", "") or item.get("a", "") or ""
+    """
+    FAQ 1件を検索用テキストに変換
+    - question/utterances/keywords/steps/answer/category/intent を網羅
+    - question/utterances は重み付け（2回入れる）
+    """
+    q = (item.get("question") or "").strip()
+    category = (item.get("category") or "").strip()
+    intent = (item.get("intent") or "").strip()
 
+    # utterances: list[str]
+    utter = item.get("utterances", [])
+    if isinstance(utter, list):
+        utter_text = " ".join([str(u).strip() for u in utter if str(u).strip()])
+    else:
+        utter_text = str(utter).strip()
+
+    # keywords: list[str]
+    kws = item.get("keywords", [])
+    if isinstance(kws, list):
+        kw_text = " ".join([str(k).strip() for k in kws if str(k).strip()])
+    else:
+        kw_text = str(kws).strip()
+
+    # steps: list[str] or str
     steps = item.get("steps", "")
     if isinstance(steps, list):
-        steps_text = " ".join([str(s) for s in steps])
+        steps_text = " ".join([str(s).strip() for s in steps if str(s).strip()])
     else:
-        steps_text = str(steps) if steps else ""
+        steps_text = str(steps).strip()
 
-    tags = item.get("tags", "")
-    if isinstance(tags, list):
-        tags_text = " ".join([str(t) for t in tags])
-    else:
-        tags_text = str(tags) if tags else ""
+    # answer がある形式も吸収（将来用）
+    a = (item.get("answer") or item.get("a") or "").strip()
 
-    category = item.get("category", "") or ""
-    intent = item.get("intent", "") or ""
+    # question/utterances を重み付け（検索の“意図”に寄る）
+    parts = []
+    if q:
+        parts += [q, q]
+    if utter_text:
+        parts += [utter_text, utter_text]
+    if kw_text:
+        parts.append(kw_text)
 
-    combined = f"{q} {q} [SEP] {a} [SEP] {steps_text} [SEP] {tags_text} [SEP] {category} {intent}"
+    # 付帯情報
+    if category:
+        parts.append(category)
+    if intent:
+        parts.append(intent)
+    if steps_text:
+        parts.append(steps_text)
+    if a:
+        parts.append(a)
+
+    combined = " [SEP] ".join(parts)
     return normalize_text(combined)
 
 
@@ -616,3 +674,12 @@ def serve_admin_logs():
     if not f.exists():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
+
+@app.get("/faq/debug", tags=["faq"])
+def faq_debug():
+    return {
+        "faq_file_exists": FAQ_PATH.exists(),
+        "faq_items_count": len(faq_items_flat),
+        "faq_index_ready": faq_index is not None,
+        "sample": faq_items_flat[0] if faq_items_flat else None,
+    }

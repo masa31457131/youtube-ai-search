@@ -137,10 +137,21 @@
     <input type="text" id="searchInput" placeholder="キーワードを入力して検索…" />
 
     <div class="section-title">FAQ候補 <span class="badge" id="faqCount">0</span></div>
+    <div style="display:flex; gap:8px; align-items:center; margin:10px 0;">
+      <button id="faqPrev" disabled>前の10件</button>
+      <button id="faqNext" disabled>次の10件</button>
+      <span id="faqPageInfo" class="muted"></span>
+    </div>
     <div id="faqResults" class="grid"></div>
 
     <div class="section-title">関連動画 <span class="badge" id="videoCount">0</span></div>
+    <div style="display:flex; gap:8px; align-items:center; margin:10px 0;">
+      <button id="videoPrev" disabled>前の10件</button>
+      <button id="videoNext" disabled>次の10件</button>
+      <span id="videoPageInfo" class="muted"></span>
+    </div>
     <div id="videoResults" class="grid"></div>
+    
   </main>
 
   <script>
@@ -211,7 +222,6 @@
           <div class="card-body">
             <a href="${esc(v.url)}" target="_blank" rel="noreferrer noopener">${esc(v.title)}</a>
             <p class="muted">${esc(v.description || "")}</p>
-            <p><strong>文字起こし:</strong> ${esc((v.transcript || "").slice(0, 120))}…</p>
           </div>`;
         root.appendChild(card);
       });

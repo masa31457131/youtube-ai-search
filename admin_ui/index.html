@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>管理画面 - データ編集</title>
+  <style>
+    body{font-family:system-ui, -apple-system, Segoe UI, sans-serif; margin:0; background:#f6f7fb;}
+    header{background:#111827; color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;}
+    main{max-width:1100px; margin:0 auto; padding:18px;}
+    .card{background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); margin-bottom:14px;}
+    input, textarea, button{font:inherit;}
+    textarea{width:100%; min-height:220px; box-sizing:border-box;}
+    .row{display:flex; gap:10px; flex-wrap:wrap;}
+    .row > *{flex:1;}
+    .btn{border:0; border-radius:8px; padding:10px 12px; cursor:pointer; font-weight:600;}
+    .btn.primary{background:#2563eb; color:#fff;}
+    .btn.danger{background:#dc2626; color:#fff;}
+    .btn.gray{background:#e5e7eb;}
+    .muted{color:#6b7280; font-size:.9rem;}
+    .status{margin-top:8px; color:#111827;}
+    a{color:#60a5fa;}
+    code{background:#f3f4f6; padding:2px 6px; border-radius:6px;}
+  </style>
+</head>
+<body>
+<header>
+  <div>管理画面 - データ編集</div>
+  <div>
+    <a href="/admin/logs" style="color:#fff; margin-right:14px;">検索ログ（月別/日別）</a>
+    <button class="btn gray" id="logoutBtn">ログアウト</button>
+  </div>
+</header>
+
+<main>
+  <div class="card" id="loginCard">
+    <h3>ログイン</h3>
+    <div class="row">
+      <div>
+        <label>ユーザー</label>
+        <input id="user" placeholder="admin" />
+      </div>
+      <div>
+        <label>パスワード</label>
+        <input id="pass" type="password" placeholder="********" />
+      </div>
+      <div style="display:flex; align-items:flex-end;">
+        <button class="btn primary" id="loginBtn">ログイン</button>
+      </div>
+    </div>
+    <div class="status" id="loginStatus"></div>
+    <p class="muted">※ Basic認証のため、ブラウザに資格情報を保存する場合があります。</p>
+  </div>
+
+  <div class="card" id="editCard" style="display:none;">
+    <h3>synonyms.json（編集・保存）</h3>
+    <p class="muted">JSONを直接編集して <code>保存</code>。部分更新は「term更新/削除」でも可能です。</p>
+    <textarea id="synText"></textarea>
+    <div class="row">
+      <button class="btn primary" id="synSaveBtn">synonyms.json を保存（全体PUT）</button>
+      <button class="btn gray" id="synReloadBtn">再読み込み</button>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #e5e7eb; margin:14px 0;" />
+
+    <h4>term単位で更新/削除</h4>
+    <div class="row">
+      <input id="synTerm" placeholder="例: プロット出力" />
+      <input id="synVals" placeholder='例: ["プロッター","出力","印刷"]' />
+    </div>
+    <div class="row">
+      <button class="btn primary" id="synTermUpsertBtn">このtermを更新（PATCH）</button>
+      <button class="btn danger" id="synTermDeleteBtn">このtermを削除（DELETE）</button>
+    </div>
+
+    <div class="status" id="synStatus"></div>
+  </div>
+
+  <div class="card" id="faqCard" style="display:none;">
+    <h3>faq_chatbot_fixed_only.json（編集・保存）</h3>
+    <p class="muted">FAQは形式が「配列」でも「dict」でも扱えます。基本は全体を編集して保存でOK。</p>
+    <textarea id="faqText"></textarea>
+    <div class="row">
+      <button class="btn primary" id="faqSaveBtn">FAQ を保存（全体PUT）</button>
+      <button class="btn gray" id="faqReloadBtn">再読み込み</button>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #e5e7eb; margin:14px 0;" />
+
+    <h4>アイテム単位で更新/削除</h4>
+    <p class="muted">FAQが配列の場合 key は index（例: 0,1,2...）。dictの場合 key は id など。</p>
+    <div class="row">
+      <input id="faqKey" placeholder="key (index or id)" />
+      <input id="faqDeleteKey" placeholder="削除 key (index or id)" />
+    </div>
+    <textarea id="faqItem" placeholder='更新するitem JSON（例: {"question":"...","answer":"...","steps":[...]}）'></textarea>
+    <div class="row">
+      <button class="btn primary" id="faqAddBtn">新規追加（POST）</button>
+      <button class="btn primary" id="faqUpdateBtn">更新（PATCH）</button>
+      <button class="btn danger" id="faqDeleteBtn">削除（DELETE）</button>
+    </div>
+
+    <div class="status" id="faqStatus"></div>
+  </div>
+</main>
+
+<script>
+  const storeKey = "adminBasicAuth";
+
+  function setAuth(u, p){
+    const token = btoa(`${u}:${p}`);
+    localStorage.setItem(storeKey, token);
+  }
+  function getAuth(){
+    return localStorage.getItem(storeKey);
+  }
+  function clearAuth(){
+    localStorage.removeItem(storeKey);
+  }
+
+  async function api(path, opts={}){
+    const token = getAuth();
+    if(!token) throw new Error("未ログインです");
+    const headers = Object.assign({}, opts.headers || {}, {
+      "Authorization": `Basic ${token}`
+    });
+    return fetch(path, {...opts, headers});
+  }
+
+  async function tryLoad(){
+    document.getElementById("loginStatus").textContent = "";
+    try{
+      const r1 = await api("/admin/api/synonyms");
+      if(!r1.ok) throw new Error("認証失敗");
+      const syn = await r1.json();
+      document.getElementById("synText").value = JSON.stringify(syn, null, 2);
+
+      const r2 = await api("/admin/api/faq");
+      const faq = await r2.json();
+      document.getElementById("faqText").value = JSON.stringify(faq, null, 2);
+
+      document.getElementById("loginCard").style.display="none";
+      document.getElementById("editCard").style.display="block";
+      document.getElementById("faqCard").style.display="block";
+    }catch(e){
+      // stay in login
+    }
+  }
+
+  document.getElementById("loginBtn").addEventListener("click", async ()=>{
+    const u = document.getElementById("user").value.trim();
+    const p = document.getElementById("pass").value;
+    if(!u || !p){
+      document.getElementById("loginStatus").textContent = "ユーザー/パスワードを入力してください。";
+      return;
+    }
+    setAuth(u,p);
+    await tryLoad();
+    if(document.getElementById("editCard").style.display==="none"){
+      document.getElementById("loginStatus").textContent = "ログインに失敗しました。";
+      clearAuth();
+    }
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", ()=>{
+    clearAuth();
+    location.reload();
+  });
+
+  // synonyms
+  document.getElementById("synReloadBtn").addEventListener("click", async ()=>{
+    const r = await api("/admin/api/synonyms");
+    const syn = await r.json();
+    document.getElementById("synText").value = JSON.stringify(syn, null, 2);
+    document.getElementById("synStatus").textContent = "再読み込みしました。";
+  });
+
+  document.getElementById("synSaveBtn").addEventListener("click", async ()=>{
+    try{
+      const obj = JSON.parse(document.getElementById("synText").value);
+      const r = await api("/admin/api/synonyms", {
+        method:"PUT",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(obj)
+      });
+      const j = await r.json();
+      document.getElementById("synStatus").textContent = r.ok ? "保存しました。" : ("保存失敗: " + (j.detail||""));
+    }catch(e){
+      document.getElementById("synStatus").textContent = "JSONが不正です: " + e.message;
+    }
+  });
+
+  document.getElementById("synTermUpsertBtn").addEventListener("click", async ()=>{
+    const term = document.getElementById("synTerm").value.trim();
+    const valsText = document.getElementById("synVals").value.trim();
+    if(!term || !valsText){
+      document.getElementById("synStatus").textContent = "term と values を入力してください。";
+      return;
+    }
+    try{
+      const vals = JSON.parse(valsText);
+      const r = await api(`/admin/api/synonyms/${encodeURIComponent(term)}`, {
+        method:"PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(vals)
+      });
+      const j = await r.json();
+      document.getElementById("synStatus").textContent = r.ok ? "term更新しました。" : ("失敗: " + (j.detail||""));
+    }catch(e){
+      document.getElementById("synStatus").textContent = "values は JSON配列で入力してください。";
+    }
+  });
+
+  document.getElementById("synTermDeleteBtn").addEventListener("click", async ()=>{
+    const term = document.getElementById("synTerm").value.trim();
+    if(!term){
+      document.getElementById("synStatus").textContent = "term を入力してください。";
+      return;
+    }
+    const r = await api(`/admin/api/synonyms/${encodeURIComponent(term)}`, {method:"DELETE"});
+    const j = await r.json();
+    document.getElementById("synStatus").textContent = r.ok ? "削除しました。" : ("失敗: " + (j.detail||""));
+  });
+
+  // faq
+  document.getElementById("faqReloadBtn").addEventListener("click", async ()=>{
+    const r = await api("/admin/api/faq");
+    const faq = await r.json();
+    document.getElementById("faqText").value = JSON.stringify(faq, null, 2);
+    document.getElementById("faqStatus").textContent = "再読み込みしました。";
+  });
+
+  document.getElementById("faqSaveBtn").addEventListener("click", async ()=>{
+    try{
+      const obj = JSON.parse(document.getElementById("faqText").value);
+      const r = await api("/admin/api/faq", {
+        method:"PUT",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(obj)
+      });
+      const j = await r.json();
+      document.getElementById("faqStatus").textContent = r.ok ? "保存しました。" : ("保存失敗: " + (j.detail||""));
+    }catch(e){
+      document.getElementById("faqStatus").textContent = "JSONが不正です: " + e.message;
+    }
+  });
+
+  document.getElementById("faqAddBtn").addEventListener("click", async ()=>{
+    try{
+      const item = JSON.parse(document.getElementById("faqItem").value);
+      const r = await api("/admin/api/faq/item", {
+        method:"POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(item)
+      });
+      const j = await r.json();
+      document.getElementById("faqStatus").textContent = r.ok ? "追加しました。" : ("追加失敗: " + (j.detail||""));
+    }catch(e){
+      document.getElementById("faqStatus").textContent = "item JSONが不正です。";
+    }
+  });
+
+  document.getElementById("faqUpdateBtn").addEventListener("click", async ()=>{
+    const key = document.getElementById("faqKey").value.trim();
+    if(!key){
+      document.getElementById("faqStatus").textContent = "更新 key を入力してください。";
+      return;
+    }
+    try{
+      const item = JSON.parse(document.getElementById("faqItem").value);
+      const r = await api(`/admin/api/faq/item/${encodeURIComponent(key)}`, {
+        method:"PATCH",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify(item)
+      });
+      const j = await r.json();
+      document.getElementById("faqStatus").textContent = r.ok ? "更新しました。" : ("更新失敗: " + (j.detail||""));
+    }catch(e){
+      document.getElementById("faqStatus").textContent = "item JSONが不正です。";
+    }
+  });
+
+  document.getElementById("faqDeleteBtn").addEventListener("click", async ()=>{
+    const key = document.getElementById("faqDeleteKey").value.trim();
+    if(!key){
+      document.getElementById("faqStatus").textContent = "削除 key を入力してください。";
+      return;
+    }
+    const r = await api(`/admin/api/faq/item/${encodeURIComponent(key)}`, {method:"DELETE"});
+    const j = await r.json();
+    document.getElementById("faqStatus").textContent = r.ok ? "削除しました。" : ("削除失敗: " + (j.detail||""));
+  });
+
+  // 初期ロード（保存済み資格情報があれば自動ログイン）
+  tryLoad();
+</script>
+</body>
+</html>

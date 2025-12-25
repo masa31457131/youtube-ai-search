@@ -126,7 +126,29 @@
       background: #fcfcfc;
       color: #666;
     }
-  </style>
+  
+    .pager{
+      display:flex;
+      gap:0.5rem;
+      align-items:center;
+      margin: 0.75rem 0;
+      flex-wrap: wrap;
+    }
+    .pager button{
+      padding: 0.35rem 0.7rem;
+      border-radius: 6px;
+      border: 1px solid #cfe3fb;
+      background: #e8f1fb;
+      color: #005BAC;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .pager button:disabled{
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+</style>
 </head>
 <body>
   <header>
@@ -136,121 +158,192 @@
   <main>
     <input type="text" id="searchInput" placeholder="キーワードを入力して検索…" />
 
-    <div class="section-title">FAQ候補 <span class="badge" id="faqCount">0</span></div>
-    <div style="display:flex; gap:8px; align-items:center; margin:10px 0;">
+    <div class="section-title">FAQ候補 <span class="badge" id="faqCount">0</span>
+    <div class="pager">
       <button id="faqPrev" disabled>前の10件</button>
       <button id="faqNext" disabled>次の10件</button>
       <span id="faqPageInfo" class="muted"></span>
     </div>
+</div>
     <div id="faqResults" class="grid"></div>
 
-    <div class="section-title">関連動画 <span class="badge" id="videoCount">0</span></div>
-    <div style="display:flex; gap:8px; align-items:center; margin:10px 0;">
+    <div class="section-title">関連動画 <span class="badge" id="videoCount">0</span>
+    <div class="pager">
       <button id="videoPrev" disabled>前の10件</button>
       <button id="videoNext" disabled>次の10件</button>
       <span id="videoPageInfo" class="muted"></span>
     </div>
+</div>
     <div id="videoResults" class="grid"></div>
-    
   </main>
 
   <script>
+
+    const PAGE_SIZE = 10;
+
     const $ = (id) => document.getElementById(id);
+    const esc = (s) => (s ?? "").toString()
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
     let timer = null;
 
-    function esc(s){
-      return String(s ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    // ページ状態（offset方式）
+    let faqOffset = 0;
+    let videoOffset = 0;
+    let lastQuery = "";
+
+    function setPager(kind, hasMore, offset, countOnPage){
+      const isFaq = kind === "faq";
+      const prevBtn = $(isFaq ? "faqPrev" : "videoPrev");
+      const nextBtn = $(isFaq ? "faqNext" : "videoNext");
+      const info = $(isFaq ? "faqPageInfo" : "videoPageInfo");
+
+      prevBtn.disabled = offset <= 0;
+      nextBtn.disabled = !hasMore;
+
+      if(countOnPage === 0){
+        info.textContent = "";
+        return;
+      }
+      const start = offset + 1;
+      const end = offset + countOnPage;
+      info.textContent = `${start}-${end}${hasMore ? "" : ""}`;
     }
 
-    function renderFaq(list){
-      $("faqCount").textContent = list.length;
+    async function fetchPaged(url){
+      const r = await fetch(url);
+      if(!r.ok){
+        return { items: [], has_more: false, offset: 0, limit: PAGE_SIZE };
+      }
+      // paged=1 を付けると {items, has_more, offset, limit} で返る
+      return r.json();
+    }
 
+    function renderFaq(items, meta){
       const root = $("faqResults");
       root.innerHTML = "";
+      $("faqCount").textContent = String(meta.total_visible ?? (items?.length || 0));
 
-      if(!list.length){
-        root.innerHTML = '<div class="empty">FAQ候補はありません（またはFAQデータ未配置です）。</div>';
+      if(!items || items.length === 0){
+        root.innerHTML = `<p class="muted">FAQの該当結果はありません。</p>`;
+        setPager("faq", false, faqOffset, 0);
         return;
       }
 
-      list.forEach(item => {
-        const steps = Array.isArray(item.steps) ? item.steps : [];
+      for(const f of items){
         const card = document.createElement("div");
         card.className = "card";
+        const steps = Array.isArray(f.steps) ? f.steps : [];
+        const stepsHtml = steps.length
+          ? `<ol>${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>`
+          : `<p class="muted">（手順がありません）</p>`;
+
+        const metaLine = [
+          f.category ? `カテゴリ: ${esc(f.category)}` : "",
+          (Array.isArray(f.keywords) && f.keywords.length) ? `KW: ${esc(f.keywords.join(", "))}` : ""
+        ].filter(Boolean).join(" / ");
 
         card.innerHTML = `
-          <details class="faq-item">
-            <summary>${esc(item.question || "")}</summary>
-            <div class="faq-meta">
-              ${item.category ? `<span class="pill">カテゴリ: ${esc(item.category)}</span>` : ""}
-              ${item.intent ? `<span class="pill">intent: ${esc(item.intent)}</span>` : ""}
-              ${item.id ? `<span class="pill">ID: ${esc(item.id)}</span>` : ""}
+          <div>
+            <div style="display:flex; justify-content:space-between; gap:12px;">
+              <strong>${esc(f.question || "")}</strong>
+              <span class="badge">${esc(f.id || "")}</span>
             </div>
-            ${steps.length ? `
-              <ol class="steps">
-                ${steps.map(s => `<li>${esc(s)}</li>`).join("")}
-              </ol>
-            ` : `<div class="muted" style="padding:0 1rem 1rem;">手順情報がありません。</div>`}
-          </details>
+            ${metaLine ? `<div class="muted" style="margin:6px 0 8px 0;">${metaLine}</div>` : ""}
+            ${stepsHtml}
+          </div>
         `;
         root.appendChild(card);
-      });
+      }
+
+      setPager("faq", !!meta.has_more, faqOffset, items.length);
     }
 
-    function renderVideos(list){
-      $("videoCount").textContent = list.length;
-
+    function renderVideos(items, meta){
       const root = $("videoResults");
       root.innerHTML = "";
+      $("videoCount").textContent = String(meta.total_visible ?? (items?.length || 0));
 
-      if(!list.length){
-        root.innerHTML = '<div class="empty">該当する動画が見つかりませんでした。</div>';
+      if(!items || items.length === 0){
+        root.innerHTML = `<p class="muted">動画の該当結果はありません。</p>`;
+        setPager("video", false, videoOffset, 0);
         return;
       }
 
-      list.forEach(v => {
+      for(const v of items){
         const card = document.createElement("div");
-        card.className = "card video-card";
+        card.className = "card";
         card.innerHTML = `
-          <img src="${esc(v.thumbnail)}" alt="thumbnail">
-          <div class="card-body">
-            <a href="${esc(v.url)}" target="_blank" rel="noreferrer noopener">${esc(v.title)}</a>
-            <p class="muted">${esc(v.description || "")}</p>
-          </div>`;
+          <div style="display:flex; gap:12px;">
+            ${v.thumbnail ? `<img src="${esc(v.thumbnail)}" alt="thumbnail" style="width:160px; height:90px; object-fit:cover; border-radius:8px;">` : ""}
+            <div style="flex:1;">
+              <a href="${esc(v.url || "#")}" target="_blank" rel="noreferrer noopener" style="font-weight:700; color:#005BAC; text-decoration:none;">
+                ${esc(v.title || "")}
+              </a>
+              <div class="muted" style="margin-top:6px;">${esc(v.description || "")}</div>
+            </div>
+          </div>
+        `;
         root.appendChild(card);
-      });
+      }
+
+      setPager("video", !!meta.has_more, videoOffset, items.length);
+    }
+
+    async function loadFaqPage(){
+      if(!lastQuery){
+        renderFaq([], {has_more:false, total_visible:0});
+        return;
+      }
+      const url = `/faq/search?query=${encodeURIComponent(lastQuery)}&offset=${faqOffset}&limit=${PAGE_SIZE}&paged=1`;
+      const data = await fetchPaged(url);
+      renderFaq(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
+    }
+
+    async function loadVideoPage(){
+      if(!lastQuery){
+        renderVideos([], {has_more:false, total_visible:0});
+        return;
+      }
+      const url = `/search?query=${encodeURIComponent(lastQuery)}&offset=${videoOffset}&limit=${PAGE_SIZE}&paged=1`;
+      const data = await fetchPaged(url);
+      renderVideos(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
     }
 
     async function doSearch(query){
-      if (!query || query.length < 2) {
+      lastQuery = query;
+      faqOffset = 0;
+      videoOffset = 0;
+
+      if (!query || query.length < 1) {
         $("faqResults").innerHTML = "";
         $("videoResults").innerHTML = "";
         $("faqCount").textContent = "0";
         $("videoCount").textContent = "0";
+        setPager("faq", false, 0, 0);
+        setPager("video", false, 0, 0);
         return;
       }
 
       // FAQ候補と動画検索を並列に実行（片方が失敗しても表示は継続）
-      const faqReq = fetch(`/faq/search?query=${encodeURIComponent(query)}`).then(r => r.ok ? r.json() : []);
-      const vidReq = fetch(`/search?query=${encodeURIComponent(query)}`).then(r => r.ok ? r.json() : []);
-
-      const [faqList, videoList] = await Promise.allSettled([faqReq, vidReq]);
-
-      renderFaq(faqList.status === "fulfilled" ? (faqList.value || []) : []);
-      renderVideos(videoList.status === "fulfilled" ? (videoList.value || []) : []);
+      await Promise.allSettled([loadFaqPage(), loadVideoPage()]);
     }
+
+    $("faqPrev").addEventListener("click", async () => { faqOffset = Math.max(0, faqOffset - PAGE_SIZE); await loadFaqPage(); });
+    $("faqNext").addEventListener("click", async () => { faqOffset = faqOffset + PAGE_SIZE; await loadFaqPage(); });
+    $("videoPrev").addEventListener("click", async () => { videoOffset = Math.max(0, videoOffset - PAGE_SIZE); await loadVideoPage(); });
+    $("videoNext").addEventListener("click", async () => { videoOffset = videoOffset + PAGE_SIZE; await loadVideoPage(); });
 
     $("searchInput").addEventListener("input", () => {
       const q = $("searchInput").value.trim();
       clearTimeout(timer);
       timer = setTimeout(() => doSearch(q), 250);
     });
+
+    // 初期状態
+    setPager("faq", false, 0, 0);
+    setPager("video", false, 0, 0);
+
   </script>
 </body>
 </html>

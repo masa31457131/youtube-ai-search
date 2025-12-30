@@ -126,7 +126,68 @@
       background: #fcfcfc;
       color: #666;
     }
-  </style>
+  
+/* ===== Modal (動画ポップアップ) ===== */
+.modal-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 18px;
+  z-index: 9999;
+}
+.modal-overlay.hidden{ display:none; }
+
+.modal{
+  width: min(980px, 96vw);
+  max-height: 88vh;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 80px rgba(0,0,0,.35);
+  display:flex;
+  flex-direction:column;
+}
+.modal-header{
+  display:flex;
+  justify-content:space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #0b1220;
+  color: #fff;
+  align-items:center;
+}
+.modal-title{ font-weight: 800; }
+.modal-actions{ display:flex; gap: 8px; flex-wrap:wrap; }
+.modal-btn{
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  cursor:pointer;
+  font-weight: 700;
+}
+.modal-btn.primary{
+  background:#2563eb;
+  border-color:#2563eb;
+}
+.modal-body{
+  padding: 14px;
+  overflow:auto;
+}
+.modal-body iframe{
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 12px;
+  background: #000;
+}
+
+</style>
 </head>
 <body>
   <header>

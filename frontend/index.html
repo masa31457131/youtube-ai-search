@@ -156,8 +156,7 @@
   </main>
 
   <script>
-
-    const PAGE_SIZE = 10;
+const PAGE_SIZE = 10;
 
     const $ = (id) => document.getElementById(id);
     const esc = (s) => (s ?? "").toString()
@@ -250,6 +249,8 @@
     }
 
     // ===== FAQ rendering (title-only list + accordion + modal detail) =====
+    
+    // ===== FAQ Rendering (タイトルだけ + 折りたたみ / 詳細ボタンなし) =====
     function renderFaq(items, meta){
       const root = $("faqResults");
       if(!root) return;
@@ -261,6 +262,52 @@
         setPager("faq", false, faqOffset, 0);
         return;
       }
+
+      for(const f of items){
+        const id = f.id || "";
+        const title = f.question || "";
+
+        const wrap = document.createElement("div");
+
+        if(expandedFaqId !== id){
+          // タイトルだけ表示
+          wrap.className = "faq-title-only";
+          wrap.innerHTML = `<div class="title">${esc(title)}</div>`;
+          wrap.addEventListener("click", ()=>{
+            expandedFaqId = id;
+            renderFaq(items, meta);
+          });
+        } else {
+          // 展開表示（枠を触ると閉じる）
+          const metaLine = [
+            f.category ? `カテゴリ: ${esc(f.category)}` : "",
+            (Array.isArray(f.keywords) && f.keywords.length) ? `KW: ${esc(f.keywords.join(", "))}` : ""
+          ].filter(Boolean).join(" / ");
+
+          const steps = Array.isArray(f.steps) ? f.steps : [];
+          const stepsHtml = steps.length
+            ? `<ol>${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>`
+            : `<p class="muted">（手順がありません）</p>`;
+
+          wrap.className = "faq-expanded";
+          wrap.innerHTML = `
+            <div class="title" style="font-weight:800;">${esc(title)}</div>
+            ${metaLine ? `<div class="meta">${metaLine}</div>` : ""}
+            ${stepsHtml}
+          `;
+
+          // 展開枠を触るとタイトルだけに戻る
+          wrap.addEventListener("click", ()=>{
+            expandedFaqId = null;
+            renderFaq(items, meta);
+          });
+        }
+
+        root.appendChild(wrap);
+      }
+
+      setPager("faq", !!meta.has_more, faqOffset, items.length);
+    }
 
       for(const f of items){
         const id = f.id || "";
@@ -291,7 +338,7 @@
             <div class="title" style="font-weight:800;">${esc(title)}</div>
             ${metaLine ? `<div class="meta">${metaLine}</div>` : ""}
             ${stepsHtml}
-            <button class="detail-btn">詳細を表示</button>
+            <button class="detail-btn-removed">詳細を表示</button>
           `;
 
           // 展開枠クリックで折りたたみ（ボタン以外）
@@ -300,7 +347,7 @@
             renderFaq(items, meta);
           });
 
-          const btn = wrap.querySelector(".detail-btn");
+          const btn = wrap.querySelector(".detail-btn-removed");
           if(btn){
             btn.addEventListener("click", (e)=>{
               e.stopPropagation();
@@ -448,8 +495,7 @@
     // 初期状態
     setPager("faq", false, 0, 0);
     setPager("video", false, 0, 0);
-
-  </script>
+</script>
 
   <!-- Modal Overlay -->
   <div id="modalOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true">

@@ -226,8 +226,8 @@
   </main>
 
   <script>
-
-    const PAGE_SIZE = 10;
+document.addEventListener("DOMContentLoaded", () => {
+const PAGE_SIZE = 10;
 
     const $ = (id) => document.getElementById(id);
     const esc = (s) => (s ?? "").toString()
@@ -450,6 +450,7 @@
     // 初期状態
     setPager("faq", false, 0, 0);
     setPager("video", false, 0, 0);
+});
 
 </script>
 

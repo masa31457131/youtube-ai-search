@@ -299,15 +299,54 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ===== FAQ (タイトルのみ→展開→枠クリックで折りたたみ / 詳細ボタンなし) =====
-  function renderFaq(items, meta){
-    const root = $("faqResults");
-    root.innerHTML = "";
-    $("faqCount").textContent = String(meta.total_visible ?? items.length);
+  
+    // ===== FAQ Rendering (タイトル一覧 → クリックでライトボックス表示) =====
+    function renderFaq(items, meta){
+      const root = $("faqResults");
+      if(!root) return;
+      root.innerHTML = "";
+      if($("faqCount")) $("faqCount").textContent = String(meta.total_visible ?? (items?.length || 0));
 
-    if(!items || items.length === 0){
-      root.innerHTML = `<p class="muted">FAQの該当結果はありません。</p>`;
-      setPager("faq", false, faqOffset, 0);
-      return;
+      if(!items || items.length === 0){
+        root.innerHTML = `<p class="muted">FAQの該当結果はありません。</p>`;
+        setPager("faq", false, faqOffset, 0);
+        return;
+      }
+
+      for(const f of items){
+        const title = f.question || "";
+        const metaLine = [
+          f.id ? `ID: ${esc(f.id)}` : "",
+          f.category ? `カテゴリ: ${esc(f.category)}` : "",
+          (Array.isArray(f.keywords) && f.keywords.length) ? `KW: ${esc(f.keywords.join(", "))}` : ""
+        ].filter(Boolean).join(" / ");
+
+        const steps = Array.isArray(f.steps) ? f.steps : [];
+        const stepsHtml = steps.length
+          ? `<ol>${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>`
+          : `<p class="muted">（手順がありません）</p>`;
+
+        const card = document.createElement("div");
+        card.className = "faq-title-only";
+        card.innerHTML = `<div class="title">${esc(title)}</div>`;
+
+        // タイトルクリックでライトボックス（モーダル）表示
+        card.addEventListener("click", ()=>{
+          openModal({
+            title: title,
+            type: "faq",
+            url: null,
+            bodyHtml: `
+              ${metaLine ? `<div class="muted" style="margin-bottom:10px;">${metaLine}</div>` : ""}
+              ${stepsHtml}
+            `
+          });
+        });
+
+        root.appendChild(card);
+      }
+
+      setPager("faq", !!meta.has_more, faqOffset, items.length);
     }
 
     for(const f of items){
@@ -461,8 +500,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="lightbox-topbar">
         <div class="lightbox-title" id="modalTitle"></div>
         <div class="lightbox-actions">
-          <button id="modalOpenNewTab" class="lightbox-btn">新しいタブで開く</button>
-          <button id="modalClose" class="lightbox-btn primary" aria-label="close">閉じる</button>
+<button id="modalClose" class="lightbox-btn primary" aria-label="close">閉じる</button>
         </div>
       </div>
       <div class="lightbox-body" id="modalBody"></div>

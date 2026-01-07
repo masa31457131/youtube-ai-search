@@ -127,20 +127,21 @@
       color: #666;
     }
   
-/* ===== Modal (動画ポップアップ) ===== */
-.modal-overlay{
+
+/* ===== Lightbox (Modal) ===== */
+.lightbox-overlay{
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.55);
+  background: rgba(0,0,0,.60);
   display:flex;
   align-items:center;
   justify-content:center;
   padding: 18px;
   z-index: 9999;
 }
-.modal-overlay.hidden{ display:none; }
+.lightbox-overlay.hidden{ display:none; }
 
-.modal{
+.lightbox{
   width: min(980px, 96vw);
   max-height: 88vh;
   background: #fff;
@@ -150,7 +151,8 @@
   display:flex;
   flex-direction:column;
 }
-.modal-header{
+
+.lightbox-topbar{
   display:flex;
   justify-content:space-between;
   gap: 12px;
@@ -160,9 +162,16 @@
   color: #fff;
   align-items:center;
 }
-.modal-title{ font-weight: 800; }
-.modal-actions{ display:flex; gap: 8px; flex-wrap:wrap; }
-.modal-btn{
+.lightbox-title{
+  font-weight: 800;
+  line-height: 1.2;
+}
+.lightbox-actions{
+  display:flex;
+  gap: 8px;
+  flex-wrap:wrap;
+}
+.lightbox-btn{
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid rgba(255,255,255,.35);
@@ -171,15 +180,15 @@
   cursor:pointer;
   font-weight: 700;
 }
-.modal-btn.primary{
+.lightbox-btn.primary{
   background:#2563eb;
   border-color:#2563eb;
 }
-.modal-body{
+.lightbox-body{
   padding: 14px;
   overflow:auto;
 }
-.modal-body iframe{
+.lightbox-body iframe{
   width: 100%;
   aspect-ratio: 16 / 9;
   border: 0;
@@ -217,7 +226,6 @@
   </main>
 
   <script>
-
 document.addEventListener("DOMContentLoaded", () => {
   const PAGE_SIZE = 10;
 
@@ -261,6 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
     $("modalOverlay").classList.remove("hidden");
   }
   function closeModal(){
+      document.body.style.overflow = "";
     $("modalOverlay").classList.add("hidden");
     $("modalBody").innerHTML = "";
     modalUrl = null;
@@ -444,20 +453,19 @@ document.addEventListener("DOMContentLoaded", () => {
   setPager("faq", false, 0, 0);
   setPager("video", false, 0, 0);
 });
-
 </script>
 
-  <!-- Modal Overlay -->
-  <div id="modalOverlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal" id="modalBox">
-      <div class="modal-header">
-        <div class="modal-title" id="modalTitle"></div>
-        <div class="modal-actions">
-          <button id="modalOpenNewTab" class="modal-btn">新しいタブで開く</button>
-          <button id="modalClose" class="modal-btn primary">閉じる</button>
+  <!-- Lightbox (Modal) -->
+  <div id="modalOverlay" class="lightbox-overlay hidden" role="dialog" aria-modal="true" aria-label="video modal">
+    <div class="lightbox" id="modalBox" role="document">
+      <div class="lightbox-topbar">
+        <div class="lightbox-title" id="modalTitle"></div>
+        <div class="lightbox-actions">
+          <button id="modalOpenNewTab" class="lightbox-btn">新しいタブで開く</button>
+          <button id="modalClose" class="lightbox-btn primary" aria-label="close">閉じる</button>
         </div>
       </div>
-      <div class="modal-body" id="modalBody"></div>
+      <div class="lightbox-body" id="modalBody"></div>
     </div>
   </div>
 

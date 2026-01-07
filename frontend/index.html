@@ -226,81 +226,80 @@
   </main>
 
   <script>
-document.addEventListener("DOMContentLoaded", () => {
-  const PAGE_SIZE = 10;
 
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => (s ?? "").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+    const PAGE_SIZE = 10;
 
-  let timer = null;
-  let lastQuery = "";
-  let faqOffset = 0;
-  let videoOffset = 0;
-  let expandedFaqId = null;
-  let modalUrl = null;
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => (s ?? "").toString()
+      .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;").replaceAll("'","&#039;");
 
-  function setPager(kind, hasMore, offset, countOnPage){
-    const isFaq = kind === "faq";
-    const prevBtn = $(isFaq ? "faqPrev" : "videoPrev");
-    const nextBtn = $(isFaq ? "faqNext" : "videoNext");
-    const info = $(isFaq ? "faqPageInfo" : "videoPageInfo");
-    if(!prevBtn || !nextBtn || !info) return;
+    let timer = null;
+    let faqOffset = 0;
+    let videoOffset = 0;
+    let lastQuery = "";
 
-    prevBtn.disabled = offset <= 0;
-    nextBtn.disabled = !hasMore;
+    function setPager(kind, hasMore, offset, countOnPage){
+      const isFaq = kind === "faq";
+      const prevBtn = $(isFaq ? "faqPrev" : "videoPrev");
+      const nextBtn = $(isFaq ? "faqNext" : "videoNext");
+      const info = $(isFaq ? "faqPageInfo" : "videoPageInfo");
+      if(!prevBtn || !nextBtn || !info) return;
 
-    if(countOnPage === 0){ info.textContent = ""; return; }
-    info.textContent = `${offset+1}-${offset+countOnPage}`;
-  }
+      prevBtn.disabled = offset <= 0;
+      nextBtn.disabled = !hasMore;
 
-  async function fetchPaged(url){
-    const r = await fetch(url);
-    if(!r.ok) return { items: [], has_more: false, total_visible: 0 };
-    return r.json();
-  }
-
-  // ===== modal (video only) =====
-  function openModal({title, bodyHtml, url}){
-    modalUrl = url || null;
-    $("modalTitle").textContent = title || "";
-    $("modalBody").innerHTML = bodyHtml || "";
-    $("modalOverlay").classList.remove("hidden");
-  }
-  function closeModal(){
-      document.body.style.overflow = "";
-    $("modalOverlay").classList.add("hidden");
-    $("modalBody").innerHTML = "";
-    modalUrl = null;
-  }
-
-  $("modalClose")?.addEventListener("click", (e)=>{ e.stopPropagation(); closeModal(); });
-  $("modalOverlay")?.addEventListener("click", ()=> closeModal());
-  $("modalBox")?.addEventListener("click", (e)=> e.stopPropagation());
-  $("modalOpenNewTab")?.addEventListener("click", (e)=>{
-    e.stopPropagation();
-    if(modalUrl){
-      closeModal();
-      window.open(modalUrl, "_blank", "noopener,noreferrer");
+      if(countOnPage === 0){
+        info.textContent = "";
+        return;
+      }
+      const start = offset + 1;
+      const end = offset + countOnPage;
+      info.textContent = `${start}-${end}`;
     }
-  });
 
-  function getYouTubeId(url){
-    try{
-      const u = new URL(url);
-      const v = u.searchParams.get("v");
-      if(v) return v;
-      if(u.hostname.includes("youtu.be")) return u.pathname.replace("/","").trim();
-      const m = u.pathname.match(/\/embed\/([^\/]+)/);
-      if(m) return m[1];
-    }catch(e){}
-    return null;
-  }
+    async function fetchPaged(url){
+      const r = await fetch(url);
+      if(!r.ok){
+        return { items: [], has_more: false, offset: 0, limit: PAGE_SIZE, total_visible: 0 };
+      }
+      return r.json();
+    }
 
-  // ===== FAQ (タイトルのみ→展開→枠クリックで折りたたみ / 詳細ボタンなし) =====
-  
-    // ===== FAQ Rendering (タイトル一覧 → クリックでライトボックス表示) =====
+    // ===== Lightbox =====
+    function openModal({title, bodyHtml}){
+      if($("modalTitle")) $("modalTitle").textContent = title || "";
+      if($("modalBody")) $("modalBody").innerHTML = bodyHtml || "";
+      if($("modalOverlay")) $("modalOverlay").classList.remove("hidden");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeModal(){
+      if($("modalOverlay")) $("modalOverlay").classList.add("hidden");
+      if($("modalBody")) $("modalBody").innerHTML = "";
+      document.body.style.overflow = "";
+    }
+
+    if($("modalClose")) $("modalClose").addEventListener("click", (e)=>{ e.stopPropagation(); closeModal(); });
+    if($("modalOverlay")) $("modalOverlay").addEventListener("click", ()=> closeModal());
+    if($("modalBox")) $("modalBox").addEventListener("click", (e)=> e.stopPropagation());
+    document.addEventListener("keydown", (e)=>{ if(e.key === "Escape"){ closeModal(); } });
+
+    function getYouTubeId(url){
+      try{
+        const u = new URL(url);
+        const v = u.searchParams.get("v");
+        if(v) return v;
+        if(u.hostname.includes("youtu.be")){
+          return u.pathname.replace("/","").trim();
+        }
+        const m = u.pathname.match(/\/embed\/([^\/]+)/);
+        if(m) return m[1];
+      }catch(e){}
+      return null;
+    }
+
+    // ===== FAQ Rendering (タイトル一覧 → クリックでモーダル) =====
     function renderFaq(items, meta){
       const root = $("faqResults");
       if(!root) return;
@@ -329,13 +328,9 @@ document.addEventListener("DOMContentLoaded", () => {
         const card = document.createElement("div");
         card.className = "faq-title-only";
         card.innerHTML = `<div class="title">${esc(title)}</div>`;
-
-        // タイトルクリックでライトボックス（モーダル）表示
         card.addEventListener("click", ()=>{
           openModal({
             title: title,
-            type: "faq",
-            url: null,
             bodyHtml: `
               ${metaLine ? `<div class="muted" style="margin-bottom:10px;">${metaLine}</div>` : ""}
               ${stepsHtml}
@@ -349,149 +344,113 @@ document.addEventListener("DOMContentLoaded", () => {
       setPager("faq", !!meta.has_more, faqOffset, items.length);
     }
 
-    for(const f of items){
-      const id = f.id || "";
-      const title = f.question || "";
+    // ===== Video Rendering (カードクリック → モーダル再生) =====
+    function renderVideos(items, meta){
+      const root = $("videoResults");
+      if(!root) return;
+      root.innerHTML = "";
+      if($("videoCount")) $("videoCount").textContent = String(meta.total_visible ?? (items?.length || 0));
 
-      const wrap = document.createElement("div");
-
-      if(expandedFaqId !== id){
-        wrap.className = "faq-title-only";
-        wrap.innerHTML = `<div class="title">${esc(title)}</div>`;
-        wrap.addEventListener("click", ()=>{
-          expandedFaqId = id;
-          renderFaq(items, meta);
-        });
-      } else {
-        const metaLine = [
-          f.category ? `カテゴリ: ${esc(f.category)}` : "",
-          (Array.isArray(f.keywords) && f.keywords.length) ? `KW: ${esc(f.keywords.join(", "))}` : ""
-        ].filter(Boolean).join(" / ");
-
-        const steps = Array.isArray(f.steps) ? f.steps : [];
-        const stepsHtml = steps.length
-          ? `<ol>${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>`
-          : `<p class="muted">（手順がありません）</p>`;
-
-        wrap.className = "faq-expanded";
-        wrap.innerHTML = `
-          <div class="title" style="font-weight:800;">${esc(title)}</div>
-          ${metaLine ? `<div class="meta">${metaLine}</div>` : ""}
-          ${stepsHtml}
-        `;
-        wrap.addEventListener("click", ()=>{
-          expandedFaqId = null;
-          renderFaq(items, meta);
-        });
+      if(!items || items.length === 0){
+        root.innerHTML = `<p class="muted">動画の該当結果はありません。</p>`;
+        setPager("video", false, videoOffset, 0);
+        return;
       }
 
-      root.appendChild(wrap);
-    }
+      for(const v of items){
+        const url = v.url || "#";
+        const title = v.title || "";
+        const desc = v.description || "";
+        const thumb = v.thumbnail || "";
 
-    setPager("faq", !!meta.has_more, faqOffset, items.length);
-  }
-
-  // ===== Videos (枠クリックでポップアップ再生 / 閉じる+新タブ) =====
-  function renderVideos(items, meta){
-    const root = $("videoResults");
-    root.innerHTML = "";
-    $("videoCount").textContent = String(meta.total_visible ?? items.length);
-
-    if(!items || items.length === 0){
-      root.innerHTML = `<p class="muted">動画の該当結果はありません。</p>`;
-      setPager("video", false, videoOffset, 0);
-      return;
-    }
-
-    for(const v of items){
-      const url = v.url || "#";
-      const title = v.title || "";
-      const desc = v.description || "";
-      const thumb = v.thumbnail || "";
-
-      const card = document.createElement("div");
-      card.className = "video-card";
-      card.innerHTML = `
-        <div class="video-row">
-          ${thumb ? `<img class="video-thumb" src="${esc(thumb)}" alt="thumbnail">` : ""}
-          <div style="flex:1;">
-            <div class="video-title">${esc(title)}</div>
-            <div class="muted">${esc(desc)}</div>
+        const card = document.createElement("div");
+        card.className = "video-card";
+        card.innerHTML = `
+          <div class="video-row">
+            ${thumb ? `<img class="video-thumb" src="${esc(thumb)}" alt="thumbnail">` : ""}
+            <div style="flex:1;">
+              <div class="video-title">${esc(title)}</div>
+              <div class="muted">${esc(desc)}</div>
+            </div>
           </div>
-        </div>
-      `;
+        `;
 
-      card.addEventListener("click", ()=>{
-        const vid = getYouTubeId(url);
-        const embed = vid ? `https://www.youtube.com/embed/${vid}?autoplay=1` : url;
-        openModal({
-          title,
-          url,
-          bodyHtml: `
-            <iframe src="${esc(embed)}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowfullscreen></iframe>
-          `
+        card.addEventListener("click", ()=>{
+          const vid = getYouTubeId(url);
+          const embed = vid ? `https://www.youtube.com/embed/${vid}?autoplay=1` : url;
+          openModal({
+            title: title,
+            bodyHtml: `
+              <iframe src="${esc(embed)}"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen></iframe>
+            `
+          });
         });
+
+        root.appendChild(card);
+      }
+
+      setPager("video", !!meta.has_more, videoOffset, items.length);
+    }
+
+    async function loadFaqPage(){
+      const q = (lastQuery || "").trim();
+      if(!q){
+        renderFaq([], {has_more:false, total_visible:0});
+        return;
+      }
+      const url = `/faq/search?query=${encodeURIComponent(q)}&offset=${faqOffset}&limit=${PAGE_SIZE}&paged=1`;
+      const data = await fetchPaged(url);
+      renderFaq(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
+    }
+
+    async function loadVideoPage(){
+      const q = (lastQuery || "").trim();
+      if(!q){
+        renderVideos([], {has_more:false, total_visible:0});
+        return;
+      }
+      const url = `/search?query=${encodeURIComponent(q)}&offset=${videoOffset}&limit=${PAGE_SIZE}&paged=1`;
+      const data = await fetchPaged(url);
+      renderVideos(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
+    }
+
+    async function doSearch(query){
+      lastQuery = (query ?? "").toString().trim();
+      faqOffset = 0;
+      videoOffset = 0;
+
+      if(!lastQuery){
+        if($("faqResults")) $("faqResults").innerHTML = "";
+        if($("videoResults")) $("videoResults").innerHTML = "";
+        if($("faqCount")) $("faqCount").textContent = "0";
+        if($("videoCount")) $("videoCount").textContent = "0";
+        setPager("faq", false, 0, 0);
+        setPager("video", false, 0, 0);
+        return;
+      }
+
+      await Promise.allSettled([loadFaqPage(), loadVideoPage()]);
+    }
+
+    if($("faqPrev")) $("faqPrev").addEventListener("click", async ()=>{ faqOffset = Math.max(0, faqOffset - PAGE_SIZE); await loadFaqPage(); });
+    if($("faqNext")) $("faqNext").addEventListener("click", async ()=>{ faqOffset = faqOffset + PAGE_SIZE; await loadFaqPage(); });
+    if($("videoPrev")) $("videoPrev").addEventListener("click", async ()=>{ videoOffset = Math.max(0, videoOffset - PAGE_SIZE); await loadVideoPage(); });
+    if($("videoNext")) $("videoNext").addEventListener("click", async ()=>{ videoOffset = videoOffset + PAGE_SIZE; await loadVideoPage(); });
+
+    if($("searchInput")){
+      $("searchInput").addEventListener("input", ()=>{
+        clearTimeout(timer);
+        timer = setTimeout(()=> doSearch($("searchInput").value), 250);
       });
-
-      root.appendChild(card);
+      $("searchInput").addEventListener("keydown", (e)=>{ if(e.key === "Enter"){ e.preventDefault(); } });
     }
 
-    setPager("video", !!meta.has_more, videoOffset, items.length);
-  }
+    // 初期状態
+    setPager("faq", false, 0, 0);
+    setPager("video", false, 0, 0);
 
-  async function loadFaqPage(){
-    const q = (lastQuery || "").trim();
-    if(!q){ renderFaq([], {has_more:false, total_visible:0}); return; }
-    const url = `/faq/search?query=${encodeURIComponent(q)}&paged=1&offset=${faqOffset}&limit=${PAGE_SIZE}`;
-    const data = await fetchPaged(url);
-    expandedFaqId = null;
-    renderFaq(data.items || [], data);
-  }
-
-  async function loadVideoPage(){
-    const q = (lastQuery || "").trim();
-    if(!q){ renderVideos([], {has_more:false, total_visible:0}); return; }
-    const url = `/search?query=${encodeURIComponent(q)}&paged=1&offset=${videoOffset}&limit=${PAGE_SIZE}`;
-    const data = await fetchPaged(url);
-    renderVideos(data.items || [], data);
-  }
-
-  async function doSearch(q){
-    lastQuery = (q ?? "").toString().trim();
-    faqOffset = 0;
-    videoOffset = 0;
-    expandedFaqId = null;
-
-    if(!lastQuery){
-      $("faqResults").innerHTML = "";
-      $("videoResults").innerHTML = "";
-      $("faqCount").textContent = "0";
-      $("videoCount").textContent = "0";
-      setPager("faq", false, 0, 0);
-      setPager("video", false, 0, 0);
-      return;
-    }
-    await Promise.allSettled([loadFaqPage(), loadVideoPage()]);
-  }
-
-  $("faqPrev")?.addEventListener("click", async ()=>{ faqOffset = Math.max(0, faqOffset - PAGE_SIZE); await loadFaqPage(); });
-  $("faqNext")?.addEventListener("click", async ()=>{ faqOffset += PAGE_SIZE; await loadFaqPage(); });
-  $("videoPrev")?.addEventListener("click", async ()=>{ videoOffset = Math.max(0, videoOffset - PAGE_SIZE); await loadVideoPage(); });
-  $("videoNext")?.addEventListener("click", async ()=>{ videoOffset += PAGE_SIZE; await loadVideoPage(); });
-
-  $("searchInput")?.addEventListener("input", ()=>{
-    const q = $("searchInput").value;
-    clearTimeout(timer);
-    timer = setTimeout(()=>doSearch(q), 250);
-  });
-
-  $("searchInput")?.addEventListener("keydown", (e)=>{ if(e.key === "Enter"){ e.preventDefault(); } });
-
-  setPager("faq", false, 0, 0);
-  setPager("video", false, 0, 0);
-});
 </script>
 
   <!-- Lightbox (Modal) -->

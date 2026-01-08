@@ -12,6 +12,7 @@ import os
 import pathlib
 import csv
 import secrets
+import threading
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import re
@@ -30,6 +31,15 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 DEFAULT_TOP_K = 10
 DEFAULT_PAGE_LIMIT = 10
 MAX_PAGE_LIMIT = 50
+
+# 起動時の重い初期化（大きいJSON読込・FAISS構築・モデルロード）を
+# デプロイ/ヘルスチェックのタイムアウトを避けるためバックグラウンドで実行する
+INIT_STATE = {
+    "started": False,
+    "ready": False,
+    "error": None,
+}
+_INIT_LOCK = threading.Lock()
 
 # 管理者（Basic認証）
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -466,12 +476,41 @@ def parse_logs() -> List[dict]:
 # 起動時
 # ============================================
 
+
+def _background_initialize() -> None:
+    """重い初期化をバックグラウンドで実行する（デプロイ時タイムアウト対策）"""
+    with _INIT_LOCK:
+        if INIT_STATE["started"]:
+            return
+        INIT_STATE["started"] = True
+
+    try:
+        # ここが重い：JSON読込・モデルロード・FAISS構築
+        load_videos()
+        build_video_index()
+        load_faq()
+        build_faq_index()
+        INIT_STATE["ready"] = True
+    except Exception as e:
+        INIT_STATE["error"] = f"{type(e).__name__}: {e}"
+
+def _ensure_ready() -> None:
+    """検索/管理API実行前に初期化状態を確認する"""
+    if INIT_STATE.get("error"):
+        raise HTTPException(status_code=500, detail=f"Initialization failed: {INIT_STATE['error']}")
+    if not INIT_STATE.get("ready"):
+        # 初回アクセス時に初期化が開始されていないケースに備えてキック
+        threading.Thread(target=_background_initialize, daemon=True).start()
+        # フロントが落ちないよう 503 ではなく空結果を返せるように呼び出し元で分岐する
+        raise HTTPException(status_code=503, detail="Index is warming up. Please retry in a moment.")
+
+
+
+
 @app.on_event("startup")
 def on_startup() -> None:
-    load_videos()
-    build_video_index()
-    load_faq()
-    build_faq_index()
+    # デプロイ/ヘルスチェックのタイムアウトを避けるため、初期化はバックグラウンドで行う
+    threading.Thread(target=_background_initialize, daemon=True).start()
 
 
 # ============================================
@@ -489,6 +528,14 @@ def search_videos_endpoint(
     offset: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
 ):
+    # 初期化が完了していない場合は空結果（UIが落ちない）で返す
+    try:
+        _ensure_ready()
+    except HTTPException as e:
+        if e.status_code == 503:
+            return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0, "warming_up": True} if paged == 1 else []
+        raise
+
     query = (query or q or "").strip()
     if not query:
         return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0} if paged == 1 else []
@@ -523,6 +570,14 @@ def search_faq_endpoint(
     offset: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
 ):
+    # 初期化が完了していない場合は空結果（UIが落ちない）で返す
+    try:
+        _ensure_ready()
+    except HTTPException as e:
+        if e.status_code == 503:
+            return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0, "warming_up": True} if paged == 1 else []
+        raise
+
     query = (query or q or "").strip()
     if not query:
         return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0} if paged == 1 else []
@@ -701,6 +756,8 @@ def admin_list_faq_items(
     q: str = Query("", description="filter（question/keywords/category）"),
     user: str = Depends(verify_admin),
 ):
+    _ensure_ready()
+
     obj = load_faq_raw()
     faqs = obj.get("faqs", [])
     if not isinstance(faqs, list):
@@ -733,6 +790,8 @@ def admin_list_faq_items(
 
 @app.get("/admin/api/faq/item/{faq_id}", tags=["admin"])
 def admin_get_faq_item(faq_id: str, user: str = Depends(verify_admin)):
+    _ensure_ready()
+
     obj = load_faq_raw()
     faqs = obj.get("faqs", [])
     if not isinstance(faqs, list):
@@ -745,6 +804,8 @@ def admin_get_faq_item(faq_id: str, user: str = Depends(verify_admin)):
 
 @app.post("/admin/api/faq/item", tags=["admin"])
 def admin_create_faq_item(item: Dict[str, Any] = Body(...), user: str = Depends(verify_admin)):
+    _ensure_ready()
+
     faq_id = str(item.get("id", "")).strip()
     if not faq_id:
         raise HTTPException(status_code=400, detail="id が必要です")
@@ -768,6 +829,8 @@ def admin_create_faq_item(item: Dict[str, Any] = Body(...), user: str = Depends(
 
 @app.patch("/admin/api/faq/item/{faq_id}", tags=["admin"])
 def admin_update_faq_item(faq_id: str, item: Dict[str, Any] = Body(...), user: str = Depends(verify_admin)):
+    _ensure_ready()
+
     faq_id = str(faq_id).strip()
     if not faq_id:
         raise HTTPException(status_code=400, detail="id が不正です")
@@ -800,6 +863,8 @@ def admin_update_faq_item(faq_id: str, item: Dict[str, Any] = Body(...), user: s
 
 @app.delete("/admin/api/faq/item/{faq_id}", tags=["admin"])
 def admin_delete_faq_item(faq_id: str, user: str = Depends(verify_admin)):
+    _ensure_ready()
+
     obj = load_faq_raw()
     faqs = obj.get("faqs", [])
     if not isinstance(faqs, list):

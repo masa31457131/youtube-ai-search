@@ -196,6 +196,17 @@
   background: #000;
 }
 
+
+    .warming{
+      margin: 8px 0 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #fde68a;
+      background: #fffbeb;
+      color: #92400e;
+      font-weight: 700;
+    }
+    .hidden{ display:none; }
 </style>
 </head>
 <body>
@@ -207,6 +218,7 @@
     <input type="text" id="searchInput" placeholder="キーワードを入力して検索…" />
 
     <div class="section-title">FAQ候補 <span class="badge" id="faqCount">0</span>
+    <div id="faqWarming" class="warming hidden">インデックス準備中です（warming_up中です）。しばらくして再検索してください。</div>
     <div class="pager">
       <button id="faqPrev" disabled>前の10件</button>
       <button id="faqNext" disabled>次の10件</button>
@@ -216,6 +228,7 @@
     <div id="faqResults" class="grid"></div>
 
     <div class="section-title">関連動画 <span class="badge" id="videoCount">0</span>
+    <div id="videoWarming" class="warming hidden">インデックス準備中です（warming_up中です）。しばらくして再検索してください。</div>
     <div class="pager">
       <button id="videoPrev" disabled>前の10件</button>
       <button id="videoNext" disabled>次の10件</button>
@@ -258,7 +271,16 @@ const PAGE_SIZE = 10;
       info.textContent = `${start}-${end}`;
     }
 
-    async function fetchPaged(url){
+    
+    function show(el){ if(el) el.classList.remove("hidden"); }
+    function hide(el){ if(el) el.classList.add("hidden"); }
+
+    function setWarming(kind, isWarming){
+      const el = $(kind === "faq" ? "faqWarming" : "videoWarming");
+      if(isWarming) show(el); else hide(el);
+    }
+
+async function fetchPaged(url){
       const r = await fetch(url);
       if(!r.ok){
         return { items: [], has_more: false, offset: 0, limit: PAGE_SIZE, total_visible: 0 };
@@ -402,6 +424,7 @@ const PAGE_SIZE = 10;
       }
       const url = `/faq/search?query=${encodeURIComponent(q)}&offset=${faqOffset}&limit=${PAGE_SIZE}&paged=1`;
       const data = await fetchPaged(url);
+      setWarming('faq', !!data.warming_up);
       renderFaq(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
     }
 
@@ -413,6 +436,7 @@ const PAGE_SIZE = 10;
       }
       const url = `/search?query=${encodeURIComponent(q)}&offset=${videoOffset}&limit=${PAGE_SIZE}&paged=1`;
       const data = await fetchPaged(url);
+      setWarming('video', !!data.warming_up);
       renderVideos(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
     }
 
@@ -426,6 +450,8 @@ const PAGE_SIZE = 10;
         if($("videoResults")) $("videoResults").innerHTML = "";
         if($("faqCount")) $("faqCount").textContent = "0";
         if($("videoCount")) $("videoCount").textContent = "0";
+        setWarming("faq", false);
+        setWarming("video", false);
         setPager("faq", false, 0, 0);
         setPager("video", false, 0, 0);
         return;
@@ -451,7 +477,6 @@ const PAGE_SIZE = 10;
     setPager("faq", false, 0, 0);
     setPager("video", false, 0, 0);
 });
-
 </script>
 
   <!-- Lightbox (Modal) -->

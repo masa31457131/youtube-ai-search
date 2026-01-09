@@ -13,6 +13,7 @@ import pathlib
 import csv
 import secrets
 import threading
+import time
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import re
@@ -38,6 +39,10 @@ INIT_STATE = {
     "started": False,
     "ready": False,
     "error": None,
+    "stage": "not_started",  # not_started|loading_videos|building_video_index|loading_faq|building_faq_index|ready|error
+    "started_at": None,
+    "updated_at": None,
+    "eta_seconds": None,
 }
 _INIT_LOCK = threading.Lock()
 
@@ -474,25 +479,49 @@ def parse_logs() -> List[dict]:
 
 # ============================================
 # 起動時
-# ============================================
+# ===================================
+def _set_init_state(stage: str, eta_seconds: int | None = None) -> None:
+    INIT_STATE["stage"] = stage
+    INIT_STATE["updated_at"] = time.time()
+    if eta_seconds is not None:
+        INIT_STATE["eta_seconds"] = int(eta_seconds)
+
+=========
 
 
 def _background_initialize() -> None:
     """重い初期化をバックグラウンドで実行する（デプロイ時タイムアウト対策）"""
     with _INIT_LOCK:
-        if INIT_STATE["started"]:
+        if INIT_STATE["started"] and not INIT_STATE.get("error"):
             return
         INIT_STATE["started"] = True
+        INIT_STATE["ready"] = False
+        INIT_STATE["error"] = None
+        INIT_STATE["started_at"] = time.time()
+        INIT_STATE["updated_at"] = INIT_STATE["started_at"]
+        INIT_STATE["eta_seconds"] = 180  # 目安（環境・データ量で変動）
 
     try:
-        # ここが重い：JSON読込・モデルロード・FAISS構築
+        _set_init_state("loading_videos", 150)
         load_videos()
+
+        _set_init_state("building_video_index", 120)
         build_video_index()
+
+        _set_init_state("loading_faq", 60)
         load_faq()
+
+        _set_init_state("building_faq_index", 30)
         build_faq_index()
+
         INIT_STATE["ready"] = True
+        _set_init_state("ready", 0)
     except Exception as e:
         INIT_STATE["error"] = f"{type(e).__name__}: {e}"
+        INIT_STATE["ready"] = False
+        _set_init_state("error", None)
+        # 失敗した場合でもリトライできるように started は True のまま残すが、
+        # 次回アクセス時に _background_initialize が再実行されるよう error を見て分岐する
 
 def _ensure_ready() -> None:
     """検索/管理API実行前に初期化状態を確認する"""
@@ -512,6 +541,27 @@ def on_startup() -> None:
     # デプロイ/ヘルスチェックのタイムアウトを避けるため、初期化はバックグラウンドで行う
     threading.Thread(target=_background_initialize, daemon=True).start()
 
+
+
+# ============================================
+# 初期化ステータス（ウォームアップ表示用）
+# ============================================
+@app.get("/init/status")
+def init_status() -> dict:
+    started_at = INIT_STATE.get("started_at")
+    now = time.time()
+    elapsed = int(now - started_at) if started_at else 0
+    eta = INIT_STATE.get("eta_seconds")
+    remaining = max(0, int(eta - elapsed)) if isinstance(eta, int) else None
+    return {
+        "started": INIT_STATE.get("started", False),
+        "ready": INIT_STATE.get("ready", False),
+        "stage": INIT_STATE.get("stage"),
+        "error": INIT_STATE.get("error"),
+        "elapsed_seconds": elapsed,
+        "eta_seconds": eta,
+        "remaining_seconds": remaining,
+    }
 
 # ============================================
 # 検索API（ページング対応）
@@ -533,7 +583,7 @@ def search_videos_endpoint(
         _ensure_ready()
     except HTTPException as e:
         if e.status_code == 503:
-            return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0, "warming_up": True} if paged == 1 else []
+            return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0, "warming_up": True, "init_error": INIT_STATE.get("error")} if paged == 1 else []
         raise
 
     query = (query or q or "").strip()
@@ -575,7 +625,7 @@ def search_faq_endpoint(
         _ensure_ready()
     except HTTPException as e:
         if e.status_code == 503:
-            return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0, "warming_up": True} if paged == 1 else []
+            return {"items": [], "offset": offset, "limit": limit, "has_more": False, "total_visible": 0, "warming_up": True, "init_error": INIT_STATE.get("error")} if paged == 1 else []
         raise
 
     query = (query or q or "").strip()

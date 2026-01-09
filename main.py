@@ -486,7 +486,6 @@ def _set_init_state(stage: str, eta_seconds: int | None = None) -> None:
     if eta_seconds is not None:
         INIT_STATE["eta_seconds"] = int(eta_seconds)
 
-=========
 
 
 def _background_initialize() -> None:

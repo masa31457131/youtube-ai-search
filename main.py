@@ -59,6 +59,9 @@ SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
 # ============================================
 # アプリ
 # ============================================
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "abc123"
+
 
 app = FastAPI(title=APP_TITLE)
 

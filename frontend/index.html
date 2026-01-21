@@ -207,6 +207,11 @@
       font-weight: 700;
     }
     .hidden{ display:none; }
+
+/* ===== Cursor: pointer on search results ===== */
+.faq-title-only, .video-card { cursor: pointer; }
+.faq-title-only:hover, .video-card:hover { cursor: pointer; }
+
 </style>
 </head>
 <body>
@@ -275,9 +280,46 @@ const PAGE_SIZE = 10;
     function show(el){ if(el) el.classList.remove("hidden"); }
     function hide(el){ if(el) el.classList.add("hidden"); }
 
-    function setWarming(kind, isWarming){
+    function setWarming(kind, data){
       const el = $(kind === "faq" ? "faqWarming" : "videoWarming");
-      if(isWarming) show(el); else hide(el);
+      if(!el) return;
+
+      const isWarming = !!(data && data.warming_up);
+      if(!isWarming){
+        hide(el);
+        el.textContent = "";
+        return;
+      }
+
+      const err = (data && (data.init_error || data.error)) ? (data.init_error || data.error) : null;
+
+      // remaining_seconds は /init/status を見て補完する（なければ表示しない）
+      const remaining = (data && typeof data.remaining_seconds === "number") ? data.remaining_seconds : null;
+
+      if(err){
+        el.textContent = `初期化に失敗しました：${err}（ログをご確認ください）`;
+        show(el);
+        return;
+      }
+
+      if(remaining !== null){
+        const m = Math.ceil(remaining / 60);
+        el.textContent = `インデックス準備中です（warming_up中です）。推定あと約 ${m} 分です。`;
+      }else{
+        el.textContent = "インデックス準備中です（warming_up中です）。しばらくして再検索してください。";
+      }
+      show(el);
+    }
+
+
+    async function fetchInitStatus(){
+      try{
+        const r = await fetch("/init/status");
+        if(!r.ok) return null;
+        return await r.json();
+      }catch(e){
+        return null;
+      }
     }
 
 async function fetchPaged(url){
@@ -424,7 +466,11 @@ async function fetchPaged(url){
       }
       const url = `/faq/search?query=${encodeURIComponent(q)}&offset=${faqOffset}&limit=${PAGE_SIZE}&paged=1`;
       const data = await fetchPaged(url);
-      setWarming('faq', !!data.warming_up);
+      if(data && data.warming_up){
+        const st = await fetchInitStatus();
+        if(st){ data.remaining_seconds = st.remaining_seconds; data.init_error = st.error; }
+      }
+      setWarming('faq', data);
       renderFaq(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
     }
 
@@ -436,7 +482,11 @@ async function fetchPaged(url){
       }
       const url = `/search?query=${encodeURIComponent(q)}&offset=${videoOffset}&limit=${PAGE_SIZE}&paged=1`;
       const data = await fetchPaged(url);
-      setWarming('video', !!data.warming_up);
+      if(data && data.warming_up){
+        const st = await fetchInitStatus();
+        if(st){ data.remaining_seconds = st.remaining_seconds; data.init_error = st.error; }
+      }
+      setWarming('video', data);
       renderVideos(data.items || [], {has_more: data.has_more, total_visible: data.total_visible});
     }
 
@@ -450,8 +500,8 @@ async function fetchPaged(url){
         if($("videoResults")) $("videoResults").innerHTML = "";
         if($("faqCount")) $("faqCount").textContent = "0";
         if($("videoCount")) $("videoCount").textContent = "0";
-        setWarming("faq", false);
-        setWarming("video", false);
+        setWarming("faq", null);
+        setWarming("video", null);
         setPager("faq", false, 0, 0);
         setPager("video", false, 0, 0);
         return;

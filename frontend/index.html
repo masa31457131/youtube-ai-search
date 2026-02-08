@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>サポート検索（動画 + FAQ）</title>
   <style>
+    /* ====== Base ====== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
     body {
@@ -138,17 +139,6 @@
       border: 1px solid #e0e0e0;
     }
     
-    .faq-steps {
-      margin-top: 1rem;
-      padding-left: 1.5rem;
-      color: #555;
-      font-size: 0.95rem;
-    }
-    
-    .faq-steps li {
-      margin: 0.5rem 0;
-    }
-    
     .video-card img {
       width: 100%;
       aspect-ratio: 16/9;
@@ -252,6 +242,143 @@
       color: #888;
       font-size: 0.9rem;
     }
+
+    /* ====== Lightbox (Modal) ====== */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 16px;
+      z-index: 9999;
+      background: rgba(0,0,0,.55);
+      opacity: 0;
+      transition: opacity .22s ease;
+    }
+
+    .lightbox.is-open {
+      display: grid;
+      opacity: 1;
+    }
+
+    .lightbox__panel {
+      width: min(880px, 100%);
+      max-height: min(82vh, 760px);
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px 18px 14px;
+      position: relative;
+      box-shadow: 0 16px 50px rgba(0,0,0,.3);
+      transform: translateY(20px) scale(0.97);
+      opacity: 0;
+      transition: transform .22s ease, opacity .22s ease;
+    }
+
+    .lightbox.is-open .lightbox__panel {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .lightbox__close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid #e6e6e8;
+      background: #fff;
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+    .lightbox__close:hover { background: #fafafa; }
+
+    .lightbox__title {
+      margin: 0 44px 10px 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .lightbox__meta {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .lightbox__body {
+      font-size: 14px;
+      line-height: 1.75;
+      color: #222;
+    }
+    
+    .lightbox__body ol,
+    .lightbox__body ul {
+      padding-left: 22px;
+      margin: 0.5rem 0;
+    }
+    
+    .lightbox__body li {
+      margin: 0.35rem 0;
+    }
+    
+    .lightbox__body iframe {
+      width: 100%;
+      aspect-ratio: 16/9;
+      border: none;
+      border-radius: 8px;
+      margin: 1rem 0;
+    }
+    
+    .lightbox__body details {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    
+    .lightbox__body summary {
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+    }
+
+    .lightbox__footer {
+      margin-top: 14px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding-top: 12px;
+      border-top: 1px solid #eee;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid #d0d0d6;
+      background: #111;
+      color: #fff;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    
+    .btn--ghost {
+      background: #fff;
+      color: #111;
+    }
+    .btn--ghost:hover { background: #fafafa; }
+
+    @media (max-width: 560px) {
+      .lightbox__panel { padding: 16px 14px 12px; }
+      header h1 { font-size: 1.5rem; }
+      .grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -277,6 +404,25 @@
     © 2024 サポート検索システム（最適化版）
   </footer>
 
+  <!-- Lightbox (Modal) -->
+  <div id="lightbox" class="lightbox" aria-hidden="true">
+    <div class="lightbox__panel" role="dialog" aria-modal="true" aria-labelledby="lb-title" aria-describedby="lb-body">
+      <button type="button" class="lightbox__close" aria-label="閉じる">×</button>
+      <h2 id="lb-title" class="lightbox__title"></h2>
+
+      <div class="lightbox__meta">
+        <span id="lb-type" class="pill"></span>
+        <a id="lb-open-newtab" class="btn btn--ghost" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">新しいタブで開く</a>
+      </div>
+
+      <div id="lb-body" class="lightbox__body"></div>
+
+      <div class="lightbox__footer">
+        <button type="button" class="btn" id="lb-close">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const PAGE_SIZE = 10;
     const DEBOUNCE_MS = 300;
@@ -287,6 +433,9 @@
     let lastQuery = "";
     let faqHasMore = false;
     let videoHasMore = false;
+    let currentFaqResults = [];
+    let currentVideoResults = [];
+    let lastFocused = null;
 
     const $ = (id) => document.getElementById(id);
     const esc = (s) => (s ?? "").toString()
@@ -295,6 +444,16 @@
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+
+    // Lightbox elements
+    const lightbox = $("lightbox");
+    const lightboxPanel = lightbox.querySelector(".lightbox__panel");
+    const btnCloseX = lightbox.querySelector(".lightbox__close");
+    const btnClose = $("lb-close");
+    const lbTitle = $("lb-title");
+    const lbBody = $("lb-body");
+    const lbType = $("lb-type");
+    const lbOpenNewTab = $("lb-open-newtab");
 
     async function fetchData(url) {
       try {
@@ -323,23 +482,163 @@
       return await fetchData(url);
     }
 
+    function getYouTubeId(url) {
+      try {
+        const u = new URL(url);
+        const v = u.searchParams.get("v");
+        if (v) return v;
+        if (u.hostname.includes("youtu.be")) {
+          return u.pathname.replace("/", "").trim();
+        }
+        const m = u.pathname.match(/\/embed\/([^\/]+)/);
+        if (m) return m[1];
+      } catch (e) {}
+      return null;
+    }
+
+    // ====== Lightbox functions ======
+    function openLightbox(item, type) {
+      lastFocused = document.activeElement;
+
+      lbTitle.textContent = item.title || item.question || "";
+      lbType.textContent = type === "faq" ? "FAQ" : "動画";
+
+      let bodyHtml = "";
+
+      if (type === "faq") {
+        // FAQ表示
+        const category = item.category || "";
+        const keywords = (item.keywords || []).slice(0, 10);
+        const steps = item.steps || [];
+
+        if (category) {
+          bodyHtml += `<p><strong>カテゴリ:</strong> ${esc(category)}</p>`;
+        }
+
+        if (keywords.length) {
+          bodyHtml += `<p><strong>キーワード:</strong> `;
+          keywords.forEach(k => {
+            bodyHtml += `<span class="pill">${esc(k)}</span> `;
+          });
+          bodyHtml += `</p>`;
+        }
+
+        if (steps.length) {
+          bodyHtml += `<p><strong>手順:</strong></p><ol>`;
+          steps.forEach(s => {
+            bodyHtml += `<li>${esc(s)}</li>`;
+          });
+          bodyHtml += `</ol>`;
+        } else {
+          bodyHtml += `<p class="muted">（手順情報がありません）</p>`;
+        }
+
+        // FAQは「新しいタブで開く」を非表示
+        lbOpenNewTab.style.display = "none";
+      } else {
+        // 動画表示
+        const videoUrl = item.url || "";
+        const desc = item.description || "";
+        const transcript = item.transcript || "";
+
+        // YouTube埋め込み
+        const videoId = getYouTubeId(videoUrl);
+        if (videoId) {
+          bodyHtml += `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+        }
+
+        if (desc) {
+          bodyHtml += `<p><strong>説明:</strong> ${esc(desc)}</p>`;
+        }
+
+        if (transcript) {
+          const displayTranscript = transcript.length > 500 
+            ? esc(transcript).substring(0, 500) + '...' 
+            : esc(transcript);
+          bodyHtml += `<details><summary>文字起こしを表示</summary><p style="margin-top:0.5rem;color:#555;font-size:0.9rem;">${displayTranscript}</p></details>`;
+        }
+
+        // 動画は「新しいタブで開く」を表示
+        lbOpenNewTab.href = videoUrl;
+        lbOpenNewTab.style.display = "inline-block";
+      }
+
+      lbBody.innerHTML = bodyHtml;
+
+      lightbox.classList.add("is-open");
+      lightbox.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      btnCloseX.focus();
+    }
+
+    function closeLightbox() {
+      lightbox.classList.remove("is-open");
+      lightbox.setAttribute("aria-hidden", "true");
+      lbTitle.textContent = "";
+      lbType.textContent = "";
+      lbBody.innerHTML = "";
+      lbOpenNewTab.href = "#";
+      lbOpenNewTab.style.display = "none";
+      document.body.style.overflow = "";
+
+      if (lastFocused && typeof lastFocused.focus === "function") {
+        lastFocused.focus();
+      }
+    }
+
+    // Lightbox events
+    btnCloseX.addEventListener("click", closeLightbox);
+    btnClose.addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) closeLightbox();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && lightbox.classList.contains("is-open")) {
+        closeLightbox();
+      }
+    });
+
+    // Focus trap
+    document.addEventListener("keydown", (e) => {
+      if (!lightbox.classList.contains("is-open")) return;
+      if (e.key !== "Tab") return;
+
+      const focusables = lightboxPanel.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const list = Array.from(focusables).filter(el => !el.disabled && el.offsetParent !== null);
+      if (list.length === 0) return;
+
+      const first = list[0];
+      const last = list[list.length - 1];
+
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+
+    // ====== Render functions ======
     function renderFAQ(items, total) {
       if (!items || items.length === 0) {
         return '<div class="empty-state"><div class="muted">該当するFAQはありませんでした</div></div>';
       }
 
       let html = '<div class="grid">';
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const category = item.category || "";
         const keywords = (item.keywords || []).slice(0, 5);
-        const steps = item.steps || [];
 
         html += `
-          <div class="card faq-card">
+          <div class="card faq-card" data-index="${i}" data-type="faq">
             <div class="faq-title">${esc(item.question || "")}</div>
             ${category ? `<div class="faq-meta"><span class="pill">${esc(category)}</span></div>` : ""}
             ${keywords.length ? `<div class="faq-meta">${keywords.map(k => `<span class="pill">${esc(k)}</span>`).join("")}</div>` : ""}
-            ${steps.length ? `<ol class="faq-steps">${steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>` : ""}
           </div>
         `;
       }
@@ -354,19 +653,19 @@
       }
 
       let html = '<div class="grid">';
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const thumb = item.thumbnail || "";
         const title = item.title || "";
         const desc = item.description || "";
-        const url = item.url || "#";
 
         html += `
-          <div class="card video-card" onclick="window.open('${url}', '_blank')">
+          <div class="card video-card" data-index="${i}" data-type="video">
             ${thumb ? `<img src="${esc(thumb)}" alt="${esc(title)}">` : ""}
             <div class="video-card-body">
               <div class="video-title">${esc(title)}</div>
               ${desc ? `<div class="video-desc">${esc(desc)}</div>` : ""}
-              <div class="muted">YouTubeで開く →</div>
+              <div class="muted">クリックして詳細を表示 →</div>
             </div>
           </div>
         `;
@@ -417,6 +716,8 @@
 
       faqHasMore = faqData.has_more || false;
       videoHasMore = videoData.has_more || false;
+      currentFaqResults = faqData.items || [];
+      currentVideoResults = videoData.items || [];
 
       let html = "";
 
@@ -428,8 +729,8 @@
             <span class="badge">${faqData.total_visible || 0}件</span>
           </div>
         </div>
-        ${renderFAQ(faqData.items, faqData.total_visible)}
-        ${renderPager("faq", faqHasMore, faqOffset, (faqData.items || []).length)}
+        ${renderFAQ(currentFaqResults, faqData.total_visible)}
+        ${renderPager("faq", faqHasMore, faqOffset, currentFaqResults.length)}
       `;
 
       // Videos
@@ -440,13 +741,35 @@
             <span class="badge">${videoData.total_visible || 0}件</span>
           </div>
         </div>
-        ${renderVideos(videoData.items, videoData.total_visible)}
-        ${renderPager("video", videoHasMore, videoOffset, (videoData.items || []).length)}
+        ${renderVideos(currentVideoResults, videoData.total_visible)}
+        ${renderPager("video", videoHasMore, videoOffset, currentVideoResults.length)}
       `;
 
       container.innerHTML = html;
 
       // イベントリスナー再設定
+      setupCardListeners();
+      setupPagerListeners();
+    }
+
+    function setupCardListeners() {
+      document.querySelectorAll(".card[data-type]").forEach(card => {
+        card.addEventListener("click", () => {
+          const type = card.dataset.type;
+          const index = parseInt(card.dataset.index, 10);
+
+          if (type === "faq") {
+            const item = currentFaqResults[index];
+            if (item) openLightbox(item, "faq");
+          } else if (type === "video") {
+            const item = currentVideoResults[index];
+            if (item) openLightbox(item, "video");
+          }
+        });
+      });
+    }
+
+    function setupPagerListeners() {
       const faqPrev = $("faqPrev");
       const faqNext = $("faqNext");
       const videoPrev = $("videoPrev");

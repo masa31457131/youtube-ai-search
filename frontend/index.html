@@ -326,19 +326,6 @@
       border-radius: 8px;
       margin: 1rem 0;
     }
-    
-    .lightbox__body details {
-      margin-top: 1rem;
-      padding: 0.75rem;
-      background: #f9f9f9;
-      border-radius: 8px;
-    }
-    
-    .lightbox__body summary {
-      cursor: pointer;
-      font-weight: 600;
-      user-select: none;
-    }
 
     .lightbox__footer {
       margin-top: 14px;
@@ -362,12 +349,6 @@
       display: inline-block;
     }
     .btn:hover { filter: brightness(1.05); }
-    
-    .btn--ghost {
-      background: #fff;
-      color: #111;
-    }
-    .btn--ghost:hover { background: #fafafa; }
     
     .pill {
       font-size: 0.75rem;
@@ -416,7 +397,6 @@
 
       <div class="lightbox__meta">
         <span id="lb-type" class="pill"></span>
-        <a id="lb-open-newtab" class="btn btn--ghost" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">新しいタブで開く</a>
       </div>
 
       <div id="lb-body" class="lightbox__body"></div>
@@ -457,7 +437,6 @@
     const lbTitle = $("lb-title");
     const lbBody = $("lb-body");
     const lbType = $("lb-type");
-    const lbOpenNewTab = $("lb-open-newtab");
 
     async function fetchData(url) {
       try {
@@ -510,25 +489,11 @@
       let bodyHtml = "";
 
       if (type === "faq") {
-        // FAQ表示
-        const category = item.category || "";
-        const keywords = (item.keywords || []).slice(0, 10);
+        // FAQ表示: 手順のみ
         const steps = item.steps || [];
 
-        if (category) {
-          bodyHtml += `<p><strong>カテゴリ:</strong> ${esc(category)}</p>`;
-        }
-
-        if (keywords.length) {
-          bodyHtml += `<p><strong>キーワード:</strong> `;
-          keywords.forEach(k => {
-            bodyHtml += `<span class="pill">${esc(k)}</span> `;
-          });
-          bodyHtml += `</p>`;
-        }
-
         if (steps.length) {
-          bodyHtml += `<p><strong>手順:</strong></p><ol>`;
+          bodyHtml += `<ol>`;
           steps.forEach(s => {
             bodyHtml += `<li>${esc(s)}</li>`;
           });
@@ -536,35 +501,16 @@
         } else {
           bodyHtml += `<p class="muted">（手順情報がありません）</p>`;
         }
-
-        // FAQは「新しいタブで開く」を非表示
-        lbOpenNewTab.style.display = "none";
       } else {
-        // 動画表示
+        // 動画表示: YouTube埋め込みのみ
         const videoUrl = item.url || "";
-        const desc = item.description || "";
-        const transcript = item.transcript || "";
-
-        // YouTube埋め込み
         const videoId = getYouTubeId(videoUrl);
+        
         if (videoId) {
           bodyHtml += `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`;
+        } else {
+          bodyHtml += `<p class="muted">（動画を表示できません）</p>`;
         }
-
-        if (desc) {
-          bodyHtml += `<p><strong>説明:</strong> ${esc(desc)}</p>`;
-        }
-
-        if (transcript) {
-          const displayTranscript = transcript.length > 500 
-            ? esc(transcript).substring(0, 500) + '...' 
-            : esc(transcript);
-          bodyHtml += `<details><summary>文字起こしを表示</summary><p style="margin-top:0.5rem;color:#555;font-size:0.9rem;">${displayTranscript}</p></details>`;
-        }
-
-        // 動画は「新しいタブで開く」を表示
-        lbOpenNewTab.href = videoUrl;
-        lbOpenNewTab.style.display = "inline-block";
       }
 
       lbBody.innerHTML = bodyHtml;
@@ -581,8 +527,6 @@
       lbTitle.textContent = "";
       lbType.textContent = "";
       lbBody.innerHTML = "";
-      lbOpenNewTab.href = "#";
-      lbOpenNewTab.style.display = "none";
       document.body.style.overflow = "";
 
       if (lastFocused && typeof lastFocused.focus === "function") {

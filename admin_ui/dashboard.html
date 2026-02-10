@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ダッシュボード - TACS FAQ Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
+      background: #f6f7fb;
+      color: #111827;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    header {
+      background: #001529;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo { font-size: 24px; }
+    
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .header-right {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    
+    .admin-link {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    
+    .admin-link:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    
+    nav {
+      display: flex;
+      gap: 20px;
+    }
+    
+    nav a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: all 0.3s;
+    }
+    
+    nav a:hover, nav a.active {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
+    .btn-logout {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.85);
+      cursor: pointer;
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+    }
+    
+    .btn-logout:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
+    main {
+      flex: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 24px;
+    }
+    
+    .page-header {
+      margin-bottom: 24px;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .page-desc {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      cursor: pointer;
+      transition: all 0.3s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+    
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    
+    .card-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .card-desc {
+      color: #6b7280;
+      font-size: 14px;
+    }
+    
+    footer {
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      padding: 20px 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <span class="logo">🏢</span>
+      <span class="header-title">TACS FAQ Manager</span>
+    </div>
+    <div class="header-right">
+      <nav>
+        <a href="/admin/dashboard.html" class="active">ダッシュボード</a>
+        <a href="/admin/synonyms.html">Synonyms編集</a>
+        <a href="/admin/faq.html">FAQ編集</a>
+        <a href="/admin/logs.html">ログ閲覧</a>
+      </nav>
+      <button class="btn-logout" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-header">
+      <h1 class="page-title">ダッシュボード</h1>
+      <p class="page-desc">FAQ管理システムの概要</p>
+    </div>
+
+    <div class="cards-grid">
+      <a href="/admin/synonyms.html" class="card">
+        <div class="card-icon">📚</div>
+        <div class="card-title">Synonyms編集</div>
+        <div class="card-desc">同義語・類義語の定義を管理</div>
+      </a>
+
+      <a href="/admin/faq.html" class="card">
+        <div class="card-icon">📝</div>
+        <div class="card-title">FAQ編集</div>
+        <div class="card-desc">FAQデータの作成・編集・削除</div>
+      </a>
+
+      <a href="/admin/logs.html" class="card">
+        <div class="card-icon">📊</div>
+        <div class="card-title">ログ閲覧</div>
+        <div class="card-desc">検索ログの月別・日別表示</div>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    Copyright © 2026 Toray Advanced Computer Solution, Inc.
+  </footer>
+
+  <script>
+    const auth = localStorage.getItem('admin_auth');
+    if (!auth) {
+      window.location.href = '/admin';
+    }
+
+    function logout() {
+      localStorage.removeItem('admin_auth');
+      window.location.href = '/admin';
+    }
+  </script>
+</body>
+</html>

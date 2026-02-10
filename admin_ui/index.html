@@ -1,251 +1,182 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>管理画面 - データ編集</title>
+  <title>ログイン - TACS FAQ Manager</title>
   <style>
-    body{font-family:system-ui, -apple-system, Segoe UI, sans-serif; margin:0; background:#f6f7fb;}
-    header{background:#111827; color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;}
-    main{max-width:1100px; margin:0 auto; padding:18px;}
-    .card{background:#fff; border-radius:10px; padding:14px; box-shadow:0 2px 10px rgba(0,0,0,.06); margin-bottom:14px;}
-    input, textarea, button{font:inherit;}
-    textarea{width:100%; min-height:220px; box-sizing:border-box;}
-    .row{display:flex; gap:10px; flex-wrap:wrap;}
-    .row > *{flex:1;}
-    .btn{border:0; border-radius:8px; padding:10px 12px; cursor:pointer; font-weight:600;}
-    .btn.primary{background:#2563eb; color:#fff;}
-    .btn.danger{background:#dc2626; color:#fff;}
-    .btn.gray{background:#e5e7eb;}
-    .muted{color:#6b7280; font-size:.9rem;}
-    .status{margin-top:8px; color:#111827;}
-    a{color:#60a5fa;}
-    code{background:#f3f4f6; padding:2px 6px; border-radius:6px;}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .login-card {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    
+    .logo {
+      text-align: center;
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    
+    .title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      color: #374151;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-login:hover {
+      background: #5568d3;
+    }
+    
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .help-text {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-top: 24px;
+    }
+    
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      padding: 16px;
+      color: rgba(255,255,255,0.9);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
-<header>
-  <div>管理画面 - データ編集</div>
-  <div>
-    <a href="/admin/faq" style="color:#fff; margin-right:14px;">FAQフォーム編集</a>
-    <a href="/admin/logs" style="color:#fff; margin-right:14px;">検索ログ（月別/日別）</a>
-    <button class="btn gray" id="logoutBtn">ログアウト</button>
-  </div>
-</header>
-
-<main>
-  <div class="card" id="loginCard">
-    <h3>ログイン</h3>
-    <div class="row">
-      <div>
-        <label>ユーザー</label>
-        <input id="user" placeholder="admin" />
+  <div class="login-card">
+    <div class="logo">🏢</div>
+    <h1 class="title">TACS FAQ Manager</h1>
+    <p class="subtitle">管理画面ログイン</p>
+    
+    <div id="errorMsg" class="error"></div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label" for="username">ユーザー名</label>
+        <input type="text" id="username" class="form-input" required autofocus />
       </div>
-      <div>
-        <label>パスワード</label>
-        <input id="pass" type="password" placeholder="********" />
+      
+      <div class="form-group">
+        <label class="form-label" for="password">パスワード</label>
+        <input type="password" id="password" class="form-input" required />
       </div>
-      <div style="display:flex; align-items:flex-end;">
-        <button class="btn primary" id="loginBtn">ログイン</button>
-      </div>
-    </div>
-    <div class="status" id="loginStatus"></div>
-    <p class="muted">※ Basic認証のため、ブラウザに資格情報を保存する場合があります。</p>
+      
+      <button type="submit" class="btn-login">ログイン</button>
+    </form>
+    
+    <p class="help-text">
+      デフォルト認証: admin / abc123
+    </p>
   </div>
+  
+  <footer>
+    Copyright © 2026 Toray Advanced Computer Solution, Inc.
+  </footer>
 
-  <div class="card" id="editCard" style="display:none;">
-    <h3>synonyms.json（編集・保存）</h3>
-    <p class="muted">JSONを直接編集して <code>保存</code>。また、<code>data.json</code> 解析で一括生成もできます。</p>
-    <textarea id="synText"></textarea>
-    <div class="row">
-      <button class="btn primary" id="synSaveBtn">synonyms.json を保存（全体PUT）</button>
-      <button class="btn gray" id="synReloadBtn">再読み込み</button>
-      <button class="btn primary" id="synGenBtn">data.json解析で一括生成</button>
-    </div>
-
-    <hr style="border:0; border-top:1px solid #e5e7eb; margin:14px 0;" />
-
-    <h4>term単位で更新/削除</h4>
-    <div class="row">
-      <input id="synTerm" placeholder="例: プロット出力" />
-      <input id="synVals" placeholder='例: ["プロッター","出力","印刷"]' />
-    </div>
-    <div class="row">
-      <button class="btn primary" id="synTermUpsertBtn">このtermを更新（PATCH）</button>
-      <button class="btn danger" id="synTermDeleteBtn">このtermを削除（DELETE）</button>
-    </div>
-
-    <div class="status" id="synStatus"></div>
-  </div>
-
-  <div class="card" id="faqCard" style="display:none;">
-    <h3>faq_chatbot_fixed_only.json（全体JSON編集）</h3>
-    <p class="muted">全体編集が必要な場合のみ使用してください。日常運用は <a href="/admin/faq">FAQフォーム編集</a> が便利です。</p>
-    <textarea id="faqText"></textarea>
-    <div class="row">
-      <button class="btn primary" id="faqSaveBtn">FAQ を保存（全体PUT）</button>
-      <button class="btn gray" id="faqReloadBtn">再読み込み</button>
-    </div>
-    <div class="status" id="faqStatus"></div>
-  </div>
-</main>
-
-<script>
-  const storeKey = "adminBasicAuth";
-
-  function setAuth(u, p){
-    const token = btoa(`${u}:${p}`);
-    localStorage.setItem(storeKey, token);
-  }
-  function getAuth(){
-    return localStorage.getItem(storeKey);
-  }
-  function clearAuth(){
-    localStorage.removeItem(storeKey);
-  }
-
-  async function api(path, opts={}){
-    const token = getAuth();
-    if(!token) throw new Error("未ログインです");
-    const headers = Object.assign({}, opts.headers || {}, {
-      "Authorization": `Basic ${token}`
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('errorMsg');
+      
+      try {
+        const authHeader = 'Basic ' + btoa(username + ':' + password);
+        const res = await fetch('/admin/api/faq', {
+          headers: { 'Authorization': authHeader }
+        });
+        
+        if (res.ok) {
+          localStorage.setItem('admin_auth', JSON.stringify({ username, password }));
+          window.location.href = '/admin/dashboard.html';
+        } else {
+          errorMsg.textContent = 'ユーザー名またはパスワードが正しくありません';
+          errorMsg.style.display = 'block';
+        }
+      } catch (error) {
+        errorMsg.textContent = 'ログインに失敗しました';
+        errorMsg.style.display = 'block';
+      }
     });
-    return fetch(path, {...opts, headers});
-  }
-
-  async function tryLoad(){
-    document.getElementById("loginStatus").textContent = "";
-    try{
-      const r1 = await api("/admin/api/synonyms");
-      if(!r1.ok) throw new Error("認証失敗");
-      const syn = await r1.json();
-      document.getElementById("synText").value = JSON.stringify(syn, null, 2);
-
-      const r2 = await api("/admin/api/faq");
-      const faq = await r2.json();
-      document.getElementById("faqText").value = JSON.stringify(faq, null, 2);
-
-      document.getElementById("loginCard").style.display="none";
-      document.getElementById("editCard").style.display="block";
-      document.getElementById("faqCard").style.display="block";
-    }catch(e){
-      // stay in login
-    }
-  }
-
-  document.getElementById("loginBtn").addEventListener("click", async ()=>{
-    const u = document.getElementById("user").value.trim();
-    const p = document.getElementById("pass").value;
-    if(!u || !p){
-      document.getElementById("loginStatus").textContent = "ユーザー/パスワードを入力してください。";
-      return;
-    }
-    setAuth(u,p);
-    await tryLoad();
-    if(document.getElementById("editCard").style.display==="none"){
-      document.getElementById("loginStatus").textContent = "ログインに失敗しました。";
-      clearAuth();
-    }
-  });
-
-  document.getElementById("logoutBtn").addEventListener("click", ()=>{
-    clearAuth();
-    location.reload();
-  });
-
-  // synonyms
-  document.getElementById("synReloadBtn").addEventListener("click", async ()=>{
-    const r = await api("/admin/api/synonyms");
-    const syn = await r.json();
-    document.getElementById("synText").value = JSON.stringify(syn, null, 2);
-    document.getElementById("synStatus").textContent = "再読み込みしました。";
-  });
-
-  document.getElementById("synSaveBtn").addEventListener("click", async ()=>{
-    try{
-      const obj = JSON.parse(document.getElementById("synText").value);
-      const r = await api("/admin/api/synonyms", {
-        method:"PUT",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(obj)
-      });
-      const j = await r.json();
-      document.getElementById("synStatus").textContent = r.ok ? "保存しました。" : ("保存失敗: " + (j.detail||""));
-    }catch(e){
-      document.getElementById("synStatus").textContent = "JSONが不正です: " + e.message;
-    }
-  });
-
-  document.getElementById("synGenBtn").addEventListener("click", async ()=>{
-    try{
-      const r = await api("/admin/api/synonyms/generate", { method:"POST" });
-      const j = await r.json();
-      document.getElementById("synStatus").textContent = r.ok ? `生成しました（${j.count}件）` : ("失敗: " + (j.detail||""));
-      const r2 = await api("/admin/api/synonyms");
-      const syn = await r2.json();
-      document.getElementById("synText").value = JSON.stringify(syn, null, 2);
-    }catch(e){
-      document.getElementById("synStatus").textContent = "エラー: " + e.message;
-    }
-  });
-
-  document.getElementById("synTermUpsertBtn").addEventListener("click", async ()=>{
-    const term = document.getElementById("synTerm").value.trim();
-    const valsText = document.getElementById("synVals").value.trim();
-    if(!term || !valsText){
-      document.getElementById("synStatus").textContent = "term と values を入力してください。";
-      return;
-    }
-    try{
-      const vals = JSON.parse(valsText);
-      const r = await api(`/admin/api/synonyms/${encodeURIComponent(term)}`, {
-        method:"PATCH",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(vals)
-      });
-      const j = await r.json();
-      document.getElementById("synStatus").textContent = r.ok ? "term更新しました。" : ("失敗: " + (j.detail||""));
-    }catch(e){
-      document.getElementById("synStatus").textContent = "values は JSON配列で入力してください。";
-    }
-  });
-
-  document.getElementById("synTermDeleteBtn").addEventListener("click", async ()=>{
-    const term = document.getElementById("synTerm").value.trim();
-    if(!term){
-      document.getElementById("synStatus").textContent = "term を入力してください。";
-      return;
-    }
-    const r = await api(`/admin/api/synonyms/${encodeURIComponent(term)}`, {method:"DELETE"});
-    const j = await r.json();
-    document.getElementById("synStatus").textContent = r.ok ? "削除しました。" : ("失敗: " + (j.detail||""));
-  });
-
-  // faq full
-  document.getElementById("faqReloadBtn").addEventListener("click", async ()=>{
-    const r = await api("/admin/api/faq");
-    const faq = await r.json();
-    document.getElementById("faqText").value = JSON.stringify(faq, null, 2);
-    document.getElementById("faqStatus").textContent = "再読み込みしました。";
-  });
-
-  document.getElementById("faqSaveBtn").addEventListener("click", async ()=>{
-    try{
-      const obj = JSON.parse(document.getElementById("faqText").value);
-      const r = await api("/admin/api/faq", {
-        method:"PUT",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify(obj)
-      });
-      const j = await r.json();
-      document.getElementById("faqStatus").textContent = r.ok ? "保存しました。" : ("保存失敗: " + (j.detail||""));
-    }catch(e){
-      document.getElementById("faqStatus").textContent = "JSONが不正です: " + e.message;
-    }
-  });
-
-  // 初期ロード
-  tryLoad();
-</script>
+  </script>
 </body>
 </html>

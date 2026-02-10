@@ -22,6 +22,10 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
+    header a:hover {
+      background: rgba(255,255,255,0.2) !important;
+    }
+    
     header h1 {
       font-size: 1.75rem;
       font-weight: 700;
@@ -368,8 +372,13 @@
 </head>
 <body>
   <header>
-    <h1>サポート検索</h1>
-    <p>動画とFAQから最適な情報を検索</p>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h1>サポート検索</h1>
+        <p>動画とFAQから最適な情報を検索</p>
+      </div>
+      <a href="/admin" style="color:white; text-decoration:none; padding:10px 20px; background:rgba(255,255,255,0.1); border-radius:6px; font-size:14px; transition:all 0.3s;">🔧 管理画面</a>
+    </div>
   </header>
 
   <main>
@@ -386,7 +395,7 @@
   </main>
 
   <footer>
-    © 2024 サポート検索システム（最適化版）
+    Copyright © 2026 Toray Advanced Computer Solution, Inc.
   </footer>
 
   <!-- Lightbox (Modal) -->

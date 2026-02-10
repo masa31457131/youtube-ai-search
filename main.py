@@ -668,12 +668,20 @@ def serve_admin_home():
         return HTMLResponse("<h1>admin index.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
-@app.get("/admin/logs", response_class=HTMLResponse, include_in_schema=False)
-def serve_admin_logs():
-    """管理画面 - ログ"""
-    f = admin_path / "logs.html"
+@app.get("/admin/dashboard", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_dashboard():
+    """管理画面 - ダッシュボード"""
+    f = admin_path / "dashboard.html"
     if not f.exists():
-        return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
+        return HTMLResponse("<h1>admin dashboard.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/synonyms", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_synonyms():
+    """管理画面 - Synonyms"""
+    f = admin_path / "synonyms.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin synonyms.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
 @app.get("/admin/faq", response_class=HTMLResponse, include_in_schema=False)
@@ -682,6 +690,47 @@ def serve_admin_faq():
     f = admin_path / "faq.html"
     if not f.exists():
         return HTMLResponse("<h1>admin faq.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/logs", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_logs():
+    """管理画面 - ログ"""
+    f = admin_path / "logs.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+# .html拡張子付きのルートも追加
+@app.get("/admin/dashboard.html", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_dashboard_html():
+    """管理画面 - ダッシュボード (.html)"""
+    f = admin_path / "dashboard.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin dashboard.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/synonyms.html", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_synonyms_html():
+    """管理画面 - Synonyms (.html)"""
+    f = admin_path / "synonyms.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin synonyms.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/faq.html", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_faq_html():
+    """管理画面 - FAQ (.html)"""
+    f = admin_path / "faq.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin faq.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/logs.html", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_logs_html():
+    """管理画面 - ログ (.html)"""
+    f = admin_path / "logs.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
 if __name__ == "__main__":

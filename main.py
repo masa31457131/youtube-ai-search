@@ -859,6 +859,145 @@ async def transcribe_youtube_video(request_data: dict, background_tasks: Backgro
     except Exception as e:
         raise HTTPException(500, f"Failed to start transcription: {str(e)}")
 
+@app.post("/admin/api/youtube/sync", dependencies=[Depends(verify_admin)])
+async def sync_with_youtube(request_data: dict):
+    """YouTubeチャンネルとdata.jsonを同期（差分検出）"""
+    try:
+        from googleapiclient.discovery import build
+        
+        api_key = os.getenv("YOUTUBE_API_KEY")
+        if not api_key:
+            raise HTTPException(400, "YOUTUBE_API_KEY environment variable not set")
+        
+        channel_url = request_data.get("channel_url", "")
+        
+        # チャンネルIDを抽出
+        channel_id = None
+        if "/c/" in channel_url or "/channel/" in channel_url or "/@" in channel_url:
+            parts = channel_url.rstrip('/').split('/')
+            channel_name = parts[-1]
+            
+            youtube = build('youtube', 'v3', developerKey=api_key)
+            
+            search_response = youtube.search().list(
+                q=channel_name,
+                type='channel',
+                part='id',
+                maxResults=1
+            ).execute()
+            
+            if search_response.get('items'):
+                channel_id = search_response['items'][0]['id']['channelId']
+        
+        if not channel_id:
+            raise HTTPException(404, "Channel not found")
+        
+        # チャンネルの全動画を取得
+        youtube = build('youtube', 'v3', developerKey=api_key)
+        channel_response = youtube.channels().list(
+            id=channel_id,
+            part='contentDetails'
+        ).execute()
+        
+        if not channel_response.get('items'):
+            raise HTTPException(404, "Channel not found")
+        
+        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+        
+        # プレイリストから全動画を取得
+        youtube_videos = []
+        next_page_token = None
+        
+        while True:
+            playlist_response = youtube.playlistItems().list(
+                playlistId=uploads_playlist_id,
+                part='snippet',
+                maxResults=50,
+                pageToken=next_page_token
+            ).execute()
+            
+            for item in playlist_response.get('items', []):
+                snippet = item['snippet']
+                video_id = snippet['resourceId']['videoId']
+                
+                youtube_videos.append({
+                    'video_id': video_id,
+                    'title': snippet['title'],
+                    'description': snippet['description'],
+                    'thumbnail': snippet['thumbnails'].get('high', {}).get('url', ''),
+                    'url': f'https://www.youtube.com/watch?v={video_id}',
+                    'published_at': snippet['publishedAt']
+                })
+            
+            next_page_token = playlist_response.get('nextPageToken')
+            if not next_page_token:
+                break
+        
+        # 既存のdata.jsonを読み込み
+        existing_videos = []
+        if DATA_PATH.exists():
+            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                existing_videos = json.load(f)
+        
+        # 差分を計算
+        youtube_ids = set(v['video_id'] for v in youtube_videos)
+        existing_ids = set(v.get('video_id') for v in existing_videos)
+        
+        # YouTubeにあるが、data.jsonにない（追加すべき動画）
+        missing_in_data = [v for v in youtube_videos if v['video_id'] not in existing_ids]
+        
+        # data.jsonにあるが、YouTubeにない（削除すべき動画）
+        missing_in_youtube = [v for v in existing_videos if v.get('video_id') not in youtube_ids]
+        
+        return {
+            'status': 'success',
+            'total_youtube': len(youtube_videos),
+            'total_data': len(existing_videos),
+            'missing_in_data': missing_in_data,
+            'missing_in_youtube': missing_in_youtube,
+            'youtube_ids': list(youtube_ids),
+            'existing_ids': list(existing_ids)
+        }
+        
+    except Exception as e:
+        raise HTTPException(500, f"Failed to sync with YouTube: {str(e)}")
+
+@app.post("/admin/api/youtube/cleanup", dependencies=[Depends(verify_admin)])
+async def cleanup_orphaned_videos(request_data: dict, background_tasks: BackgroundTasks):
+    """YouTubeに存在しない動画をdata.jsonから削除"""
+    try:
+        video_ids_to_delete = request_data.get("video_ids", [])
+        
+        if not video_ids_to_delete:
+            raise HTTPException(400, "video_ids is required")
+        
+        if not DATA_PATH.exists():
+            raise HTTPException(404, "Data file not found")
+        
+        with open(DATA_PATH, "r", encoding="utf-8") as f:
+            videos = json.load(f)
+        
+        # 削除対象以外の動画を残す
+        filtered_videos = [v for v in videos if v.get('video_id') not in video_ids_to_delete]
+        
+        # no番号を振り直し
+        for i, video in enumerate(filtered_videos, 1):
+            video['no'] = i
+        
+        with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(filtered_videos, f, ensure_ascii=False, indent=2)
+        
+        background_tasks.add_task(reload_video_data)
+        
+        return {
+            'status': 'success',
+            'deleted_count': len(video_ids_to_delete),
+            'remaining_count': len(filtered_videos)
+        }
+        
+    except Exception as e:
+        raise HTTPException(500, f"Failed to cleanup: {str(e)}")
+
 async def process_transcription(video_id: str, video_data: dict):
     """文字起こし処理（バックグラウンド）"""
     import tempfile

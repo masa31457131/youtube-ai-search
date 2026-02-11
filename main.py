@@ -731,6 +731,217 @@ async def reload_video_data():
     # 次回検索時に自動的に再ロード
 
 # ============================================
+# 管理API - YouTube文字起こし
+# ============================================
+
+@app.post("/admin/api/youtube/fetch", dependencies=[Depends(verify_admin)])
+async def fetch_youtube_videos(request_data: dict):
+    """YouTubeチャンネルから動画リストを取得"""
+    try:
+        from googleapiclient.discovery import build
+        
+        api_key = os.getenv("YOUTUBE_API_KEY")
+        if not api_key:
+            raise HTTPException(400, "YOUTUBE_API_KEY environment variable not set")
+        
+        channel_url = request_data.get("channel_url", "")
+        max_results = request_data.get("max_results", 50)
+        
+        # チャンネルIDを抽出
+        channel_id = None
+        if "/c/" in channel_url or "/channel/" in channel_url or "/@" in channel_url:
+            # チャンネル名からIDを取得する必要がある
+            # 簡略化のため、ユーザーにチャンネルIDを直接入力してもらう方式も検討
+            parts = channel_url.rstrip('/').split('/')
+            channel_name = parts[-1]
+            
+            youtube = build('youtube', 'v3', developerKey=api_key)
+            
+            # チャンネル名から検索
+            search_response = youtube.search().list(
+                q=channel_name,
+                type='channel',
+                part='id',
+                maxResults=1
+            ).execute()
+            
+            if search_response.get('items'):
+                channel_id = search_response['items'][0]['id']['channelId']
+        else:
+            raise HTTPException(400, "Invalid channel URL format")
+        
+        if not channel_id:
+            raise HTTPException(404, "Channel not found")
+        
+        # チャンネルのアップロードプレイリストIDを取得
+        youtube = build('youtube', 'v3', developerKey=api_key)
+        channel_response = youtube.channels().list(
+            id=channel_id,
+            part='contentDetails'
+        ).execute()
+        
+        if not channel_response.get('items'):
+            raise HTTPException(404, "Channel not found")
+        
+        uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
+        
+        # プレイリストから動画を取得
+        videos = []
+        next_page_token = None
+        
+        while len(videos) < max_results:
+            playlist_response = youtube.playlistItems().list(
+                playlistId=uploads_playlist_id,
+                part='snippet',
+                maxResults=min(50, max_results - len(videos)),
+                pageToken=next_page_token
+            ).execute()
+            
+            for item in playlist_response.get('items', []):
+                snippet = item['snippet']
+                video_id = snippet['resourceId']['videoId']
+                
+                videos.append({
+                    'video_id': video_id,
+                    'title': snippet['title'],
+                    'description': snippet['description'],
+                    'thumbnail': snippet['thumbnails'].get('high', {}).get('url', ''),
+                    'url': f'https://www.youtube.com/watch?v={video_id}',
+                    'published_at': snippet['publishedAt']
+                })
+            
+            next_page_token = playlist_response.get('nextPageToken')
+            if not next_page_token:
+                break
+        
+        return {
+            'status': 'success',
+            'channel_id': channel_id,
+            'videos': videos,
+            'total': len(videos)
+        }
+        
+    except Exception as e:
+        raise HTTPException(500, f"Failed to fetch YouTube videos: {str(e)}")
+
+@app.post("/admin/api/youtube/transcribe", dependencies=[Depends(verify_admin)])
+async def transcribe_youtube_video(request_data: dict, background_tasks: BackgroundTasks):
+    """YouTube動画を文字起こし"""
+    try:
+        video_id = request_data.get("video_id")
+        if not video_id:
+            raise HTTPException(400, "video_id is required")
+        
+        # 既存のdata.jsonを読み込み
+        existing_videos = []
+        if DATA_PATH.exists():
+            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                existing_videos = json.load(f)
+        
+        # 既に存在するかチェック
+        for video in existing_videos:
+            if video.get('video_id') == video_id:
+                return {
+                    'status': 'already_exists',
+                    'message': 'Video already transcribed',
+                    'video_id': video_id
+                }
+        
+        # バックグラウンドで文字起こし処理
+        background_tasks.add_task(process_transcription, video_id, request_data)
+        
+        return {
+            'status': 'processing',
+            'message': 'Transcription started in background',
+            'video_id': video_id
+        }
+        
+    except Exception as e:
+        raise HTTPException(500, f"Failed to start transcription: {str(e)}")
+
+async def process_transcription(video_id: str, video_data: dict):
+    """文字起こし処理（バックグラウンド）"""
+    import tempfile
+    import subprocess
+    
+    try:
+        # yt-dlpで音声ダウンロード
+        audio_path = tempfile.mktemp(suffix='.mp3')
+        video_url = f'https://www.youtube.com/watch?v={video_id}'
+        
+        subprocess.run([
+            'yt-dlp',
+            '-x',
+            '--audio-format', 'mp3',
+            '-o', audio_path,
+            video_url
+        ], check=True, capture_output=True)
+        
+        # Whisperで文字起こし（簡易版）
+        import whisper
+        model = whisper.load_model("base")
+        result = model.transcribe(audio_path, language='ja')
+        transcript = result['text']
+        
+        # data.jsonに追加
+        existing_videos = []
+        if DATA_PATH.exists():
+            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                existing_videos = json.load(f)
+        
+        # 新しいno番号を生成
+        max_no = max([v.get('no', 0) for v in existing_videos], default=0)
+        
+        new_video = {
+            'no': max_no + 1,
+            'video_id': video_id,
+            'title': video_data.get('title', ''),
+            'description': video_data.get('description', ''),
+            'transcript': transcript,
+            'url': video_data.get('url', ''),
+            'thumbnail': video_data.get('thumbnail', ''),
+            'status': 'completed'
+        }
+        
+        existing_videos.append(new_video)
+        
+        with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing_videos, f, ensure_ascii=False, indent=2)
+        
+        # 一時ファイル削除
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+        
+        # 動画データ再読み込み
+        await reload_video_data()
+        
+    except Exception as e:
+        print(f"Transcription error for {video_id}: {str(e)}")
+        # エラー時もdata.jsonに記録（status: failed）
+        existing_videos = []
+        if DATA_PATH.exists():
+            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                existing_videos = json.load(f)
+        
+        max_no = max([v.get('no', 0) for v in existing_videos], default=0)
+        
+        error_video = {
+            'no': max_no + 1,
+            'video_id': video_id,
+            'title': video_data.get('title', ''),
+            'description': video_data.get('description', ''),
+            'transcript': f'Error: {str(e)}',
+            'url': video_data.get('url', ''),
+            'thumbnail': video_data.get('thumbnail', ''),
+            'status': 'failed'
+        }
+        
+        existing_videos.append(error_video)
+        
+        with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing_videos, f, ensure_ascii=False, indent=2)
+
+# ============================================
 # 管理API - ログ
 # ============================================
 

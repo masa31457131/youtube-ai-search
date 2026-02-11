@@ -9,3 +9,5 @@ openai-whisper
 transformers
 torch
 numpy
+google-api-python-client
+faster-whisper

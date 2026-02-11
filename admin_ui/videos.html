@@ -538,6 +538,7 @@
         <option value="failed">失敗</option>
       </select>
       <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規追加</button>
+      <button class="btn btn-success" onclick="openYouTubeModal()">🎬 YouTube取込</button>
       <button class="btn btn-success" onclick="exportData()">📥 エクスポート</button>
       <button class="btn btn-warning" onclick="openImportModal()">📤 インポート</button>
       <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
@@ -685,6 +686,87 @@
       <div class="modal-footer">
         <button class="btn" onclick="closeImportModal()">キャンセル</button>
         <button class="btn btn-warning" onclick="executeImport()">インポート実行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTubeチャンネル取込モーダル -->
+  <div id="youtubeModal" class="modal" onclick="closeYouTubeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">🎬 YouTubeチャンネルから取込</div>
+      <div class="modal-body">
+        <div class="usage-info" style="margin-bottom: 20px;">
+          <div class="usage-title">💡 使い方</div>
+          <div class="usage-content">
+            <p>YouTubeチャンネルのURLを入力すると、チャンネル内の動画を自動取得します。</p>
+            <p>既存のdata.jsonと比較して、未登録の動画のみを文字起こし処理します。</p>
+            <p><strong>注意:</strong> YouTube Data API キーが必要です（環境変数: YOUTUBE_API_KEY）</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>チャンネルURL</span>
+            <span class="info-icon" data-tooltip="例: https://www.youtube.com/c/TorayACSSupportChannel">ⓘ</span>
+          </label>
+          <input 
+            type="url" 
+            id="youtubeChannelUrl" 
+            class="form-input" 
+            placeholder="https://www.youtube.com/c/TorayACSSupportChannel"
+            value="https://www.youtube.com/c/TorayACSSupportChannel"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">
+            <span>取得件数</span>
+            <span class="info-icon" data-tooltip="最新のN件の動画を取得">ⓘ</span>
+          </label>
+          <input 
+            type="number" 
+            id="youtubeMaxResults" 
+            class="form-input" 
+            value="50"
+            min="1"
+            max="600"
+          />
+        </div>
+
+        <div id="youtubeProgress" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title" id="progressTitle">処理中...</div>
+            <div id="progressContent"></div>
+          </div>
+        </div>
+
+        <div id="youtubeResults" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title">取得結果</div>
+            <div id="resultsContent"></div>
+            <div style="margin-top: 16px;">
+              <table style="width: 100%; font-size: 13px;">
+                <thead>
+                  <tr style="background: #f0f0f0;">
+                    <th style="padding: 8px; text-align: left;">☑</th>
+                    <th style="padding: 8px; text-align: left;">タイトル</th>
+                    <th style="padding: 8px; text-align: left;">状態</th>
+                  </tr>
+                </thead>
+                <tbody id="videoListBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeYouTubeModal()">閉じる</button>
+        <button class="btn btn-primary" id="fetchVideosBtn" onclick="fetchYouTubeVideos()">
+          📺 動画リスト取得
+        </button>
+        <button class="btn btn-success" id="transcribeBtn" style="display:none;" onclick="startTranscription()">
+          🎤 選択した動画を文字起こし
+        </button>
       </div>
     </div>
   </div>
@@ -1058,6 +1140,205 @@
     function logout() {
       localStorage.removeItem('admin_auth');
       window.location.href = '/admin';
+    }
+
+    // YouTube取込機能
+    let fetchedVideos = [];
+    let selectedVideoIds = new Set();
+
+    function openYouTubeModal() {
+      document.getElementById('youtubeChannelUrl').value = 'https://www.youtube.com/c/TorayACSSupportChannel';
+      document.getElementById('youtubeMaxResults').value = '50';
+      document.getElementById('youtubeProgress').style.display = 'none';
+      document.getElementById('youtubeResults').style.display = 'none';
+      document.getElementById('fetchVideosBtn').style.display = 'inline-block';
+      document.getElementById('transcribeBtn').style.display = 'none';
+      fetchedVideos = [];
+      selectedVideoIds.clear();
+      document.getElementById('youtubeModal').classList.add('show');
+    }
+
+    function closeYouTubeModal(event) {
+      if (!event || event.target.id === 'youtubeModal') {
+        document.getElementById('youtubeModal').classList.remove('show');
+      }
+    }
+
+    async function fetchYouTubeVideos() {
+      const channelUrl = document.getElementById('youtubeChannelUrl').value.trim();
+      const maxResults = parseInt(document.getElementById('youtubeMaxResults').value);
+
+      if (!channelUrl) {
+        alert('チャンネルURLを入力してください');
+        return;
+      }
+
+      document.getElementById('youtubeProgress').style.display = 'block';
+      document.getElementById('progressTitle').textContent = '動画リストを取得中...';
+      document.getElementById('progressContent').innerHTML = '<p>YouTubeチャンネルにアクセスしています...</p>';
+      document.getElementById('fetchVideosBtn').disabled = true;
+
+      try {
+        const res = await fetch('/admin/api/youtube/fetch', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel_url: channelUrl,
+            max_results: maxResults
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '取得に失敗しました');
+        }
+
+        const result = await res.json();
+        fetchedVideos = result.videos || [];
+
+        // 既存動画IDを取得
+        const existingIds = new Set(allVideos.map(v => v.video_id));
+
+        // 新規動画のみフィルター
+        const newVideos = fetchedVideos.filter(v => !existingIds.has(v.video_id));
+
+        document.getElementById('youtubeProgress').style.display = 'none';
+        document.getElementById('youtubeResults').style.display = 'block';
+        document.getElementById('resultsContent').innerHTML = `
+          <p><strong>取得件数:</strong> ${fetchedVideos.length}件</p>
+          <p><strong>既存:</strong> ${fetchedVideos.length - newVideos.length}件</p>
+          <p><strong>新規:</strong> ${newVideos.length}件</p>
+        `;
+
+        // 動画リスト表示
+        const tbody = document.getElementById('videoListBody');
+        tbody.innerHTML = fetchedVideos.map(video => {
+          const isExisting = existingIds.has(video.video_id);
+          const statusBadge = isExisting 
+            ? '<span class="status-badge status-completed">登録済み</span>'
+            : '<span class="status-badge status-pending">未登録</span>';
+
+          return `
+            <tr style="background: ${isExisting ? '#f9f9f9' : 'white'};">
+              <td style="padding: 8px;">
+                <input 
+                  type="checkbox" 
+                  ${isExisting ? 'disabled' : ''}
+                  ${selectedVideoIds.has(video.video_id) ? 'checked' : ''}
+                  onchange="toggleVideoSelection('${video.video_id}')"
+                />
+              </td>
+              <td style="padding: 8px; font-size: 13px;">
+                ${escapeHtml(video.title)}
+              </td>
+              <td style="padding: 8px;">
+                ${statusBadge}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        // 新規動画がある場合は文字起こしボタンを表示
+        if (newVideos.length > 0) {
+          // デフォルトで新規動画を全選択
+          newVideos.forEach(v => selectedVideoIds.add(v.video_id));
+          document.getElementById('transcribeBtn').style.display = 'inline-block';
+          
+          // チェックボックスを更新
+          const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
+          checkboxes.forEach(cb => cb.checked = true);
+        }
+
+        document.getElementById('fetchVideosBtn').disabled = false;
+
+      } catch (error) {
+        document.getElementById('youtubeProgress').style.display = 'none';
+        document.getElementById('fetchVideosBtn').disabled = false;
+        alert('動画リストの取得に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function toggleVideoSelection(videoId) {
+      if (selectedVideoIds.has(videoId)) {
+        selectedVideoIds.delete(videoId);
+      } else {
+        selectedVideoIds.add(videoId);
+      }
+    }
+
+    async function startTranscription() {
+      if (selectedVideoIds.size === 0) {
+        alert('文字起こしする動画を選択してください');
+        return;
+      }
+
+      if (!confirm(`選択した${selectedVideoIds.size}件の動画を文字起こししますか？\n\n処理には時間がかかります（1動画あたり数分）。\nバックグラウンドで処理されます。`)) {
+        return;
+      }
+
+      document.getElementById('transcribeBtn').disabled = true;
+      document.getElementById('youtubeProgress').style.display = 'block';
+      document.getElementById('progressTitle').textContent = '文字起こし処理中...';
+
+      let completed = 0;
+      let failed = 0;
+
+      for (const videoId of selectedVideoIds) {
+        const video = fetchedVideos.find(v => v.video_id === videoId);
+        if (!video) continue;
+
+        try {
+          document.getElementById('progressContent').innerHTML = `
+            <p>処理中: ${completed + failed + 1} / ${selectedVideoIds.size}</p>
+            <p>現在: ${escapeHtml(video.title)}</p>
+          `;
+
+          const res = await fetch('/admin/api/youtube/transcribe', {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(video)
+          });
+
+          if (res.ok) {
+            completed++;
+          } else {
+            failed++;
+          }
+
+        } catch (error) {
+          console.error('Transcription error:', error);
+          failed++;
+        }
+
+        // UI更新のため少し待機
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      document.getElementById('progressTitle').textContent = '完了！';
+      document.getElementById('progressContent').innerHTML = `
+        <p><strong>処理完了:</strong> ${completed}件</p>
+        <p><strong>失敗:</strong> ${failed}件</p>
+        <p style="margin-top: 12px; color: #666;">
+          ※ 文字起こし処理はバックグラウンドで続行中です。<br>
+          完了までしばらくお待ちください。
+        </p>
+      `;
+
+      document.getElementById('transcribeBtn').disabled = false;
+      selectedVideoIds.clear();
+
+      // 5秒後にモーダルを閉じてデータをリロード
+      setTimeout(() => {
+        closeYouTubeModal();
+        loadVideos();
+      }, 5000);
     }
 
     // イベントリスナー

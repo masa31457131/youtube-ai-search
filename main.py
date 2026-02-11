@@ -1048,7 +1048,7 @@ async def cleanup_orphaned_videos(request_data: dict, background_tasks: Backgrou
         raise HTTPException(500, f"Failed to cleanup: {str(e)}")
 
 async def process_transcription(video_id: str, video_data: dict):
-    """文字起こし処理（バックグラウンド）- 改善版"""
+    """文字起こし処理（バックグラウンド）- 改善版（YouTube bot対策）"""
     import tempfile
     import subprocess
     import sys
@@ -1065,26 +1065,61 @@ async def process_transcription(video_id: str, video_data: dict):
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
             raise Exception(f"yt-dlp not available: {str(e)}")
         
-        # 2. 音声ダウンロード
+        # 2. 音声ダウンロード（YouTube bot対策を含む）
         audio_path = tempfile.mktemp(suffix='.mp3')
         video_url = f'https://www.youtube.com/watch?v={video_id}'
         
         print(f"[INFO] Downloading audio from {video_url}")
         
-        result = subprocess.run([
+        # YouTube bot対策のオプションを追加
+        yt_dlp_command = [
             'yt-dlp',
             '-x',
             '--audio-format', 'mp3',
             '--audio-quality', '0',
+            # JavaScriptランタイムを指定（Node.js使用）
+            '--extractor-args', 'youtube:player_client=web',
+            # bot対策: ユーザーエージェントを設定
+            '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            # 追加オプション
+            '--no-check-certificate',
+            '--no-warnings',
+            # 出力先
             '-o', audio_path,
             video_url
-        ], capture_output=True, text=True, timeout=300)
+        ]
+        
+        result = subprocess.run(
+            yt_dlp_command,
+            capture_output=True, 
+            text=True, 
+            timeout=600  # タイムアウトを10分に延長
+        )
         
         if result.returncode != 0:
-            raise Exception(f"yt-dlp download failed: {result.stderr}")
+            # エラーメッセージを確認
+            error_msg = result.stderr
+            
+            # bot検出エラーの場合
+            if 'Sign in to confirm' in error_msg or 'bot' in error_msg.lower():
+                raise Exception(
+                    "YouTube bot detection triggered. "
+                    "This video may require authentication or is restricted. "
+                    "Try again later or use a different video."
+                )
+            
+            # JavaScriptランタイムエラーの場合
+            if 'No supported JavaScript runtime' in error_msg:
+                raise Exception(
+                    "JavaScript runtime not available. "
+                    "Some YouTube videos require JS processing. "
+                    "This is a known yt-dlp limitation on some platforms."
+                )
+            
+            raise Exception(f"yt-dlp download failed: {error_msg[:500]}")
         
         if not os.path.exists(audio_path):
-            raise Exception("Audio file not created")
+            raise Exception("Audio file not created after download")
         
         print(f"[INFO] Audio downloaded to {audio_path}")
         
@@ -1145,12 +1180,19 @@ async def process_transcription(video_id: str, video_data: dict):
             
             max_no = max([v.get('no', 0) for v in existing_videos], default=0)
             
+            # エラーメッセージを分かりやすく変換
+            friendly_error = error_msg
+            if 'bot' in error_msg.lower() or 'Sign in to confirm' in error_msg:
+                friendly_error = "YouTube bot検出: この動画は現在ダウンロードできません。しばらく待ってから再試行してください。"
+            elif 'JavaScript runtime' in error_msg:
+                friendly_error = "JavaScript処理エラー: この動画は特殊な処理が必要です。YouTube Data APIから取得した動画情報のみ保存されます。"
+            
             error_video = {
                 'no': max_no + 1,
                 'video_id': video_id,
                 'title': video_data.get('title', ''),
                 'description': video_data.get('description', ''),
-                'transcript': f'Error: {error_msg}',
+                'transcript': f'文字起こし失敗: {friendly_error}',
                 'url': video_data.get('url', ''),
                 'thumbnail': video_data.get('thumbnail', ''),
                 'status': 'failed'

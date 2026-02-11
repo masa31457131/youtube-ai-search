@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: youtube-ai-search
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: |
+      # システムパッケージのインストール
+      apt-get update
+      apt-get install -y ffmpeg nodejs npm
+      # Node.jsのバージョン確認
+      node --version
+      npm --version
+      # Pythonパッケージのインストール
+      pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASS
+        sync: false

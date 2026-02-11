@@ -684,6 +684,55 @@ async def delete_video(video_id: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(reload_video_data)
     return {"status": "deleted", "video_id": video_id}
 
+@app.post("/admin/api/videos/bulk-delete", dependencies=[Depends(verify_admin)])
+async def bulk_delete_videos(request_data: dict, background_tasks: BackgroundTasks):
+    """動画データ一括削除"""
+    video_ids = request_data.get("video_ids", [])
+    
+    if not video_ids:
+        raise HTTPException(400, "video_ids is required")
+    
+    if not DATA_PATH.exists():
+        raise HTTPException(404, "Data file not found")
+    
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        videos = json.load(f)
+    
+    # 削除対象以外を残す
+    filtered_videos = [v for v in videos if v.get('video_id') not in video_ids]
+    
+    # no番号を振り直し
+    for i, video in enumerate(filtered_videos, 1):
+        video['no'] = i
+    
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(filtered_videos, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_video_data)
+    
+    return {
+        "status": "success",
+        "deleted_count": len(video_ids),
+        "remaining_count": len(filtered_videos)
+    }
+
+@app.delete("/admin/api/videos/all", dependencies=[Depends(verify_admin)])
+async def delete_all_videos(background_tasks: BackgroundTasks):
+    """data.json全削除（完全リセット）"""
+    if not DATA_PATH.exists():
+        raise HTTPException(404, "Data file not found")
+    
+    # 空の配列で上書き
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump([], f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_video_data)
+    
+    return {
+        "status": "success",
+        "message": "All video data deleted"
+    }
+
 @app.post("/admin/api/videos/import", dependencies=[Depends(verify_admin)])
 async def import_videos(import_data: dict, background_tasks: BackgroundTasks):
     """動画データインポート"""
@@ -999,30 +1048,61 @@ async def cleanup_orphaned_videos(request_data: dict, background_tasks: Backgrou
         raise HTTPException(500, f"Failed to cleanup: {str(e)}")
 
 async def process_transcription(video_id: str, video_data: dict):
-    """文字起こし処理（バックグラウンド）"""
+    """文字起こし処理（バックグラウンド）- 改善版"""
     import tempfile
     import subprocess
+    import sys
+    
+    audio_path = None
     
     try:
-        # yt-dlpで音声ダウンロード
+        print(f"[INFO] Starting transcription for {video_id}: {video_data.get('title', '')}")
+        
+        # 1. yt-dlpがインストールされているか確認
+        try:
+            subprocess.run(['yt-dlp', '--version'], 
+                         capture_output=True, check=True, timeout=5)
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+            raise Exception(f"yt-dlp not available: {str(e)}")
+        
+        # 2. 音声ダウンロード
         audio_path = tempfile.mktemp(suffix='.mp3')
         video_url = f'https://www.youtube.com/watch?v={video_id}'
         
-        subprocess.run([
+        print(f"[INFO] Downloading audio from {video_url}")
+        
+        result = subprocess.run([
             'yt-dlp',
             '-x',
             '--audio-format', 'mp3',
+            '--audio-quality', '0',
             '-o', audio_path,
             video_url
-        ], check=True, capture_output=True)
+        ], capture_output=True, text=True, timeout=300)
         
-        # Whisperで文字起こし（簡易版）
-        import whisper
-        model = whisper.load_model("base")
-        result = model.transcribe(audio_path, language='ja')
-        transcript = result['text']
+        if result.returncode != 0:
+            raise Exception(f"yt-dlp download failed: {result.stderr}")
         
-        # data.jsonに追加
+        if not os.path.exists(audio_path):
+            raise Exception("Audio file not created")
+        
+        print(f"[INFO] Audio downloaded to {audio_path}")
+        
+        # 3. Whisperで文字起こし
+        try:
+            import whisper
+            print(f"[INFO] Loading Whisper model...")
+            model = whisper.load_model("base")
+            print(f"[INFO] Transcribing...")
+            result = model.transcribe(audio_path, language='ja', fp16=False)
+            transcript = result['text']
+            print(f"[INFO] Transcription completed: {len(transcript)} characters")
+        except ImportError:
+            raise Exception("Whisper not installed. Please install: pip install openai-whisper")
+        except Exception as e:
+            raise Exception(f"Whisper transcription failed: {str(e)}")
+        
+        # 4. data.jsonに追加
         existing_videos = []
         if DATA_PATH.exists():
             with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -1047,37 +1127,54 @@ async def process_transcription(video_id: str, video_data: dict):
         with open(DATA_PATH, "w", encoding="utf-8") as f:
             json.dump(existing_videos, f, ensure_ascii=False, indent=2)
         
-        # 一時ファイル削除
-        if os.path.exists(audio_path):
-            os.remove(audio_path)
+        print(f"[SUCCESS] Transcription saved for {video_id}")
         
         # 動画データ再読み込み
         await reload_video_data()
         
     except Exception as e:
-        print(f"Transcription error for {video_id}: {str(e)}")
+        error_msg = str(e)
+        print(f"[ERROR] Transcription error for {video_id}: {error_msg}")
+        
         # エラー時もdata.jsonに記録（status: failed）
-        existing_videos = []
-        if DATA_PATH.exists():
-            with open(DATA_PATH, "r", encoding="utf-8") as f:
-                existing_videos = json.load(f)
-        
-        max_no = max([v.get('no', 0) for v in existing_videos], default=0)
-        
-        error_video = {
-            'no': max_no + 1,
-            'video_id': video_id,
-            'title': video_data.get('title', ''),
-            'description': video_data.get('description', ''),
-            'transcript': f'Error: {str(e)}',
-            'url': video_data.get('url', ''),
-            'thumbnail': video_data.get('thumbnail', ''),
-            'status': 'failed'
-        }
-        
-        existing_videos.append(error_video)
-        
-        with open(DATA_PATH, "w", encoding="utf-8") as f:
+        try:
+            existing_videos = []
+            if DATA_PATH.exists():
+                with open(DATA_PATH, "r", encoding="utf-8") as f:
+                    existing_videos = json.load(f)
+            
+            max_no = max([v.get('no', 0) for v in existing_videos], default=0)
+            
+            error_video = {
+                'no': max_no + 1,
+                'video_id': video_id,
+                'title': video_data.get('title', ''),
+                'description': video_data.get('description', ''),
+                'transcript': f'Error: {error_msg}',
+                'url': video_data.get('url', ''),
+                'thumbnail': video_data.get('thumbnail', ''),
+                'status': 'failed'
+            }
+            
+            existing_videos.append(error_video)
+            
+            with open(DATA_PATH, "w", encoding="utf-8") as f:
+                json.dump(existing_videos, f, ensure_ascii=False, indent=2)
+            
+            print(f"[INFO] Error status saved for {video_id}")
+        except Exception as save_error:
+            print(f"[ERROR] Failed to save error status: {str(save_error)}")
+    
+    finally:
+        # 一時ファイル削除
+        if audio_path and os.path.exists(audio_path):
+            try:
+                os.remove(audio_path)
+                print(f"[INFO] Temporary file removed: {audio_path}")
+            except Exception as cleanup_error:
+                print(f"[WARNING] Failed to remove temp file: {str(cleanup_error)}")
+
+# ============================================
             json.dump(existing_videos, f, ensure_ascii=False, indent=2)
 
 # ============================================

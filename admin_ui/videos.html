@@ -539,6 +539,7 @@
       </select>
       <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規追加</button>
       <button class="btn btn-success" onclick="openYouTubeModal()">🎬 YouTube取込</button>
+      <button class="btn btn-primary" onclick="openSyncModal()">🔄 YouTube同期</button>
       <button class="btn btn-success" onclick="exportData()">📥 エクスポート</button>
       <button class="btn btn-warning" onclick="openImportModal()">📤 インポート</button>
       <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
@@ -766,6 +767,116 @@
         </button>
         <button class="btn btn-success" id="transcribeBtn" style="display:none;" onclick="startTranscription()">
           🎤 選択した動画を文字起こし
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube同期モーダル -->
+  <div id="syncModal" class="modal" onclick="closeSyncModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">🔄 YouTubeチャンネルと同期</div>
+      <div class="modal-body">
+        <div class="usage-info" style="margin-bottom: 20px;">
+          <div class="usage-title">💡 同期機能について</div>
+          <div class="usage-content">
+            <p><strong>この機能は以下を自動で行います:</strong></p>
+            <ul>
+              <li>✅ YouTubeチャンネル内の全動画を取得</li>
+              <li>✅ data.jsonと比較して差分を検出</li>
+              <li>➕ YouTubeにあるが未登録の動画 → 追加候補</li>
+              <li>🗑️ data.jsonにあるがYouTubeに存在しない動画 → 削除候補</li>
+            </ul>
+            <p style="margin-top: 12px; color: #d46b08;">
+              <strong>注意:</strong> 削除候補は慎重に確認してください。
+              削除したチャンネル動画が検出されます。
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>チャンネルURL</span>
+          </label>
+          <input 
+            type="url" 
+            id="syncChannelUrl" 
+            class="form-input" 
+            placeholder="https://www.youtube.com/c/TorayACSSupportChannel"
+            value="https://www.youtube.com/c/TorayACSSupportChannel"
+          />
+        </div>
+
+        <div id="syncProgress" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title">🔄 同期中...</div>
+            <div id="syncProgressContent">YouTubeチャンネルを解析しています...</div>
+          </div>
+        </div>
+
+        <div id="syncResults" style="display:none; margin-top: 16px;">
+          <!-- 追加候補 -->
+          <div id="addSection" style="display:none;">
+            <div class="usage-info" style="background: #f6ffed; border-color: #b7eb8f;">
+              <div class="usage-title" style="color: #389e0d;">➕ 追加候補（YouTubeにあり、data.jsonにない）</div>
+              <div id="addSummary"></div>
+              <div style="margin-top: 12px;">
+                <table style="width: 100%; font-size: 13px;">
+                  <thead>
+                    <tr style="background: #f0f0f0;">
+                      <th style="padding: 8px; text-align: left;">☑</th>
+                      <th style="padding: 8px; text-align: left;">タイトル</th>
+                      <th style="padding: 8px; text-align: left;">動画ID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="addListBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 削除候補 -->
+          <div id="deleteSection" style="display:none; margin-top: 16px;">
+            <div class="usage-info" style="background: #fff1f0; border-color: #ffa39e;">
+              <div class="usage-title" style="color: #cf1322;">🗑️ 削除候補（data.jsonにあり、YouTubeにない）</div>
+              <div id="deleteSummary"></div>
+              <div style="margin-top: 12px;">
+                <table style="width: 100%; font-size: 13px;">
+                  <thead>
+                    <tr style="background: #f0f0f0;">
+                      <th style="padding: 8px; text-align: left;">☑</th>
+                      <th style="padding: 8px; text-align: left;">タイトル</th>
+                      <th style="padding: 8px; text-align: left;">動画ID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="deleteListBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 同期完了 -->
+          <div id="syncComplete" style="display:none;">
+            <div class="usage-info" style="background: #e6f7ff; border-color: #91d5ff;">
+              <div class="usage-title" style="color: #0050b3;">✅ 同期完了</div>
+              <div style="color: #002766;">
+                YouTubeチャンネルとdata.jsonは完全に同期しています。<br>
+                追加・削除すべき動画はありません。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeSyncModal()">閉じる</button>
+        <button class="btn btn-primary" id="syncAnalyzeBtn" onclick="analyzeSyncDiff()">
+          🔍 差分を解析
+        </button>
+        <button class="btn btn-success" id="syncAddBtn" style="display:none;" onclick="executeSyncAdd()">
+          ➕ 選択した動画を追加
+        </button>
+        <button class="btn btn-danger" id="syncDeleteBtn" style="display:none;" onclick="executeSyncDelete()">
+          🗑️ 選択した動画を削除
         </button>
       </div>
     </div>
@@ -1145,6 +1256,293 @@
     // YouTube取込機能
     let fetchedVideos = [];
     let selectedVideoIds = new Set();
+
+    // YouTube同期機能
+    let syncData = null;
+    let syncAddIds = new Set();
+    let syncDeleteIds = new Set();
+
+    function openSyncModal() {
+      document.getElementById('syncChannelUrl').value = 'https://www.youtube.com/c/TorayACSSupportChannel';
+      document.getElementById('syncProgress').style.display = 'none';
+      document.getElementById('syncResults').style.display = 'none';
+      document.getElementById('addSection').style.display = 'none';
+      document.getElementById('deleteSection').style.display = 'none';
+      document.getElementById('syncComplete').style.display = 'none';
+      document.getElementById('syncAnalyzeBtn').style.display = 'inline-block';
+      document.getElementById('syncAddBtn').style.display = 'none';
+      document.getElementById('syncDeleteBtn').style.display = 'none';
+      syncData = null;
+      syncAddIds.clear();
+      syncDeleteIds.clear();
+      document.getElementById('syncModal').classList.add('show');
+    }
+
+    function closeSyncModal(event) {
+      if (!event || event.target.id === 'syncModal') {
+        document.getElementById('syncModal').classList.remove('show');
+      }
+    }
+
+    async function analyzeSyncDiff() {
+      const channelUrl = document.getElementById('syncChannelUrl').value.trim();
+
+      if (!channelUrl) {
+        alert('チャンネルURLを入力してください');
+        return;
+      }
+
+      document.getElementById('syncProgress').style.display = 'block';
+      document.getElementById('syncProgressContent').textContent = 'YouTubeチャンネルを解析しています...';
+      document.getElementById('syncAnalyzeBtn').disabled = true;
+
+      try {
+        const res = await fetch('/admin/api/youtube/sync', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel_url: channelUrl
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '同期に失敗しました');
+        }
+
+        syncData = await res.json();
+
+        document.getElementById('syncProgress').style.display = 'none';
+        document.getElementById('syncResults').style.display = 'block';
+
+        const missingInData = syncData.missing_in_data || [];
+        const missingInYoutube = syncData.missing_in_youtube || [];
+
+        if (missingInData.length === 0 && missingInYoutube.length === 0) {
+          // 完全に同期している
+          document.getElementById('syncComplete').style.display = 'block';
+          document.getElementById('addSection').style.display = 'none';
+          document.getElementById('deleteSection').style.display = 'none';
+        } else {
+          // 追加候補
+          if (missingInData.length > 0) {
+            document.getElementById('addSection').style.display = 'block';
+            document.getElementById('addSummary').innerHTML = `
+              <p><strong>${missingInData.length}件</strong>の動画がYouTubeに存在しますが、data.jsonに未登録です。</p>
+            `;
+
+            const addBody = document.getElementById('addListBody');
+            addBody.innerHTML = missingInData.map(video => {
+              syncAddIds.add(video.video_id); // デフォルトで全選択
+              return `
+                <tr>
+                  <td style="padding: 8px;">
+                    <input 
+                      type="checkbox" 
+                      checked
+                      onchange="toggleSyncAdd('${video.video_id}')"
+                    />
+                  </td>
+                  <td style="padding: 8px; font-size: 13px;">
+                    ${escapeHtml(video.title)}
+                  </td>
+                  <td style="padding: 8px;">
+                    <code>${escapeHtml(video.video_id)}</code>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            document.getElementById('syncAddBtn').style.display = 'inline-block';
+          } else {
+            document.getElementById('addSection').style.display = 'none';
+          }
+
+          // 削除候補
+          if (missingInYoutube.length > 0) {
+            document.getElementById('deleteSection').style.display = 'block';
+            document.getElementById('deleteSummary').innerHTML = `
+              <p><strong>${missingInYoutube.length}件</strong>の動画がdata.jsonに存在しますが、YouTubeチャンネルにありません。</p>
+              <p style="margin-top: 8px; color: #d46b08;">
+                ⚠️ チャンネルから削除された動画、または非公開になった動画です。
+              </p>
+            `;
+
+            const deleteBody = document.getElementById('deleteListBody');
+            deleteBody.innerHTML = missingInYoutube.map(video => {
+              syncDeleteIds.add(video.video_id); // デフォルトで全選択
+              return `
+                <tr style="background: #fff1f0;">
+                  <td style="padding: 8px;">
+                    <input 
+                      type="checkbox" 
+                      checked
+                      onchange="toggleSyncDelete('${video.video_id}')"
+                    />
+                  </td>
+                  <td style="padding: 8px; font-size: 13px;">
+                    ${escapeHtml(video.title || '(タイトルなし)')}
+                  </td>
+                  <td style="padding: 8px;">
+                    <code>${escapeHtml(video.video_id || '')}</code>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            document.getElementById('syncDeleteBtn').style.display = 'inline-block';
+          } else {
+            document.getElementById('deleteSection').style.display = 'none';
+          }
+        }
+
+        document.getElementById('syncAnalyzeBtn').disabled = false;
+
+      } catch (error) {
+        document.getElementById('syncProgress').style.display = 'none';
+        document.getElementById('syncAnalyzeBtn').disabled = false;
+        alert('差分解析に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function toggleSyncAdd(videoId) {
+      if (syncAddIds.has(videoId)) {
+        syncAddIds.delete(videoId);
+      } else {
+        syncAddIds.add(videoId);
+      }
+    }
+
+    function toggleSyncDelete(videoId) {
+      if (syncDeleteIds.has(videoId)) {
+        syncDeleteIds.delete(videoId);
+      } else {
+        syncDeleteIds.add(videoId);
+      }
+    }
+
+    async function executeSyncAdd() {
+      if (syncAddIds.size === 0) {
+        alert('追加する動画を選択してください');
+        return;
+      }
+
+      if (!confirm(`選択した${syncAddIds.size}件の動画を文字起こしして追加しますか？\n\n処理には時間がかかります。`)) {
+        return;
+      }
+
+      document.getElementById('syncAddBtn').disabled = true;
+      document.getElementById('syncProgress').style.display = 'block';
+      document.getElementById('syncProgressContent').textContent = '文字起こし処理を開始しています...';
+
+      const videosToAdd = syncData.missing_in_data.filter(v => syncAddIds.has(v.video_id));
+      
+      let completed = 0;
+      let failed = 0;
+
+      for (const video of videosToAdd) {
+        try {
+          document.getElementById('syncProgressContent').innerHTML = `
+            <p>処理中: ${completed + failed + 1} / ${videosToAdd.length}</p>
+            <p>現在: ${escapeHtml(video.title)}</p>
+          `;
+
+          const res = await fetch('/admin/api/youtube/transcribe', {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(video)
+          });
+
+          if (res.ok) {
+            completed++;
+          } else {
+            failed++;
+          }
+        } catch (error) {
+          console.error('Transcription error:', error);
+          failed++;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      document.getElementById('syncProgressContent').innerHTML = `
+        <p><strong>完了:</strong> ${completed}件</p>
+        <p><strong>失敗:</strong> ${failed}件</p>
+        <p style="margin-top: 12px; color: #666;">
+          ※ 文字起こし処理はバックグラウンドで続行中です。
+        </p>
+      `;
+
+      document.getElementById('syncAddBtn').disabled = false;
+      syncAddIds.clear();
+
+      setTimeout(() => {
+        closeSyncModal();
+        loadVideos();
+      }, 5000);
+    }
+
+    async function executeSyncDelete() {
+      if (syncDeleteIds.size === 0) {
+        alert('削除する動画を選択してください');
+        return;
+      }
+
+      if (!confirm(`選択した${syncDeleteIds.size}件の動画をdata.jsonから削除しますか？\n\n⚠️ この操作は取り消せません。`)) {
+        return;
+      }
+
+      document.getElementById('syncDeleteBtn').disabled = true;
+      document.getElementById('syncProgress').style.display = 'block';
+      document.getElementById('syncProgressContent').textContent = '削除処理中...';
+
+      try {
+        const res = await fetch('/admin/api/youtube/cleanup', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            video_ids: Array.from(syncDeleteIds)
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '削除に失敗しました');
+        }
+
+        const result = await res.json();
+
+        document.getElementById('syncProgressContent').innerHTML = `
+          <p><strong>削除完了:</strong> ${result.deleted_count}件</p>
+          <p><strong>残り:</strong> ${result.remaining_count}件</p>
+        `;
+
+        document.getElementById('syncDeleteBtn').disabled = false;
+        syncDeleteIds.clear();
+
+        setTimeout(() => {
+          closeSyncModal();
+          loadVideos();
+        }, 3000);
+
+      } catch (error) {
+        document.getElementById('syncProgress').style.display = 'none';
+        document.getElementById('syncDeleteBtn').disabled = false;
+        alert('削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
 
     function openYouTubeModal() {
       document.getElementById('youtubeChannelUrl').value = 'https://www.youtube.com/c/TorayACSSupportChannel';

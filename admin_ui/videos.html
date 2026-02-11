@@ -542,6 +542,7 @@
       <button class="btn btn-primary" onclick="openSyncModal()">🔄 YouTube同期</button>
       <button class="btn btn-success" onclick="exportData()">📥 エクスポート</button>
       <button class="btn btn-warning" onclick="openImportModal()">📤 インポート</button>
+      <button class="btn btn-danger" onclick="deleteAllData()">🗑️ data.json全削除</button>
       <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
         🗑️ 選択したN件を削除
       </button>
@@ -916,11 +917,11 @@
     function updateStats() {
       document.getElementById('totalCount').textContent = allVideos.length;
       document.getElementById('completedCount').textContent = 
-        allVideos.filter(v => v.status === 'completed').length;
+        allVideos.filter(v => (v.status || 'pending') === 'completed').length;
       document.getElementById('pendingCount').textContent = 
-        allVideos.filter(v => v.status === 'pending').length;
+        allVideos.filter(v => (v.status || 'pending') === 'pending').length;
       document.getElementById('failedCount').textContent = 
-        allVideos.filter(v => v.status === 'failed').length;
+        allVideos.filter(v => (v.status || 'pending') === 'failed').length;
     }
 
     function applyFilters() {
@@ -953,9 +954,10 @@
       } else {
         tbody.innerHTML = pageItems.map((video, idx) => {
           const globalIdx = start + idx;
-          const statusClass = `status-${video.status || 'pending'}`;
-          const statusText = video.status === 'completed' ? '完了' : 
-                           video.status === 'pending' ? '処理中' : '失敗';
+          const status = video.status || 'pending'; // デフォルト値を設定
+          const statusClass = `status-${status}`;
+          const statusText = status === 'completed' ? '完了' : 
+                           status === 'pending' ? '処理中' : '失敗';
           
           return `
             <tr>
@@ -1144,22 +1146,62 @@
     }
 
     async function bulkDelete() {
+      if (selectedIndices.size === 0) {
+        alert('削除する動画を選択してください');
+        return;
+      }
+
+      const idsToDelete = Array.from(selectedIndices).map(idx => filteredVideos[idx].video_id);
+
       if (!confirm(`選択した${selectedIndices.size}件を削除しますか？\nこの操作は取り消せません。`)) return;
       
       try {
-        for (const idx of selectedIndices) {
-          const video = filteredVideos[idx];
-          await fetch(`/admin/api/videos/${video.video_id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': authHeader }
-          });
-        }
+        const res = await fetch('/admin/api/videos/bulk-delete', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            video_ids: idsToDelete
+          })
+        });
         
-        alert('削除しました');
+        if (!res.ok) throw new Error('一括削除に失敗しました');
+        
+        const result = await res.json();
+        alert(`削除しました\n削除: ${result.deleted_count}件\n残り: ${result.remaining_count}件`);
         selectedIndices.clear();
         loadVideos();
       } catch (error) {
-        alert('一部の削除に失敗しました');
+        alert('一括削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    async function deleteAllData() {
+      if (!confirm('⚠️ data.json全削除\n\nすべての動画データを削除します。\nこの操作は取り消せません。\n\n本当に実行しますか？')) {
+        return;
+      }
+
+      if (!confirm('最終確認\n\n本当にすべてのデータを削除しますか？\nバックアップは取得済みですか？')) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/admin/api/videos/all', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': authHeader
+          }
+        });
+
+        if (!res.ok) throw new Error('削除に失敗しました');
+
+        alert('✅ data.jsonをリセットしました\nすべてのデータが削除されました');
+        loadVideos();
+      } catch (error) {
+        alert('削除に失敗しました: ' + error.message);
         console.error(error);
       }
     }

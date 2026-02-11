@@ -604,6 +604,133 @@ async def delete_faq_item(item_id: str, background_tasks: BackgroundTasks):
     return {"status": "deleted", "id": item_id}
 
 # ============================================
+# 管理API - 動画データ
+# ============================================
+
+@app.get("/admin/api/videos", dependencies=[Depends(verify_admin)])
+async def get_videos():
+    """動画データ一覧取得"""
+    if not DATA_PATH.exists():
+        return []
+    
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        videos = json.load(f)
+    
+    return videos
+
+@app.post("/admin/api/videos", dependencies=[Depends(verify_admin)])
+async def create_video(video_data: dict, background_tasks: BackgroundTasks):
+    """動画データ作成"""
+    videos = []
+    if DATA_PATH.exists():
+        with open(DATA_PATH, "r", encoding="utf-8") as f:
+            videos = json.load(f)
+    
+    videos.append(video_data)
+    
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(videos, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_video_data)
+    return {"status": "created", "video_id": video_data.get("video_id")}
+
+@app.patch("/admin/api/videos/{video_id}", dependencies=[Depends(verify_admin)])
+async def update_video(video_id: str, video_data: dict, background_tasks: BackgroundTasks):
+    """動画データ更新"""
+    if not DATA_PATH.exists():
+        raise HTTPException(404, "Data file not found")
+    
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        videos = json.load(f)
+    
+    found = False
+    for i, video in enumerate(videos):
+        if video.get("video_id") == video_id:
+            videos[i] = video_data
+            found = True
+            break
+    
+    if not found:
+        raise HTTPException(404, f"Video '{video_id}' not found")
+    
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(videos, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_video_data)
+    return {"status": "updated", "video_id": video_id}
+
+@app.delete("/admin/api/videos/{video_id}", dependencies=[Depends(verify_admin)])
+async def delete_video(video_id: str, background_tasks: BackgroundTasks):
+    """動画データ削除"""
+    if not DATA_PATH.exists():
+        raise HTTPException(404, "Data file not found")
+    
+    with open(DATA_PATH, "r", encoding="utf-8") as f:
+        videos = json.load(f)
+    
+    found = False
+    for i, video in enumerate(videos):
+        if video.get("video_id") == video_id:
+            del videos[i]
+            found = True
+            break
+    
+    if not found:
+        raise HTTPException(404, f"Video '{video_id}' not found")
+    
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(videos, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_video_data)
+    return {"status": "deleted", "video_id": video_id}
+
+@app.post("/admin/api/videos/import", dependencies=[Depends(verify_admin)])
+async def import_videos(import_data: dict, background_tasks: BackgroundTasks):
+    """動画データインポート"""
+    mode = import_data.get("mode", "merge")
+    new_data = import_data.get("data", [])
+    
+    if not isinstance(new_data, list):
+        raise HTTPException(400, "Invalid data format")
+    
+    added = 0
+    updated = 0
+    
+    if mode == "replace":
+        # 全体置換
+        with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(new_data, f, ensure_ascii=False, indent=2)
+        added = len(new_data)
+    else:
+        # 差分マージ
+        existing_videos = []
+        if DATA_PATH.exists():
+            with open(DATA_PATH, "r", encoding="utf-8") as f:
+                existing_videos = json.load(f)
+        
+        existing_ids = {v.get("video_id"): i for i, v in enumerate(existing_videos)}
+        
+        for new_video in new_data:
+            video_id = new_video.get("video_id")
+            if video_id in existing_ids:
+                existing_videos[existing_ids[video_id]] = new_video
+                updated += 1
+            else:
+                existing_videos.append(new_video)
+                added += 1
+        
+        with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing_videos, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_video_data)
+    return {"status": "imported", "added": added, "updated": updated}
+
+async def reload_video_data():
+    """動画データ再読み込み"""
+    state.video_loaded = False
+    # 次回検索時に自動的に再ロード
+
+# ============================================
 # 管理API - ログ
 # ============================================
 
@@ -676,6 +803,14 @@ def serve_admin_dashboard():
         return HTMLResponse("<h1>admin dashboard.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
+@app.get("/admin/videos", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_videos():
+    """管理画面 - 動画データ"""
+    f = admin_path / "videos.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin videos.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
 @app.get("/admin/synonyms", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_synonyms():
     """管理画面 - Synonyms"""
@@ -707,6 +842,14 @@ def serve_admin_dashboard_html():
     f = admin_path / "dashboard.html"
     if not f.exists():
         return HTMLResponse("<h1>admin dashboard.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/videos.html", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_videos_html():
+    """管理画面 - 動画データ (.html)"""
+    f = admin_path / "videos.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin videos.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
 @app.get("/admin/synonyms.html", response_class=HTMLResponse, include_in_schema=False)

@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>動画データ管理 - TACS FAQ Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
+      background: #f6f7fb;
+      color: #111827;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    header {
+      background: #001529;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo { font-size: 24px; }
+    
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .header-right {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    
+    nav {
+      display: flex;
+      gap: 20px;
+    }
+    
+    nav a {
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: all 0.3s;
+    }
+    
+    nav a:hover, nav a.active {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
+    .btn-logout {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.85);
+      cursor: pointer;
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+    }
+    
+    .btn-logout:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
+    main {
+      flex: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 24px;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+    
+    .usage-info {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .usage-title {
+      font-weight: 700;
+      font-size: 16px;
+      color: #0050b3;
+      margin-bottom: 12px;
+    }
+    
+    .usage-content {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #002766;
+    }
+    
+    .usage-content strong {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+    
+    .usage-content ul {
+      margin-left: 20px;
+      margin-top: 8px;
+    }
+    
+    .usage-example {
+      background: rgba(255,255,255,0.5);
+      padding: 12px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      margin-top: 8px;
+      white-space: pre;
+    }
+    
+    .toolbar {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .search-input {
+      flex: 1;
+      min-width: 250px;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .select {
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 180px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: #1890ff;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #40a9ff;
+    }
+    
+    .btn-success {
+      background: #52c41a;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #73d13d;
+    }
+    
+    .btn-danger {
+      background: #ff4d4f;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #ff7875;
+    }
+    
+    .btn-warning {
+      background: #faad14;
+      color: white;
+    }
+    
+    .btn-warning:hover {
+      background: #ffc53d;
+    }
+    
+    .table-container {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      background: #fafafa;
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #f0f0f0;
+      white-space: nowrap;
+    }
+    
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    tr:hover {
+      background: #fafafa;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-completed {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-failed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .btn-link {
+      background: none;
+      border: none;
+      color: #1890ff;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    
+    .btn-link:hover {
+      text-decoration: underline;
+    }
+    
+    .btn-link.danger {
+      color: #ff4d4f;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: auto;
+      margin: 20px;
+    }
+    
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .modal-body {
+      padding: 24px;
+    }
+    
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: #1890ff;
+      color: white;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: help;
+      position: relative;
+    }
+    
+    .info-icon:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 12px;
+      background: #1f2937;
+      color: white;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: nowrap;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    .info-icon:hover::before {
+      content: '';
+      position: absolute;
+      bottom: 115%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+      z-index: 1000;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #40a9ff;
+      box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+    }
+    
+    .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+      min-height: 120px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    
+    .form-textarea:focus {
+      outline: none;
+      border-color: #40a9ff;
+      box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: white;
+      border-top: 1px solid #f0f0f0;
+    }
+    
+    .stats-bar {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111;
+    }
+    
+    footer {
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      padding: 20px 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <span class="logo">🏢</span>
+      <span class="header-title">TACS FAQ Manager</span>
+    </div>
+    <div class="header-right">
+      <nav>
+        <a href="/admin/dashboard.html">ダッシュボード</a>
+        <a href="/admin/videos.html" class="active">動画データ</a>
+        <a href="/admin/synonyms.html">Synonyms編集</a>
+        <a href="/admin/faq.html">FAQ編集</a>
+        <a href="/admin/logs.html">ログ閲覧</a>
+      </nav>
+      <button class="btn-logout" onclick="logout()">ログアウト</button>
+    </div>
+  </header>
+
+  <main>
+    <h1 class="page-title">動画データ管理</h1>
+
+    <div class="usage-info">
+      <div class="usage-title">📘 data.json - YouTube動画文字起こしデータファイル</div>
+      <div class="usage-content">
+        <strong>【用途】</strong>
+        <p>
+          YouTubeチャンネルの動画を自動で文字起こしした結果を保存します。
+          faster-whisperで処理された高精度な文字起こしテキストと動画メタデータを管理し、
+          検索システムで活用します。
+        </p>
+        <strong>【データ構造】</strong>
+        <ul>
+          <li>no: 通し番号</li>
+          <li>title: 動画タイトル</li>
+          <li>description: 動画説明</li>
+          <li>transcript: 文字起こしテキスト</li>
+          <li>url: YouTube動画URL</li>
+          <li>thumbnail: サムネイルURL</li>
+          <li>video_id: YouTube動画ID</li>
+          <li>status: 処理状態 (completed/pending/failed)</li>
+        </ul>
+        <strong>【データ例】</strong>
+        <div class="usage-example">{
+  "no": 1,
+  "title": "初期セットアップ解説",
+  "description": "システムの初期設定方法を...",
+  "transcript": "こんにちは。今日は...",
+  "url": "https://youtube.com/watch?v=...",
+  "thumbnail": "https://i.ytimg.com/...",
+  "video_id": "abc123",
+  "status": "completed"
+}</div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">総動画数</span>
+        <span class="stat-value" id="totalCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">完了</span>
+        <span class="stat-value" id="completedCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">処理中</span>
+        <span class="stat-value" id="pendingCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">失敗</span>
+        <span class="stat-value" id="failedCount">0</span>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 タイトル・説明・文字起こしで検索..." />
+      <select id="statusFilter" class="select">
+        <option value="">すべての状態</option>
+        <option value="completed">完了</option>
+        <option value="pending">処理中</option>
+        <option value="failed">失敗</option>
+      </select>
+      <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規追加</button>
+      <button class="btn btn-success" onclick="exportData()">📥 エクスポート</button>
+      <button class="btn btn-warning" onclick="openImportModal()">📤 インポート</button>
+      <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
+        🗑️ 選択したN件を削除
+      </button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px;">
+              <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+            </th>
+            <th style="width: 60px;">No</th>
+            <th style="width: 100px;">状態</th>
+            <th>タイトル</th>
+            <th style="width: 120px;">動画ID</th>
+            <th style="width: 180px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;">読み込み中...</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <button class="btn" onclick="prevPage()" id="prevBtn">← 前の20件</button>
+        <span id="pageInfo">1-20件</span>
+        <button class="btn" onclick="nextPage()" id="nextBtn">次の20件 →</button>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Copyright © 2026 Toray Advanced Computer Solution, Inc.
+  </footer>
+
+  <!-- 編集モーダル -->
+  <div id="editModal" class="modal" onclick="closeEditModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header" id="modalTitle">動画データ編集</div>
+      <div class="modal-body">
+        <form id="videoForm">
+          <div class="form-group">
+            <label class="form-label">
+              <span>No</span>
+              <span class="info-icon" data-tooltip="通し番号。自動採番されます">ⓘ</span>
+            </label>
+            <input type="number" id="videoNo" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>動画ID</span>
+              <span class="info-icon" data-tooltip="YouTube動画ID。例: abc123def45">ⓘ</span>
+            </label>
+            <input type="text" id="videoId" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>タイトル</span>
+              <span class="info-icon" data-tooltip="動画のタイトル">ⓘ</span>
+            </label>
+            <input type="text" id="videoTitle" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>URL</span>
+              <span class="info-icon" data-tooltip="YouTube動画URL">ⓘ</span>
+            </label>
+            <input type="url" id="videoUrl" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>サムネイルURL</span>
+              <span class="info-icon" data-tooltip="動画のサムネイル画像URL">ⓘ</span>
+            </label>
+            <input type="url" id="videoThumbnail" class="form-input" />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>説明</span>
+              <span class="info-icon" data-tooltip="動画の説明文">ⓘ</span>
+            </label>
+            <textarea id="videoDescription" class="form-textarea"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>文字起こし</span>
+              <span class="info-icon" data-tooltip="faster-whisperで生成された文字起こしテキスト">ⓘ</span>
+            </label>
+            <textarea id="videoTranscript" class="form-textarea" style="min-height: 200px;"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>状態</span>
+              <span class="info-icon" data-tooltip="処理状態">ⓘ</span>
+            </label>
+            <select id="videoStatus" class="select">
+              <option value="completed">完了 (completed)</option>
+              <option value="pending">処理中 (pending)</option>
+              <option value="failed">失敗 (failed)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeEditModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveVideo()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- インポートモーダル -->
+  <div id="importModal" class="modal" onclick="closeImportModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">データインポート</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">インポート方法</label>
+          <select id="importMode" class="select">
+            <option value="replace">全体置換（既存データを完全に置き換え）</option>
+            <option value="merge">差分マージ（既存データに追加・更新）</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">JSONファイル</label>
+          <input type="file" id="importFile" accept=".json" class="form-input" />
+        </div>
+        
+        <div id="importPreview" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title">プレビュー</div>
+            <div id="importPreviewContent"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeImportModal()">キャンセル</button>
+        <button class="btn btn-warning" onclick="executeImport()">インポート実行</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const auth = localStorage.getItem('admin_auth');
+    if (!auth) {
+      window.location.href = '/admin';
+    }
+    const { username, password } = JSON.parse(auth);
+    const authHeader = 'Basic ' + btoa(username + ':' + password);
+
+    let allVideos = [];
+    let filteredVideos = [];
+    let currentPage = 0;
+    const pageSize = 20;
+    let editingIndex = null;
+    let selectedIndices = new Set();
+
+    async function loadVideos() {
+      try {
+        const res = await fetch('/admin/api/videos', {
+          headers: { 'Authorization': authHeader }
+        });
+        const data = await res.json();
+        allVideos = data || [];
+        
+        updateStats();
+        applyFilters();
+      } catch (error) {
+        alert('動画データの取得に失敗しました');
+        console.error(error);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('totalCount').textContent = allVideos.length;
+      document.getElementById('completedCount').textContent = 
+        allVideos.filter(v => v.status === 'completed').length;
+      document.getElementById('pendingCount').textContent = 
+        allVideos.filter(v => v.status === 'pending').length;
+      document.getElementById('failedCount').textContent = 
+        allVideos.filter(v => v.status === 'failed').length;
+    }
+
+    function applyFilters() {
+      const searchText = document.getElementById('searchInput').value.toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+      
+      filteredVideos = allVideos.filter(video => {
+        const matchSearch = !searchText || 
+          video.title?.toLowerCase().includes(searchText) ||
+          video.description?.toLowerCase().includes(searchText) ||
+          video.transcript?.toLowerCase().includes(searchText);
+        
+        const matchStatus = !status || video.status === status;
+        
+        return matchSearch && matchStatus;
+      });
+      
+      currentPage = 0;
+      renderTable();
+    }
+
+    function renderTable() {
+      const start = currentPage * pageSize;
+      const end = start + pageSize;
+      const pageItems = filteredVideos.slice(start, end);
+      
+      const tbody = document.getElementById('tableBody');
+      if (pageItems.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">該当する動画データがありません</td></tr>';
+      } else {
+        tbody.innerHTML = pageItems.map((video, idx) => {
+          const globalIdx = start + idx;
+          const statusClass = `status-${video.status || 'pending'}`;
+          const statusText = video.status === 'completed' ? '完了' : 
+                           video.status === 'pending' ? '処理中' : '失敗';
+          
+          return `
+            <tr>
+              <td>
+                <input type="checkbox" ${selectedIndices.has(globalIdx) ? 'checked' : ''} 
+                       onchange="toggleSelect(${globalIdx})" />
+              </td>
+              <td>${video.no || '-'}</td>
+              <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+              <td>${escapeHtml(video.title || '')}</td>
+              <td><code>${escapeHtml(video.video_id || '')}</code></td>
+              <td>
+                <button class="btn-link" onclick="editVideo(${globalIdx})">
+                  ✏️ 編集
+                </button>
+                <button class="btn-link danger" onclick="deleteVideo(${globalIdx})">
+                  🗑️ 削除
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+      
+      document.getElementById('pageInfo').textContent = 
+        pageItems.length > 0 ? `${start + 1}-${start + pageItems.length}件 / 全${filteredVideos.length}件` : '0件';
+      
+      document.getElementById('prevBtn').disabled = currentPage === 0;
+      document.getElementById('nextBtn').disabled = end >= filteredVideos.length;
+      
+      updateBulkDeleteButton();
+    }
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function toggleSelectAll() {
+      const checked = document.getElementById('selectAll').checked;
+      const start = currentPage * pageSize;
+      const end = start + pageSize;
+      
+      for (let i = start; i < end && i < filteredVideos.length; i++) {
+        if (checked) {
+          selectedIndices.add(i);
+        } else {
+          selectedIndices.delete(i);
+        }
+      }
+      
+      renderTable();
+    }
+
+    function toggleSelect(idx) {
+      if (selectedIndices.has(idx)) {
+        selectedIndices.delete(idx);
+      } else {
+        selectedIndices.add(idx);
+      }
+      updateBulkDeleteButton();
+    }
+
+    function updateBulkDeleteButton() {
+      const btn = document.getElementById('bulkDeleteBtn');
+      if (selectedIndices.size > 0) {
+        btn.style.display = 'block';
+        btn.textContent = `🗑️ 選択した${selectedIndices.size}件を削除`;
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        renderTable();
+      }
+    }
+
+    function nextPage() {
+      const maxPage = Math.ceil(filteredVideos.length / pageSize) - 1;
+      if (currentPage < maxPage) {
+        currentPage++;
+        renderTable();
+      }
+    }
+
+    function openCreateModal() {
+      editingIndex = null;
+      document.getElementById('modalTitle').textContent = '動画データ新規追加';
+      document.getElementById('videoForm').reset();
+      document.getElementById('videoNo').value = (allVideos.length + 1);
+      document.getElementById('videoStatus').value = 'pending';
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function editVideo(idx) {
+      editingIndex = idx;
+      const video = filteredVideos[idx];
+      
+      document.getElementById('modalTitle').textContent = '動画データ編集';
+      document.getElementById('videoNo').value = video.no || '';
+      document.getElementById('videoId').value = video.video_id || '';
+      document.getElementById('videoTitle').value = video.title || '';
+      document.getElementById('videoUrl').value = video.url || '';
+      document.getElementById('videoThumbnail').value = video.thumbnail || '';
+      document.getElementById('videoDescription').value = video.description || '';
+      document.getElementById('videoTranscript').value = video.transcript || '';
+      document.getElementById('videoStatus').value = video.status || 'pending';
+      
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function closeEditModal(event) {
+      if (!event || event.target.id === 'editModal') {
+        document.getElementById('editModal').classList.remove('show');
+      }
+    }
+
+    async function saveVideo() {
+      const videoData = {
+        no: parseInt(document.getElementById('videoNo').value),
+        video_id: document.getElementById('videoId').value.trim(),
+        title: document.getElementById('videoTitle').value.trim(),
+        url: document.getElementById('videoUrl').value.trim(),
+        thumbnail: document.getElementById('videoThumbnail').value.trim(),
+        description: document.getElementById('videoDescription').value.trim(),
+        transcript: document.getElementById('videoTranscript').value.trim(),
+        status: document.getElementById('videoStatus').value
+      };
+      
+      if (!videoData.video_id || !videoData.title || !videoData.url) {
+        alert('動画ID、タイトル、URLは必須項目です');
+        return;
+      }
+      
+      try {
+        const method = editingIndex !== null ? 'PATCH' : 'POST';
+        const url = editingIndex !== null 
+          ? `/admin/api/videos/${filteredVideos[editingIndex].video_id}`
+          : '/admin/api/videos';
+        
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(videoData)
+        });
+        
+        if (!res.ok) throw new Error('保存に失敗しました');
+        
+        alert(editingIndex !== null ? '更新しました' : '作成しました');
+        closeEditModal();
+        loadVideos();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    async function deleteVideo(idx) {
+      const video = filteredVideos[idx];
+      if (!confirm(`「${video.title}」を削除しますか？`)) return;
+      
+      try {
+        const res = await fetch(`/admin/api/videos/${video.video_id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': authHeader }
+        });
+        
+        if (!res.ok) throw new Error('削除に失敗しました');
+        
+        alert('削除しました');
+        loadVideos();
+      } catch (error) {
+        alert('削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    async function bulkDelete() {
+      if (!confirm(`選択した${selectedIndices.size}件を削除しますか？\nこの操作は取り消せません。`)) return;
+      
+      try {
+        for (const idx of selectedIndices) {
+          const video = filteredVideos[idx];
+          await fetch(`/admin/api/videos/${video.video_id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': authHeader }
+          });
+        }
+        
+        alert('削除しました');
+        selectedIndices.clear();
+        loadVideos();
+      } catch (error) {
+        alert('一部の削除に失敗しました');
+        console.error(error);
+      }
+    }
+
+    function exportData() {
+      const dataStr = JSON.stringify(allVideos, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `data_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openImportModal() {
+      document.getElementById('importMode').value = 'merge';
+      document.getElementById('importFile').value = '';
+      document.getElementById('importPreview').style.display = 'none';
+      document.getElementById('importModal').classList.add('show');
+    }
+
+    function closeImportModal(event) {
+      if (!event || event.target.id === 'importModal') {
+        document.getElementById('importModal').classList.remove('show');
+      }
+    }
+
+    document.getElementById('importFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (!Array.isArray(data)) {
+          alert('正しいJSON形式ではありません（配列である必要があります）');
+          return;
+        }
+        
+        const preview = document.getElementById('importPreviewContent');
+        preview.innerHTML = `
+          <p><strong>件数:</strong> ${data.length}件</p>
+          <p><strong>先頭データ:</strong></p>
+          <pre style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px;overflow:auto;">${JSON.stringify(data[0], null, 2)}</pre>
+        `;
+        document.getElementById('importPreview').style.display = 'block';
+        
+        window.importData = data;
+      } catch (error) {
+        alert('ファイルの読み込みに失敗しました: ' + error.message);
+      }
+    });
+
+    async function executeImport() {
+      if (!window.importData) {
+        alert('インポートするファイルを選択してください');
+        return;
+      }
+      
+      const mode = document.getElementById('importMode').value;
+      
+      try {
+        const res = await fetch('/admin/api/videos/import', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            mode: mode,
+            data: window.importData
+          })
+        });
+        
+        if (!res.ok) throw new Error('インポートに失敗しました');
+        
+        const result = await res.json();
+        alert(`インポート完了\n追加: ${result.added}件\n更新: ${result.updated}件`);
+        closeImportModal();
+        loadVideos();
+      } catch (error) {
+        alert('インポートに失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('admin_auth');
+      window.location.href = '/admin';
+    }
+
+    // イベントリスナー
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+    // 初期読み込み
+    loadVideos();
+  </script>
+</body>
+</html>

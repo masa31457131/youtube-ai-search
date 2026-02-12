@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>動画データ管理 - TACS FAQ Manager</title>
+  <title>動画データ管理 - ACS FAQ Manager</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     
@@ -459,7 +459,7 @@
   <header>
     <div class="header-left">
       <span class="logo">🏢</span>
-      <span class="header-title">TACS FAQ Manager</span>
+      <span class="header-title">ACS FAQ Manager</span>
     </div>
     <div class="header-right">
       <nav>
@@ -929,14 +929,29 @@
         const res = await fetch('/admin/api/videos', {
           headers: { 'Authorization': authHeader }
         });
+        
+        if (!res.ok) {
+          if (res.status === 401) {
+            alert('認証エラー: 再ログインしてください');
+            localStorage.removeItem('admin_auth');
+            window.location.href = '/admin';
+            return;
+          }
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
         const data = await res.json();
-        allVideos = data || [];
+        allVideos = Array.isArray(data) ? data : [];
         
         updateStats();
         applyFilters();
       } catch (error) {
-        alert('動画データの取得に失敗しました');
-        console.error(error);
+        console.error('動画データの取得に失敗:', error);
+        // エラー時も空配列で初期化して画面を表示
+        allVideos = [];
+        updateStats();
+        applyFilters();
+        alert('動画データの取得に失敗しました: ' + error.message);
       }
     }
 

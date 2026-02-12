@@ -716,11 +716,18 @@ async def bulk_delete_videos(request_data: dict, background_tasks: BackgroundTas
         "remaining_count": len(filtered_videos)
     }
 
+@app.post("/admin/api/videos/delete-all", dependencies=[Depends(verify_admin)])
 @app.delete("/admin/api/videos/all", dependencies=[Depends(verify_admin)])
 async def delete_all_videos(background_tasks: BackgroundTasks):
     """data.json全削除（完全リセット）"""
     if not DATA_PATH.exists():
-        raise HTTPException(404, "Data file not found")
+        # data.jsonがない場合も空配列を作成
+        with open(DATA_PATH, "w", encoding="utf-8") as f:
+            json.dump([], f, ensure_ascii=False, indent=2)
+        return {
+            "status": "success",
+            "message": "Data file created as empty array"
+        }
     
     # 空の配列で上書き
     with open(DATA_PATH, "w", encoding="utf-8") as f:

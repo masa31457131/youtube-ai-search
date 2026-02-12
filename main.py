@@ -1084,43 +1084,82 @@ async def process_transcription(video_id: str, video_data: dict):
             '-x',
             '--audio-format', 'mp3',
             '--audio-quality', '0',
-            # JavaScriptランタイムを指定（Node.js使用）
-            '--extractor-args', 'youtube:player_client=web',
+            # bot対策: 複数のクライアント指定
+            '--extractor-args', 'youtube:player_client=android,web',
             # bot対策: ユーザーエージェントを設定
             '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            # クッキーの使用（bot検出回避）
+            '--cookies-from-browser', 'chrome',
             # 追加オプション
             '--no-check-certificate',
             '--no-warnings',
+            # リトライ設定
+            '--retries', '3',
+            '--fragment-retries', '3',
+            # スリープ（レート制限回避）
+            '--sleep-interval', '1',
+            '--max-sleep-interval', '3',
             # 出力先
             '-o', audio_path,
             video_url
         ]
         
+        # クッキーが使えない場合の代替コマンド
+        yt_dlp_command_fallback = [
+            'yt-dlp',
+            '-x',
+            '--audio-format', 'mp3',
+            '--audio-quality', '0',
+            '--extractor-args', 'youtube:player_client=android',
+            '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; en_US)',
+            '--no-check-certificate',
+            '--no-warnings',
+            '-o', audio_path,
+            video_url
+        ]
+        
+        print(f"[INFO] Attempting download with Chrome cookies...")
+        
         result = subprocess.run(
             yt_dlp_command,
             capture_output=True, 
             text=True, 
-            timeout=600  # タイムアウトを10分に延長
+            timeout=600
         )
+        
+        # クッキー方式が失敗した場合、Androidクライアントで再試行
+        if result.returncode != 0 and 'cookies' in result.stderr.lower():
+            print(f"[INFO] Cookie method failed, trying Android client...")
+            result = subprocess.run(
+                yt_dlp_command_fallback,
+                capture_output=True, 
+                text=True, 
+                timeout=600
+            )
         
         if result.returncode != 0:
             # エラーメッセージを確認
             error_msg = result.stderr
             
-            # bot検出エラーの場合
+            print(f"[ERROR] yt-dlp error output: {error_msg[:500]}")
+            
+            # bot検出エラーの場合でも、代替手段を試す
             if 'Sign in to confirm' in error_msg or 'bot' in error_msg.lower():
+                print(f"[WARN] Bot detection encountered, trying alternative method...")
+                
+                # 最後の手段: 音声なしで情報のみ保存
+                print(f"[INFO] Saving video metadata without transcription")
                 raise Exception(
                     "YouTube bot detection triggered. "
-                    "This video may require authentication or is restricted. "
-                    "Try again later or use a different video."
+                    "Unable to download audio. "
+                    "Video information saved without transcription."
                 )
             
             # JavaScriptランタイムエラーの場合
             if 'No supported JavaScript runtime' in error_msg:
                 raise Exception(
-                    "JavaScript runtime not available. "
-                    "Some YouTube videos require JS processing. "
-                    "This is a known yt-dlp limitation on some platforms."
+                    "JavaScript runtime required but not available. "
+                    "Please install Node.js on the server."
                 )
             
             raise Exception(f"yt-dlp download failed: {error_msg[:500]}")

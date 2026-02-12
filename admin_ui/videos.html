@@ -537,6 +537,8 @@
         <option value="pending">処理中</option>
         <option value="failed">失敗</option>
       </select>
+      <button class="btn btn-primary" onclick="selectAllVideos()">☑️ 全選択</button>
+      <button class="btn btn-primary" onclick="deselectAllVideos()">☐ 全解除</button>
       <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規追加</button>
       <button class="btn btn-success" onclick="openYouTubeModal()">🎬 YouTube取込</button>
       <button class="btn btn-primary" onclick="openSyncModal()">🔄 YouTube同期</button>
@@ -750,7 +752,9 @@
               <table style="width: 100%; font-size: 13px;">
                 <thead>
                   <tr style="background: #f0f0f0;">
-                    <th style="padding: 8px; text-align: left;">☑</th>
+                    <th style="padding: 8px; text-align: left;">
+                      <input type="checkbox" id="ytSelectAll" onchange="toggleYouTubeSelectAll()" />
+                    </th>
                     <th style="padding: 8px; text-align: left;">タイトル</th>
                     <th style="padding: 8px; text-align: left;">状態</th>
                   </tr>
@@ -765,6 +769,12 @@
         <button class="btn" onclick="closeYouTubeModal()">閉じる</button>
         <button class="btn btn-primary" id="fetchVideosBtn" onclick="fetchYouTubeVideos()">
           📺 動画リスト取得
+        </button>
+        <button class="btn btn-primary" id="selectAllYoutubeBtn" style="display:none;" onclick="selectAllYouTubeVideos()">
+          ☑️ 全選択
+        </button>
+        <button class="btn btn-primary" id="deselectAllYoutubeBtn" style="display:none;" onclick="deselectAllYouTubeVideos()">
+          ☐ 全解除
         </button>
         <button class="btn btn-success" id="transcribeBtn" style="display:none;" onclick="startTranscription()">
           🎤 選択した動画を文字起こし
@@ -825,7 +835,9 @@
                 <table style="width: 100%; font-size: 13px;">
                   <thead>
                     <tr style="background: #f0f0f0;">
-                      <th style="padding: 8px; text-align: left;">☑</th>
+                      <th style="padding: 8px; text-align: left;">
+                        <input type="checkbox" id="syncAddSelectAll" onchange="toggleSyncAddSelectAll()" />
+                      </th>
                       <th style="padding: 8px; text-align: left;">タイトル</th>
                       <th style="padding: 8px; text-align: left;">動画ID</th>
                     </tr>
@@ -845,7 +857,9 @@
                 <table style="width: 100%; font-size: 13px;">
                   <thead>
                     <tr style="background: #f0f0f0;">
-                      <th style="padding: 8px; text-align: left;">☑</th>
+                      <th style="padding: 8px; text-align: left;">
+                        <input type="checkbox" id="syncDeleteSelectAll" onchange="toggleSyncDeleteSelectAll()" />
+                      </th>
                       <th style="padding: 8px; text-align: left;">タイトル</th>
                       <th style="padding: 8px; text-align: left;">動画ID</th>
                     </tr>
@@ -873,8 +887,20 @@
         <button class="btn btn-primary" id="syncAnalyzeBtn" onclick="analyzeSyncDiff()">
           🔍 差分を解析
         </button>
+        <button class="btn btn-primary" id="selectAllAddBtn" style="display:none;" onclick="selectAllSyncAdd()">
+          ☑️ 追加全選択
+        </button>
+        <button class="btn btn-primary" id="deselectAllAddBtn" style="display:none;" onclick="deselectAllSyncAdd()">
+          ☐ 追加全解除
+        </button>
         <button class="btn btn-success" id="syncAddBtn" style="display:none;" onclick="executeSyncAdd()">
           ➕ 選択した動画を追加
+        </button>
+        <button class="btn btn-primary" id="selectAllDeleteBtn" style="display:none;" onclick="selectAllSyncDelete()">
+          ☑️ 削除全選択
+        </button>
+        <button class="btn btn-primary" id="deselectAllDeleteBtn" style="display:none;" onclick="deselectAllSyncDelete()">
+          ☐ 削除全解除
         </button>
         <button class="btn btn-danger" id="syncDeleteBtn" style="display:none;" onclick="executeSyncDelete()">
           🗑️ 選択した動画を削除
@@ -896,7 +922,7 @@
     let currentPage = 0;
     const pageSize = 20;
     let editingIndex = null;
-    let selectedIndices = new Set();
+    let selectedVideoIds = new Set(); // インデックスではなくvideo_idを保存
 
     async function loadVideos() {
       try {
@@ -952,28 +978,28 @@
       if (pageItems.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">該当する動画データがありません</td></tr>';
       } else {
-        tbody.innerHTML = pageItems.map((video, idx) => {
-          const globalIdx = start + idx;
-          const status = video.status || 'pending'; // デフォルト値を設定
+        tbody.innerHTML = pageItems.map((video) => {
+          const status = video.status || 'pending';
           const statusClass = `status-${status}`;
           const statusText = status === 'completed' ? '完了' : 
                            status === 'pending' ? '処理中' : '失敗';
+          const isSelected = selectedVideoIds.has(video.video_id);
           
           return `
             <tr>
               <td>
-                <input type="checkbox" ${selectedIndices.has(globalIdx) ? 'checked' : ''} 
-                       onchange="toggleSelect(${globalIdx})" />
+                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                       onchange="toggleSelect('${video.video_id}')" />
               </td>
               <td>${video.no || '-'}</td>
               <td><span class="status-badge ${statusClass}">${statusText}</span></td>
               <td>${escapeHtml(video.title || '')}</td>
               <td><code>${escapeHtml(video.video_id || '')}</code></td>
               <td>
-                <button class="btn-link" onclick="editVideo(${globalIdx})">
+                <button class="btn-link" onclick="editVideoByVideoId('${video.video_id}')">
                   ✏️ 編集
                 </button>
-                <button class="btn-link danger" onclick="deleteVideo(${globalIdx})">
+                <button class="btn-link danger" onclick="deleteVideoByVideoId('${video.video_id}')">
                   🗑️ 削除
                 </button>
               </td>
@@ -1004,32 +1030,49 @@
       const checked = document.getElementById('selectAll').checked;
       const start = currentPage * pageSize;
       const end = start + pageSize;
+      const pageItems = filteredVideos.slice(start, end);
       
-      for (let i = start; i < end && i < filteredVideos.length; i++) {
+      pageItems.forEach(video => {
         if (checked) {
-          selectedIndices.add(i);
+          selectedVideoIds.add(video.video_id);
         } else {
-          selectedIndices.delete(i);
+          selectedVideoIds.delete(video.video_id);
         }
-      }
+      });
       
       renderTable();
     }
 
-    function toggleSelect(idx) {
-      if (selectedIndices.has(idx)) {
-        selectedIndices.delete(idx);
+    function selectAllVideos() {
+      // 全動画を選択
+      filteredVideos.forEach(video => {
+        selectedVideoIds.add(video.video_id);
+      });
+      renderTable();
+      alert(`${filteredVideos.length}件の動画を選択しました`);
+    }
+
+    function deselectAllVideos() {
+      // すべての選択を解除
+      selectedVideoIds.clear();
+      renderTable();
+      alert('すべての選択を解除しました');
+    }
+
+    function toggleSelect(videoId) {
+      if (selectedVideoIds.has(videoId)) {
+        selectedVideoIds.delete(videoId);
       } else {
-        selectedIndices.add(idx);
+        selectedVideoIds.add(videoId);
       }
       updateBulkDeleteButton();
     }
 
     function updateBulkDeleteButton() {
       const btn = document.getElementById('bulkDeleteBtn');
-      if (selectedIndices.size > 0) {
+      if (selectedVideoIds.size > 0) {
         btn.style.display = 'block';
-        btn.textContent = `🗑️ 選択した${selectedIndices.size}件を削除`;
+        btn.textContent = `🗑️ 選択した${selectedVideoIds.size}件を削除`;
       } else {
         btn.style.display = 'none';
       }
@@ -1059,9 +1102,14 @@
       document.getElementById('editModal').classList.add('show');
     }
 
-    function editVideo(idx) {
-      editingIndex = idx;
-      const video = filteredVideos[idx];
+    function editVideoByVideoId(videoId) {
+      const video = allVideos.find(v => v.video_id === videoId);
+      if (!video) {
+        alert('動画が見つかりません');
+        return;
+      }
+      
+      editingIndex = allVideos.indexOf(video);
       
       document.getElementById('modalTitle').textContent = '動画データ編集';
       document.getElementById('videoNo').value = video.no || '';
@@ -1074,6 +1122,14 @@
       document.getElementById('videoStatus').value = video.status || 'pending';
       
       document.getElementById('editModal').classList.add('show');
+    }
+
+    // 旧関数との互換性のため残す
+    function editVideo(idx) {
+      const video = filteredVideos[idx];
+      if (video) {
+        editVideoByVideoId(video.video_id);
+      }
     }
 
     function closeEditModal(event) {
@@ -1102,7 +1158,7 @@
       try {
         const method = editingIndex !== null ? 'PATCH' : 'POST';
         const url = editingIndex !== null 
-          ? `/admin/api/videos/${filteredVideos[editingIndex].video_id}`
+          ? `/admin/api/videos/${allVideos[editingIndex].video_id}`
           : '/admin/api/videos';
         
         const res = await fetch(url, {
@@ -1125,12 +1181,17 @@
       }
     }
 
-    async function deleteVideo(idx) {
-      const video = filteredVideos[idx];
+    async function deleteVideoByVideoId(videoId) {
+      const video = allVideos.find(v => v.video_id === videoId);
+      if (!video) {
+        alert('動画が見つかりません');
+        return;
+      }
+      
       if (!confirm(`「${video.title}」を削除しますか？`)) return;
       
       try {
-        const res = await fetch(`/admin/api/videos/${video.video_id}`, {
+        const res = await fetch(`/admin/api/videos/${videoId}`, {
           method: 'DELETE',
           headers: { 'Authorization': authHeader }
         });
@@ -1138,6 +1199,7 @@
         if (!res.ok) throw new Error('削除に失敗しました');
         
         alert('削除しました');
+        selectedVideoIds.delete(videoId);
         loadVideos();
       } catch (error) {
         alert('削除に失敗しました: ' + error.message);
@@ -1145,15 +1207,23 @@
       }
     }
 
+    // 旧関数との互換性のため残す
+    async function deleteVideo(idx) {
+      const video = filteredVideos[idx];
+      if (video) {
+        await deleteVideoByVideoId(video.video_id);
+      }
+    }
+
     async function bulkDelete() {
-      if (selectedIndices.size === 0) {
+      if (selectedVideoIds.size === 0) {
         alert('削除する動画を選択してください');
         return;
       }
 
-      const idsToDelete = Array.from(selectedIndices).map(idx => filteredVideos[idx].video_id);
+      const idsToDelete = Array.from(selectedVideoIds);
 
-      if (!confirm(`選択した${selectedIndices.size}件を削除しますか？\nこの操作は取り消せません。`)) return;
+      if (!confirm(`選択した${selectedVideoIds.size}件を削除しますか？\nこの操作は取り消せません。`)) return;
       
       try {
         const res = await fetch('/admin/api/videos/bulk-delete', {
@@ -1171,7 +1241,7 @@
         
         const result = await res.json();
         alert(`削除しました\n削除: ${result.deleted_count}件\n残り: ${result.remaining_count}件`);
-        selectedIndices.clear();
+        selectedVideoIds.clear();
         loadVideos();
       } catch (error) {
         alert('一括削除に失敗しました: ' + error.message);
@@ -1189,14 +1259,18 @@
       }
 
       try {
-        const res = await fetch('/admin/api/videos/all', {
-          method: 'DELETE',
+        const res = await fetch('/admin/api/videos/delete-all', {
+          method: 'POST',
           headers: {
-            'Authorization': authHeader
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
           }
         });
 
-        if (!res.ok) throw new Error('削除に失敗しました');
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '削除に失敗しました');
+        }
 
         alert('✅ data.jsonをリセットしました\nすべてのデータが削除されました');
         loadVideos();
@@ -1299,10 +1373,84 @@
     let fetchedVideos = [];
     let selectedVideoIds = new Set();
 
+    function selectAllYouTubeVideos() {
+      // 新規動画のみ全選択
+      const existingIds = new Set(allVideos.map(v => v.video_id));
+      const newVideos = fetchedVideos.filter(v => !existingIds.has(v.video_id));
+      
+      newVideos.forEach(v => selectedVideoIds.add(v.video_id));
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('videoListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
+      checkboxes.forEach(cb => cb.checked = true);
+      
+      alert(`${newVideos.length}件の動画を選択しました`);
+    }
+
+    function deselectAllYouTubeVideos() {
+      selectedVideoIds.clear();
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('videoListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      
+      alert('すべての選択を解除しました');
+    }
+
     // YouTube同期機能
     let syncData = null;
     let syncAddIds = new Set();
     let syncDeleteIds = new Set();
+
+    function selectAllSyncAdd() {
+      if (!syncData || !syncData.missing_in_data) return;
+      
+      syncData.missing_in_data.forEach(v => syncAddIds.add(v.video_id));
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('addListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = true);
+      
+      alert(`${syncAddIds.size}件の動画を選択しました`);
+    }
+
+    function deselectAllSyncAdd() {
+      syncAddIds.clear();
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('addListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      
+      alert('すべての選択を解除しました');
+    }
+
+    function selectAllSyncDelete() {
+      if (!syncData || !syncData.missing_in_youtube) return;
+      
+      syncData.missing_in_youtube.forEach(v => syncDeleteIds.add(v.video_id));
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('deleteListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = true);
+      
+      alert(`${syncDeleteIds.size}件の動画を選択しました`);
+    }
+
+    function deselectAllSyncDelete() {
+      syncDeleteIds.clear();
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('deleteListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      
+      alert('すべての選択を解除しました');
+    }
 
     function openSyncModal() {
       document.getElementById('syncChannelUrl').value = 'https://www.youtube.com/c/TorayACSSupportChannel';
@@ -1314,6 +1462,10 @@
       document.getElementById('syncAnalyzeBtn').style.display = 'inline-block';
       document.getElementById('syncAddBtn').style.display = 'none';
       document.getElementById('syncDeleteBtn').style.display = 'none';
+      document.getElementById('selectAllAddBtn').style.display = 'none';
+      document.getElementById('deselectAllAddBtn').style.display = 'none';
+      document.getElementById('selectAllDeleteBtn').style.display = 'none';
+      document.getElementById('deselectAllDeleteBtn').style.display = 'none';
       syncData = null;
       syncAddIds.clear();
       syncDeleteIds.clear();
@@ -1399,8 +1551,12 @@
             }).join('');
 
             document.getElementById('syncAddBtn').style.display = 'inline-block';
+            document.getElementById('selectAllAddBtn').style.display = 'inline-block';
+            document.getElementById('deselectAllAddBtn').style.display = 'inline-block';
           } else {
             document.getElementById('addSection').style.display = 'none';
+            document.getElementById('selectAllAddBtn').style.display = 'none';
+            document.getElementById('deselectAllAddBtn').style.display = 'none';
           }
 
           // 削除候補
@@ -1436,8 +1592,12 @@
             }).join('');
 
             document.getElementById('syncDeleteBtn').style.display = 'inline-block';
+            document.getElementById('selectAllDeleteBtn').style.display = 'inline-block';
+            document.getElementById('deselectAllDeleteBtn').style.display = 'inline-block';
           } else {
             document.getElementById('deleteSection').style.display = 'none';
+            document.getElementById('selectAllDeleteBtn').style.display = 'none';
+            document.getElementById('deselectAllDeleteBtn').style.display = 'none';
           }
         }
 
@@ -1465,6 +1625,42 @@
       } else {
         syncDeleteIds.add(videoId);
       }
+    }
+
+    function toggleSyncAddSelectAll() {
+      const checked = document.getElementById('syncAddSelectAll').checked;
+      const tbody = document.getElementById('addListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      
+      if (!syncData || !syncData.missing_in_data) return;
+      
+      syncData.missing_in_data.forEach(video => {
+        if (checked) {
+          syncAddIds.add(video.video_id);
+        } else {
+          syncAddIds.delete(video.video_id);
+        }
+      });
+      
+      checkboxes.forEach(cb => cb.checked = checked);
+    }
+
+    function toggleSyncDeleteSelectAll() {
+      const checked = document.getElementById('syncDeleteSelectAll').checked;
+      const tbody = document.getElementById('deleteListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      
+      if (!syncData || !syncData.missing_in_youtube) return;
+      
+      syncData.missing_in_youtube.forEach(video => {
+        if (checked) {
+          syncDeleteIds.add(video.video_id);
+        } else {
+          syncDeleteIds.delete(video.video_id);
+        }
+      });
+      
+      checkboxes.forEach(cb => cb.checked = checked);
     }
 
     async function executeSyncAdd() {
@@ -1593,6 +1789,8 @@
       document.getElementById('youtubeResults').style.display = 'none';
       document.getElementById('fetchVideosBtn').style.display = 'inline-block';
       document.getElementById('transcribeBtn').style.display = 'none';
+      document.getElementById('selectAllYoutubeBtn').style.display = 'none';
+      document.getElementById('deselectAllYoutubeBtn').style.display = 'none';
       fetchedVideos = [];
       selectedVideoIds.clear();
       document.getElementById('youtubeModal').classList.add('show');
@@ -1666,6 +1864,7 @@
               <td style="padding: 8px;">
                 <input 
                   type="checkbox" 
+                  data-video-id="${video.video_id}"
                   ${isExisting ? 'disabled' : ''}
                   ${selectedVideoIds.has(video.video_id) ? 'checked' : ''}
                   onchange="toggleVideoSelection('${video.video_id}')"
@@ -1686,6 +1885,8 @@
           // デフォルトで新規動画を全選択
           newVideos.forEach(v => selectedVideoIds.add(v.video_id));
           document.getElementById('transcribeBtn').style.display = 'inline-block';
+          document.getElementById('selectAllYoutubeBtn').style.display = 'inline-block';
+          document.getElementById('deselectAllYoutubeBtn').style.display = 'inline-block';
           
           // チェックボックスを更新
           const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
@@ -1708,6 +1909,24 @@
       } else {
         selectedVideoIds.add(videoId);
       }
+    }
+
+    function toggleYouTubeSelectAll() {
+      const checked = document.getElementById('ytSelectAll').checked;
+      const tbody = document.getElementById('videoListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
+      
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = checked;
+        const videoId = checkbox.getAttribute('data-video-id');
+        if (videoId) {
+          if (checked) {
+            selectedVideoIds.add(videoId);
+          } else {
+            selectedVideoIds.delete(videoId);
+          }
+        }
+      });
     }
 
     async function startTranscription() {

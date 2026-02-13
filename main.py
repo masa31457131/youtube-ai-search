@@ -1055,136 +1055,63 @@ async def cleanup_orphaned_videos(request_data: dict, background_tasks: Backgrou
         raise HTTPException(500, f"Failed to cleanup: {str(e)}")
 
 async def process_transcription(video_id: str, video_data: dict):
-    """文字起こし処理（バックグラウンド）- 改善版（YouTube bot対策）"""
+    """文字起こし処理（バックグラウンド）- yt-dlp Pythonライブラリ使用"""
     import tempfile
-    import subprocess
-    import sys
+    import os
+    import yt_dlp
     
     audio_path = None
     
     try:
         print(f"[INFO] Starting transcription for {video_id}: {video_data.get('title', '')}")
         
-        # 1. yt-dlpがインストールされているか確認
-        try:
-            subprocess.run(['yt-dlp', '--version'], 
-                         capture_output=True, check=True, timeout=5)
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-            raise Exception(f"yt-dlp not available: {str(e)}")
-        
-        # 2. 音声ダウンロード（YouTube bot対策を含む）
-        audio_path = tempfile.mktemp(suffix='.mp3')
+        # 1. 音声ダウンロード（yt-dlp Pythonライブラリを使用）
+        temp_dir = tempfile.gettempdir()
+        output_basename = f"audio_{video_id}"
+        output_path = os.path.join(temp_dir, output_basename)
         video_url = f'https://www.youtube.com/watch?v={video_id}'
         
         print(f"[INFO] Downloading audio from {video_url}")
         
-        # YouTube bot対策の最新設定（2026年版）
-        # 方法1: iOS client (最も効果的)
-        yt_dlp_command_ios = [
-            'yt-dlp',
-            '-x',
-            '--audio-format', 'mp3',
-            '--audio-quality', '0',
-            # iOS clientを使用（bot検出を回避）
-            '--extractor-args', 'youtube:player_client=ios',
-            # 追加オプション
-            '--no-check-certificate',
-            '--no-warnings',
-            # リトライ設定
-            '--retries', '5',
-            '--fragment-retries', '5',
-            # 出力先
-            '-o', audio_path,
-            video_url
-        ]
+        # yt-dlp設定（動作実績のある設定）
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'outtmpl': output_path + '.%(ext)s',
+            'quiet': True,
+            'no_warnings': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'postprocessor_args': ['-ar', '16000'],
+            'prefer_ffmpeg': True,
+        }
         
-        # 方法2: Android client (フォールバック1)
-        yt_dlp_command_android = [
-            'yt-dlp',
-            '-x',
-            '--audio-format', 'mp3',
-            '--audio-quality', '0',
-            '--extractor-args', 'youtube:player_client=android',
-            '--no-check-certificate',
-            '--no-warnings',
-            '--retries', '5',
-            '-o', audio_path,
-            video_url
-        ]
-        
-        # 方法3: TV embedded client (フォールバック2)
-        yt_dlp_command_tv = [
-            'yt-dlp',
-            '-x',
-            '--audio-format', 'mp3',
-            '--audio-quality', '0',
-            '--extractor-args', 'youtube:player_client=tv_embedded',
-            '--no-check-certificate',
-            '--no-warnings',
-            '--retries', '5',
-            '-o', audio_path,
-            video_url
-        ]
-        
-        # 試行順序: iOS → Android → TV embedded
-        print(f"[INFO] Attempt 1: Using iOS client...")
-        
-        result = subprocess.run(
-            yt_dlp_command_ios,
-            capture_output=True, 
-            text=True, 
-            timeout=600
-        )
-        
-        # iOSが失敗した場合、Androidクライアントで再試行
-        if result.returncode != 0:
-            print(f"[INFO] iOS client failed, trying Android client...")
-            result = subprocess.run(
-                yt_dlp_command_android,
-                capture_output=True, 
-                text=True, 
-                timeout=600
-            )
-        
-        # Androidも失敗した場合、TV embeddedで再試行
-        if result.returncode != 0:
-            print(f"[INFO] Android client failed, trying TV embedded client...")
-            result = subprocess.run(
-                yt_dlp_command_tv,
-                capture_output=True, 
-                text=True, 
-                timeout=600
-            )
-        
-        if result.returncode != 0:
-            # エラーメッセージを確認
-            error_msg = result.stderr
+        # yt-dlpでダウンロード
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([video_url])
+        except Exception as e:
+            error_msg = str(e)
+            print(f"[ERROR] yt-dlp download failed: {error_msg}")
             
-            print(f"[ERROR] All download methods failed")
-            print(f"[ERROR] yt-dlp error output: {error_msg[:1000]}")
-            
-            # bot検出エラーの場合
+            # bot検出エラーの判定
             if 'Sign in to confirm' in error_msg or 'bot' in error_msg.lower():
                 raise Exception(
                     "YouTube bot検出: この動画は現在ダウンロードできません。"
-                    "動画が年齢制限または地域制限されている可能性があります。"
                 )
             
-            # JavaScriptランタイムエラーの場合
-            if 'No supported JavaScript runtime' in error_msg:
-                raise Exception(
-                    "JavaScript処理エラー: Node.jsが必要です。"
-                )
-            
-            # 一般的なエラー
             raise Exception(f"yt-dlp download failed: {error_msg[:300]}")
         
+        # MP3ファイルの存在確認
+        audio_path = output_path + '.mp3'
         if not os.path.exists(audio_path):
-            raise Exception("Audio file not created after download")
+            raise Exception(f"Audio file not created: {audio_path}")
         
         print(f"[INFO] Audio downloaded to {audio_path}")
         
-        # 3. Whisperで文字起こし
+        # 2. Whisperで文字起こし
         try:
             import whisper
             print(f"[INFO] Loading Whisper model...")
@@ -1198,7 +1125,7 @@ async def process_transcription(video_id: str, video_data: dict):
         except Exception as e:
             raise Exception(f"Whisper transcription failed: {str(e)}")
         
-        # 4. data.jsonに追加
+        # 3. data.jsonに追加
         existing_videos = []
         if DATA_PATH.exists():
             with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -1276,9 +1203,6 @@ async def process_transcription(video_id: str, video_data: dict):
                 print(f"[INFO] Temporary file removed: {audio_path}")
             except Exception as cleanup_error:
                 print(f"[WARNING] Failed to remove temp file: {str(cleanup_error)}")
-
-# ============================================
-            json.dump(existing_videos, f, ensure_ascii=False, indent=2)
 
 # ============================================
 # 管理API - ログ

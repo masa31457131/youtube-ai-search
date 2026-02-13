@@ -912,10 +912,23 @@
   <script>
     const auth = localStorage.getItem('admin_auth');
     if (!auth) {
+      console.error('認証情報がありません');
       window.location.href = '/admin';
     }
-    const { username, password } = JSON.parse(auth);
-    const authHeader = 'Basic ' + btoa(username + ':' + password);
+    
+    let username, password, authHeader;
+    try {
+      const authData = JSON.parse(auth);
+      username = authData.username;
+      password = authData.password;
+      authHeader = 'Basic ' + btoa(username + ':' + password);
+      console.log('認証情報を取得しました:', username);
+    } catch (error) {
+      console.error('認証情報のパースに失敗:', error);
+      alert('認証情報が無効です。再ログインしてください。');
+      localStorage.removeItem('admin_auth');
+      window.location.href = '/admin';
+    }
 
     let allVideos = [];
     let filteredVideos = [];
@@ -925,12 +938,20 @@
     let selectedVideoIds = new Set(); // インデックスではなくvideo_idを保存
 
     async function loadVideos() {
+      console.log('loadVideos() 開始');
       try {
+        console.log('APIリクエスト送信: /admin/api/videos');
         const res = await fetch('/admin/api/videos', {
           headers: { 'Authorization': authHeader }
         });
         
+        console.log('APIレスポンス:', res.status, res.statusText);
+        });
+        
+        console.log('APIレスポンス:', res.status, res.statusText);
+        
         if (!res.ok) {
+          console.error('API エラー:', res.status);
           if (res.status === 401) {
             alert('認証エラー: 再ログインしてください');
             localStorage.removeItem('admin_auth');
@@ -940,11 +961,15 @@
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         }
         
+        console.log('JSONパース開始');
         const data = await res.json();
+        console.log('取得データ:', data);
         allVideos = Array.isArray(data) ? data : [];
+        console.log('allVideos件数:', allVideos.length);
         
         updateStats();
         applyFilters();
+        console.log('loadVideos() 完了');
       } catch (error) {
         console.error('動画データの取得に失敗:', error);
         // エラー時も空配列で初期化して画面を表示
@@ -966,8 +991,12 @@
     }
 
     function applyFilters() {
+      console.log('applyFilters() 開始');
       const searchText = document.getElementById('searchInput').value.toLowerCase();
       const status = document.getElementById('statusFilter').value;
+      
+      console.log('フィルター条件:', { searchText, status });
+      console.log('allVideos件数:', allVideos.length);
       
       filteredVideos = allVideos.filter(video => {
         const matchSearch = !searchText || 
@@ -980,47 +1009,66 @@
         return matchSearch && matchStatus;
       });
       
+      console.log('filteredVideos件数:', filteredVideos.length);
+      
       currentPage = 0;
       renderTable();
+      console.log('applyFilters() 完了');
     }
 
     function renderTable() {
+      console.log('renderTable() 開始');
       const start = currentPage * pageSize;
       const end = start + pageSize;
       const pageItems = filteredVideos.slice(start, end);
       
+      console.log('ページ情報:', { currentPage, start, end, pageItems: pageItems.length });
+      
       const tbody = document.getElementById('tableBody');
+      if (!tbody) {
+        console.error('tableBody要素が見つかりません');
+        return;
+      }
+      
       if (pageItems.length === 0) {
+        console.log('データなし: 空メッセージを表示');
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">該当する動画データがありません</td></tr>';
       } else {
-        tbody.innerHTML = pageItems.map((video) => {
-          const status = video.status || 'pending';
-          const statusClass = `status-${status}`;
-          const statusText = status === 'completed' ? '完了' : 
-                           status === 'pending' ? '処理中' : '失敗';
-          const isSelected = selectedVideoIds.has(video.video_id);
-          
-          return `
-            <tr>
-              <td>
-                <input type="checkbox" ${isSelected ? 'checked' : ''} 
-                       onchange="toggleSelect('${video.video_id}')" />
-              </td>
-              <td>${video.no || '-'}</td>
-              <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-              <td>${escapeHtml(video.title || '')}</td>
-              <td><code>${escapeHtml(video.video_id || '')}</code></td>
-              <td>
-                <button class="btn-link" onclick="editVideoByVideoId('${video.video_id}')">
-                  ✏️ 編集
-                </button>
-                <button class="btn-link danger" onclick="deleteVideoByVideoId('${video.video_id}')">
-                  🗑️ 削除
-                </button>
-              </td>
-            </tr>
-          `;
-        }).join('');
+        console.log('データあり: テーブル生成開始');
+        try {
+          tbody.innerHTML = pageItems.map((video) => {
+            const status = video.status || 'pending';
+            const statusClass = `status-${status}`;
+            const statusText = status === 'completed' ? '完了' : 
+                             status === 'pending' ? '処理中' : '失敗';
+            const isSelected = selectedVideoIds.has(video.video_id);
+            
+            return `
+              <tr>
+                <td>
+                  <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                         onchange="toggleSelect('${video.video_id}')" />
+                </td>
+                <td>${video.no || '-'}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>${escapeHtml(video.title || '')}</td>
+                <td><code>${escapeHtml(video.video_id || '')}</code></td>
+                <td>
+                  <button class="btn-link" onclick="editVideoByVideoId('${video.video_id}')">
+                    ✏️ 編集
+                  </button>
+                  <button class="btn-link danger" onclick="deleteVideoByVideoId('${video.video_id}')">
+                    🗑️ 削除
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+          console.log('テーブルHTML生成完了');
+        } catch (error) {
+          console.error('テーブル生成エラー:', error);
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:red;">テーブル生成エラー</td></tr>';
+        }
       }
       
       document.getElementById('pageInfo').textContent = 
@@ -1030,6 +1078,7 @@
       document.getElementById('nextBtn').disabled = end >= filteredVideos.length;
       
       updateBulkDeleteButton();
+      console.log('renderTable() 完了');
     }
 
     function escapeHtml(s) {

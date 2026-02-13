@@ -1432,14 +1432,14 @@
 
     // YouTube取込機能
     let fetchedVideos = [];
-    let selectedVideoIds = new Set();
+    let youtubeSelectedIds = new Set(); // YouTube取込用の選択ID
 
     function selectAllYouTubeVideos() {
       // 新規動画のみ全選択
       const existingIds = new Set(allVideos.map(v => v.video_id));
       const newVideos = fetchedVideos.filter(v => !existingIds.has(v.video_id));
       
-      newVideos.forEach(v => selectedVideoIds.add(v.video_id));
+      newVideos.forEach(v => youtubeSelectedIds.add(v.video_id));
       
       // チェックボックスを更新
       const tbody = document.getElementById('videoListBody');
@@ -1450,7 +1450,7 @@
     }
 
     function deselectAllYouTubeVideos() {
-      selectedVideoIds.clear();
+      youtubeSelectedIds.clear();
       
       // チェックボックスを更新
       const tbody = document.getElementById('videoListBody');
@@ -1853,7 +1853,7 @@
       document.getElementById('selectAllYoutubeBtn').style.display = 'none';
       document.getElementById('deselectAllYoutubeBtn').style.display = 'none';
       fetchedVideos = [];
-      selectedVideoIds.clear();
+      youtubeSelectedIds.clear();
       document.getElementById('youtubeModal').classList.add('show');
     }
 
@@ -1927,7 +1927,7 @@
                   type="checkbox" 
                   data-video-id="${video.video_id}"
                   ${isExisting ? 'disabled' : ''}
-                  ${selectedVideoIds.has(video.video_id) ? 'checked' : ''}
+                  ${youtubeSelectedIds.has(video.video_id) ? 'checked' : ''}
                   onchange="toggleVideoSelection('${video.video_id}')"
                 />
               </td>
@@ -1944,7 +1944,7 @@
         // 新規動画がある場合は文字起こしボタンを表示
         if (newVideos.length > 0) {
           // デフォルトで新規動画を全選択
-          newVideos.forEach(v => selectedVideoIds.add(v.video_id));
+          newVideos.forEach(v => youtubeSelectedIds.add(v.video_id));
           document.getElementById('transcribeBtn').style.display = 'inline-block';
           document.getElementById('selectAllYoutubeBtn').style.display = 'inline-block';
           document.getElementById('deselectAllYoutubeBtn').style.display = 'inline-block';
@@ -1965,10 +1965,10 @@
     }
 
     function toggleVideoSelection(videoId) {
-      if (selectedVideoIds.has(videoId)) {
-        selectedVideoIds.delete(videoId);
+      if (youtubeSelectedIds.has(videoId)) {
+        youtubeSelectedIds.delete(videoId);
       } else {
-        selectedVideoIds.add(videoId);
+        youtubeSelectedIds.add(videoId);
       }
     }
 
@@ -1982,21 +1982,21 @@
         const videoId = checkbox.getAttribute('data-video-id');
         if (videoId) {
           if (checked) {
-            selectedVideoIds.add(videoId);
+            youtubeSelectedIds.add(videoId);
           } else {
-            selectedVideoIds.delete(videoId);
+            youtubeSelectedIds.delete(videoId);
           }
         }
       });
     }
 
     async function startTranscription() {
-      if (selectedVideoIds.size === 0) {
+      if (youtubeSelectedIds.size === 0) {
         alert('文字起こしする動画を選択してください');
         return;
       }
 
-      if (!confirm(`選択した${selectedVideoIds.size}件の動画を文字起こししますか？\n\n処理には時間がかかります（1動画あたり数分）。\nバックグラウンドで処理されます。`)) {
+      if (!confirm(`選択した${youtubeSelectedIds.size}件の動画を文字起こししますか？\n\n処理には時間がかかります（1動画あたり数分）。\nバックグラウンドで処理されます。`)) {
         return;
       }
 
@@ -2007,13 +2007,13 @@
       let completed = 0;
       let failed = 0;
 
-      for (const videoId of selectedVideoIds) {
+      for (const videoId of youtubeSelectedIds) {
         const video = fetchedVideos.find(v => v.video_id === videoId);
         if (!video) continue;
 
         try {
           document.getElementById('progressContent').innerHTML = `
-            <p>処理中: ${completed + failed + 1} / ${selectedVideoIds.size}</p>
+            <p>処理中: ${completed + failed + 1} / ${youtubeSelectedIds.size}</p>
             <p>現在: ${escapeHtml(video.title)}</p>
           `;
 
@@ -2052,7 +2052,7 @@
       `;
 
       document.getElementById('transcribeBtn').disabled = false;
-      selectedVideoIds.clear();
+      youtubeSelectedIds.clear();
 
       // 5秒後にモーダルを閉じてデータをリロード
       setTimeout(() => {

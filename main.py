@@ -1073,12 +1073,18 @@ async def process_transcription(video_id: str, video_data: dict):
         
         print(f"[INFO] Downloading audio from {video_url}")
         
-        # yt-dlp設定（動作実績のある設定）
+        # yt-dlp設定（bot検出回避を含む）
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': output_path + '.%(ext)s',
             'quiet': True,
             'no_warnings': True,
+            # bot検出回避: iOSクライアントを使用
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['ios', 'android', 'web']
+                }
+            },
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',

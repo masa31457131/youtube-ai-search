@@ -449,6 +449,43 @@ header {
     const lbBody = $("lb-body");
     const lbType = $("lb-type");
 
+    // Synonymsデータ
+let synonymsData = {};
+
+// Synonyms読み込み
+async function loadSynonyms() {
+  try {
+    const response = await fetch('/api/synonyms');
+    if (response.ok) {
+      synonymsData = await response.json();
+    }
+  } catch (error) {
+    console.error('Synonyms読み込みエラー:', error);
+  }
+}
+
+// クエリ展開
+function expandQueryWithSynonyms(query) {
+  const words = query.toLowerCase().split(/\s+/);
+  const expanded = new Set(words);
+  
+  for (const word of words) {
+    for (const [standard, variants] of Object.entries(synonymsData)) {
+      if (Array.isArray(variants) && variants.includes(word)) {
+        expanded.add(standard);
+        variants.forEach(v => expanded.add(v));
+      } else if (standard.toLowerCase() === word && Array.isArray(variants)) {
+        variants.forEach(v => expanded.add(v));
+      }
+    }
+  }
+  
+  return Array.from(expanded).join(' ');
+}
+
+// 初期化時にSynonyms読み込み
+loadSynonyms();
+    
     async function fetchData(url) {
       try {
         const r = await fetch(url);
@@ -766,6 +803,44 @@ header {
       }
     });
 
+// FAQ/動画カードクリック時に追加
+function onResultClick(type, id) {
+  // ログ送信
+  fetch('/api/log_search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query: lastQuery,
+      result_type: type,
+      result_id: id,
+      timestamp: new Date().toISOString()
+    })
+  }).catch(e => console.error('ログ送信エラー:', e));
+}
+
+// 既存のsetupCardListeners()内に追加
+function setupCardListeners() {
+  document.querySelectorAll(".faq-card").forEach((card, idx) => {
+    card.onclick = () => {
+      const faqId = currentFaqResults[idx]?.id;
+      onResultClick('faq', faqId);
+      // 既存のモーダル表示コード
+      ...
+    };
+  });
+  
+  document.querySelectorAll(".video-card").forEach((card, idx) => {
+    card.onclick = () => {
+      const videoId = currentVideoResults[idx]?.video_id;
+      onResultClick('video', videoId);
+      // 既存のモーダル表示コード
+      ...
+    };
+  });
+}
+
+
+    
     // 初期表示
     renderResults();
   </script>

@@ -285,10 +285,10 @@
         const response = await fetch('/api/synonyms');
         if (response.ok) {
           synonymsData = await response.json();
-          console.log('Synonyms読み込み完了');
+          console.log('✅ Synonyms読み込み完了');
         }
       } catch (error) {
-        console.error('Synonyms読み込みエラー:', error);
+        console.error('❌ Synonyms読み込みエラー:', error);
       }
     }
     
@@ -353,9 +353,15 @@
         limit: PAGE_SIZE,
         paged: 1
       });
+      console.log('📤 FAQ検索リクエスト:', '/faq/search?' + params.toString());
       const res = await fetch("/faq/search?" + params.toString());
-      if (!res.ok) throw new Error("FAQ search failed");
-      return await res.json();
+      if (!res.ok) {
+        console.error('❌ FAQ検索失敗:', res.status, res.statusText);
+        throw new Error("FAQ search failed");
+      }
+      const data = await res.json();
+      console.log('✅ FAQ検索レスポンス:', data);
+      return data;
     }
     
     async function loadVideos() {
@@ -366,19 +372,27 @@
         limit: PAGE_SIZE,
         paged: 1
       });
+      console.log('📤 動画検索リクエスト:', '/search?' + params.toString());
       const res = await fetch("/search?" + params.toString());
-      if (!res.ok) throw new Error("Video search failed");
-      return await res.json();
+      if (!res.ok) {
+        console.error('❌ 動画検索失敗:', res.status, res.statusText);
+        throw new Error("Video search failed");
+      }
+      const data = await res.json();
+      console.log('✅ 動画検索レスポンス:', data);
+      return data;
     }
     
     function renderFAQ(items, total) {
+      console.log('🎨 FAQ描画:', items ? items.length : 0, '件');
       if (!items || items.length === 0) {
         return '<div class="empty-state"><div class="muted">該当するFAQはありませんでした</div></div>';
       }
       let html = '<div class="grid">';
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
-        const question = item.questions && item.questions[0] ? item.questions[0] : "";
+        console.log('FAQ項目:', item);
+        const question = item.questions && item.questions[0] ? item.questions[0] : (item.question || "質問なし");
         const answer = item.answer || "";
         const snippet = answer.substring(0, 100);
         html += '<div class="card faq-card" data-index="' + i + '" data-type="faq">';
@@ -391,6 +405,7 @@
     }
     
     function renderVideos(items, total) {
+      console.log('🎨 動画描画:', items ? items.length : 0, '件');
       if (!items || items.length === 0) {
         return '<div class="empty-state"><div class="muted">該当する動画はありませんでした</div></div>';
       }
@@ -441,6 +456,8 @@
         videoHasMore = videoData.has_more || false;
         currentFaqResults = faqData.items || [];
         currentVideoResults = videoData.items || [];
+        console.log('📊 FAQ結果数:', currentFaqResults.length);
+        console.log('📊 動画結果数:', currentVideoResults.length);
         let html = "";
         html += '<div class="section-header"><div class="section-title">FAQ候補 <span class="badge">' + (faqData.total_visible || 0) + '件</span></div></div>';
         html += renderFAQ(currentFaqResults, faqData.total_visible);
@@ -452,8 +469,8 @@
         setupCardListeners();
         setupPagerListeners();
       } catch (error) {
-        console.error('検索エラー:', error);
-        container.innerHTML = '<div class="empty-state"><div class="muted">検索中にエラーが発生しました</div></div>';
+        console.error('❌ 検索エラー:', error);
+        container.innerHTML = '<div class="empty-state"><div class="muted">検索中にエラーが発生しました<br>' + error.message + '</div></div>';
       }
     }
     
@@ -463,7 +480,7 @@
       const body = $("lightboxBody");
       if (type === "faq") {
         sendSearchLog('faq', item.id);
-        const question = item.questions && item.questions[0] ? item.questions[0] : "";
+        const question = item.questions && item.questions[0] ? item.questions[0] : (item.question || "");
         title.textContent = question;
         body.innerHTML = '<div style="white-space: pre-wrap;">' + esc(item.answer || "") + '</div>';
       } else if (type === "video") {
@@ -528,6 +545,7 @@
     }
     
     function doSearch(query) {
+      console.log('🔍 検索開始:', query);
       lastQuery = query;
       faqOffset = 0;
       videoOffset = 0;
@@ -556,6 +574,7 @@
       }
     });
     
+    console.log('🚀 システム初期化開始');
     loadSynonyms();
     renderResults();
   </script>

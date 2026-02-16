@@ -1368,6 +1368,7 @@ async def log_search(log_data: dict):
     
     log_file = Path("search_logs.json")
     logs = []
+    
     if log_file.exists():
         try:
             with open(log_file, 'r', encoding='utf-8') as f:
@@ -1382,6 +1383,7 @@ async def log_search(log_data: dict):
         'timestamp': log_data.get('timestamp')
     })
     
+    # 最新1000件のみ保持
     with open(log_file, 'w', encoding='utf-8') as f:
         json.dump(logs[-1000:], f, ensure_ascii=False, indent=2)
     
@@ -1393,7 +1395,8 @@ async def get_synonyms():
     try:
         with open('synonyms.json', 'r', encoding='utf-8') as f:
             return json.load(f)
-    except:
+    except Exception as e:
+        print(f"Synonyms読み込みエラー: {e}")
         return {}
 
 if __name__ == "__main__":

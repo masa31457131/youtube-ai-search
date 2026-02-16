@@ -537,11 +537,7 @@
         <option value="pending">処理中</option>
         <option value="failed">失敗</option>
       </select>
-      <button class="btn btn-primary" onclick="selectAllVideos()">☑️ 全選択</button>
-      <button class="btn btn-primary" onclick="deselectAllVideos()">☐ 全解除</button>
-      <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規追加</button>
-      <button class="btn btn-success" onclick="openYouTubeModal()">🎬 YouTube取込</button>
-      <button class="btn btn-primary" onclick="openSyncModal()">🔄 YouTube同期</button>
+      <button class="btn btn-danger" onclick="bulkDeleteSelectedVideos()">🗑️ 選択した項目を削除</button>
       <button class="btn btn-success" onclick="exportData()">📥 エクスポート</button>
       <button class="btn btn-warning" onclick="openImportModal()">📤 インポート</button>
       <button class="btn btn-danger" onclick="deleteAllData()">🗑️ data.json全削除</button>

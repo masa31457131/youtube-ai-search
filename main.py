@@ -1356,6 +1356,46 @@ def serve_admin_logs_html():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
+# ============================================
+# 検索ログAPI・Synonyms API（追加）
+# ============================================
+
+@app.post("/api/log_search")
+async def log_search(log_data: dict):
+    """検索ログを記録"""
+    import json
+    from pathlib import Path
+    
+    log_file = Path("search_logs.json")
+    logs = []
+    if log_file.exists():
+        try:
+            with open(log_file, 'r', encoding='utf-8') as f:
+                logs = json.load(f)
+        except:
+            logs = []
+    
+    logs.append({
+        'query': log_data.get('query'),
+        'result_type': log_data.get('result_type'),
+        'result_id': log_data.get('result_id'),
+        'timestamp': log_data.get('timestamp')
+    })
+    
+    with open(log_file, 'w', encoding='utf-8') as f:
+        json.dump(logs[-1000:], f, ensure_ascii=False, indent=2)
+    
+    return {'status': 'logged'}
+
+@app.get("/api/synonyms")
+async def get_synonyms():
+    """Synonyms.jsonを返す"""
+    try:
+        with open('synonyms.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return {}
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))

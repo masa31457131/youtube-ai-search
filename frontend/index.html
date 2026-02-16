@@ -5,17 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>サポート検索 | 東レACS</title>
   <style>
-    /* ====== Base ====== */
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
       background: #f5f5f5;
       color: #333;
       line-height: 1.6;
     }
-    
-    /* ====== 東レACS風ヘッダー（修正） ====== */
     header {
       background: #fff;
       border-bottom: 3px solid #0066cc;
@@ -23,30 +19,25 @@
       padding: 1.5rem 2rem;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-    
     header h1 {
       font-size: 1.75rem;
       font-weight: 700;
       margin-bottom: 0.5rem;
       color: #0066cc;
     }
-    
     header p {
       font-size: 0.9rem;
       color: #666;
     }
-    
     main {
       max-width: 1200px;
       margin: 0 auto;
       padding: 2rem;
     }
-    
     .search-container {
       max-width: 700px;
       margin: 0 auto 3rem;
     }
-    
     #searchInput {
       width: 100%;
       padding: 1rem 1.25rem;
@@ -57,13 +48,11 @@
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       transition: all 0.3s ease;
     }
-    
     #searchInput:focus {
       outline: none;
       border-color: #0066cc;
       box-shadow: 0 4px 20px rgba(0,102,204,0.15);
     }
-    
     .section-header {
       display: flex;
       align-items: center;
@@ -72,7 +61,6 @@
       padding-bottom: 0.75rem;
       border-bottom: 2px solid #0066cc;
     }
-    
     .section-title {
       font-size: 1.3rem;
       font-weight: 700;
@@ -81,7 +69,6 @@
       align-items: center;
       gap: 0.75rem;
     }
-    
     .badge {
       display: inline-block;
       font-size: 0.8rem;
@@ -92,14 +79,12 @@
       color: #0066cc;
       border: 1px solid #0066cc;
     }
-    
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 1.5rem;
       margin-bottom: 2rem;
     }
-    
     .card {
       background: #fff;
       border: 1px solid #e0e0e0;
@@ -109,20 +94,17 @@
       transition: all 0.3s ease;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
-    
     .card:hover {
       border-color: #0066cc;
       box-shadow: 0 4px 12px rgba(0,102,204,0.15);
       transform: translateY(-2px);
     }
-    
     .faq-card .faq-title {
       font-weight: 600;
       color: #0066cc;
       margin-bottom: 0.5rem;
       font-size: 1rem;
     }
-    
     .faq-card .faq-snippet {
       color: #666;
       font-size: 0.9rem;
@@ -132,12 +114,10 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    
     .video-card {
       position: relative;
       overflow: hidden;
     }
-    
     .video-card img {
       width: 100%;
       height: 160px;
@@ -145,7 +125,6 @@
       border-radius: 4px;
       margin-bottom: 0.75rem;
     }
-    
     .video-card .video-title {
       font-weight: 600;
       color: #333;
@@ -156,7 +135,6 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    
     .pager {
       display: flex;
       gap: 1rem;
@@ -164,7 +142,6 @@
       justify-content: center;
       margin: 2rem 0;
     }
-    
     .pager button {
       padding: 0.6rem 1.25rem;
       border: 1px solid #ddd;
@@ -175,38 +152,31 @@
       color: #333;
       transition: all 0.2s;
     }
-    
     .pager button:hover:not([disabled]) {
       background: #0066cc;
       color: white;
       border-color: #0066cc;
     }
-    
     .pager button[disabled] {
       opacity: 0.4;
       cursor: not-allowed;
     }
-    
     .muted {
       color: #999;
       font-size: 0.9rem;
     }
-    
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
     }
-    
     .empty-state-icon {
       font-size: 3rem;
       margin-bottom: 1rem;
     }
-    
     .loading {
       text-align: center;
       padding: 4rem 2rem;
     }
-    
     .spinner {
       width: 50px;
       height: 50px;
@@ -216,13 +186,10 @@
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
-    
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    
-    /* ライトボックス */
     .lightbox {
       display: none;
       position: fixed;
@@ -234,13 +201,11 @@
       background-color: rgba(0, 0, 0, 0.8);
       overflow: auto;
     }
-    
     .lightbox.active {
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    
     .lightbox-content {
       background: #fff;
       padding: 2rem;
@@ -251,7 +216,6 @@
       overflow-y: auto;
       position: relative;
     }
-    
     .lightbox-close {
       position: absolute;
       right: 1rem;
@@ -260,11 +224,9 @@
       cursor: pointer;
       color: #999;
     }
-    
     .lightbox-close:hover {
       color: #333;
     }
-    
     .lightbox-title {
       font-size: 1.5rem;
       font-weight: 700;
@@ -272,16 +234,13 @@
       color: #0066cc;
       padding-right: 2rem;
     }
-    
     .lightbox-body {
       line-height: 1.8;
       color: #333;
     }
-    
     .lightbox-video {
       margin-top: 1rem;
     }
-    
     .lightbox-video iframe {
       width: 100%;
       height: 450px;
@@ -295,20 +254,12 @@
     <h1>🏢 東レACS サポート検索</h1>
     <p>FAQ・マニュアル・動画から、お探しの情報を検索できます</p>
   </header>
-
   <main>
     <div class="search-container">
-      <input
-        type="text"
-        id="searchInput"
-        placeholder="🔍 キーワードを入力してください（例: ログイン方法、パスワードリセット）"
-        autocomplete="off"
-      />
+      <input type="text" id="searchInput" placeholder="🔍 キーワードを入力してください" autocomplete="off" />
     </div>
-
     <div id="resultsContainer"></div>
   </main>
-
   <div id="lightbox" class="lightbox">
     <div class="lightbox-content">
       <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
@@ -316,13 +267,9 @@
       <div id="lightboxBody" class="lightbox-body"></div>
     </div>
   </div>
-
   <script>
-    // ====== 設定 ======
     const PAGE_SIZE = 20;
     const DEBOUNCE_MS = 300;
-    
-    // ====== グローバル変数 ======
     let lastQuery = "";
     let faqOffset = 0;
     let videoOffset = 0;
@@ -331,8 +278,6 @@
     let currentFaqResults = [];
     let currentVideoResults = [];
     let timer = null;
-    
-    // ====== Synonyms機能（追加） ======
     let synonymsData = {};
     
     async function loadSynonyms() {
@@ -350,15 +295,12 @@
     function expandQueryWithSynonyms(query) {
       const words = query.toLowerCase().split(/\s+/);
       const expandedSet = new Set(words);
-      
       for (let i = 0; i < words.length; i++) {
         const word = words[i];
         const entries = Object.entries(synonymsData);
-        
         for (let j = 0; j < entries.length; j++) {
           const standard = entries[j][0];
           const variants = entries[j][1];
-          
           if (Array.isArray(variants) && variants.indexOf(word) !== -1) {
             expandedSet.add(standard);
             for (let k = 0; k < variants.length; k++) {
@@ -371,16 +313,13 @@
           }
         }
       }
-      
       const expandedArray = [];
       expandedSet.forEach(function(item) {
         expandedArray.push(item);
       });
-      
       return expandedArray.join(' ');
     }
     
-    // ====== ログ送信機能（追加） ======
     function sendSearchLog(type, id) {
       fetch('/api/log_search', {
         method: 'POST',
@@ -396,7 +335,6 @@
       });
     }
     
-    // ====== ユーティリティ ======
     function $(id) {
       return document.getElementById(id);
     }
@@ -407,16 +345,15 @@
       return div.innerHTML;
     }
     
-    // ====== API呼び出し（修正：Synonyms使用） ======
     async function loadFAQ() {
       const expandedQuery = expandQueryWithSynonyms(lastQuery);
       const params = new URLSearchParams({
-        q: expandedQuery,
+        query: expandedQuery,
         offset: faqOffset,
-        limit: PAGE_SIZE
+        limit: PAGE_SIZE,
+        paged: 1
       });
-      
-      const res = await fetch("/api/search/faq?" + params.toString());
+      const res = await fetch("/faq/search?" + params.toString());
       if (!res.ok) throw new Error("FAQ search failed");
       return await res.json();
     }
@@ -424,36 +361,32 @@
     async function loadVideos() {
       const expandedQuery = expandQueryWithSynonyms(lastQuery);
       const params = new URLSearchParams({
-        q: expandedQuery,
+        query: expandedQuery,
         offset: videoOffset,
-        limit: PAGE_SIZE
+        limit: PAGE_SIZE,
+        paged: 1
       });
-      
-      const res = await fetch("/api/search/videos?" + params.toString());
+      const res = await fetch("/search?" + params.toString());
       if (!res.ok) throw new Error("Video search failed");
       return await res.json();
     }
     
-    // ====== レンダリング ======
     function renderFAQ(items, total) {
       if (!items || items.length === 0) {
         return '<div class="empty-state"><div class="muted">該当するFAQはありませんでした</div></div>';
       }
-      
       let html = '<div class="grid">';
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const question = item.questions && item.questions[0] ? item.questions[0] : "";
         const answer = item.answer || "";
         const snippet = answer.substring(0, 100);
-        
         html += '<div class="card faq-card" data-index="' + i + '" data-type="faq">';
         html += '<div class="faq-title">' + esc(question) + '</div>';
         html += '<div class="faq-snippet">' + esc(snippet) + '...</div>';
         html += '</div>';
       }
       html += '</div>';
-      
       return html;
     }
     
@@ -461,13 +394,11 @@
       if (!items || items.length === 0) {
         return '<div class="empty-state"><div class="muted">該当する動画はありませんでした</div></div>';
       }
-      
       let html = '<div class="grid">';
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const thumb = item.thumbnail || "";
         const title = item.title || "";
-        
         html += '<div class="card video-card" data-index="' + i + '" data-type="video" title="' + esc(title) + '">';
         if (thumb) {
           html += '<img src="' + esc(thumb) + '" alt="' + esc(title) + '">';
@@ -476,7 +407,6 @@
         html += '</div>';
       }
       html += '</div>';
-      
       return html;
     }
     
@@ -484,102 +414,64 @@
       const prevId = type === "faq" ? "faqPrev" : "videoPrev";
       const nextId = type === "faq" ? "faqNext" : "videoNext";
       const infoId = type === "faq" ? "faqInfo" : "videoInfo";
-      
       const prevDisabled = offset <= 0 ? "disabled" : "";
       const nextDisabled = !hasMore ? "disabled" : "";
-      
       const start = offset + 1;
       const end = offset + count;
       const info = count > 0 ? start + "-" + end + "件" : "";
-      
       let html = '<div class="pager">';
       html += '<button id="' + prevId + '" ' + prevDisabled + '>← 前の' + PAGE_SIZE + '件</button>';
       html += '<button id="' + nextId + '" ' + nextDisabled + '>次の' + PAGE_SIZE + '件 →</button>';
       html += '<span class="muted" id="' + infoId + '">' + info + '</span>';
       html += '</div>';
-      
       return html;
     }
     
     async function renderResults() {
       const container = $("resultsContainer");
-      
       if (!lastQuery.trim()) {
-        container.innerHTML = '<div class="empty-state">' +
-          '<div class="empty-state-icon">🔍</div>' +
-          '<h2 style="color:#666;margin-bottom:0.5rem;">キーワードを入力して検索</h2>' +
-          '<p class="muted">動画とFAQから最適な情報を見つけます</p>' +
-          '</div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔍</div><h2 style="color:#666;margin-bottom:0.5rem;">キーワードを入力して検索</h2><p class="muted">動画とFAQから最適な情報を見つけます</p></div>';
         return;
       }
-      
       container.innerHTML = '<div class="loading"><div class="spinner"></div><p>検索中...</p></div>';
-      
       try {
         const faqData = await loadFAQ();
         const videoData = await loadVideos();
-        
         faqHasMore = faqData.has_more || false;
         videoHasMore = videoData.has_more || false;
         currentFaqResults = faqData.items || [];
         currentVideoResults = videoData.items || [];
-        
         let html = "";
-        
-        // FAQ
-        html += '<div class="section-header">' +
-          '<div class="section-title">FAQ候補 ' +
-          '<span class="badge">' + (faqData.total_visible || 0) + '件</span>' +
-          '</div></div>';
+        html += '<div class="section-header"><div class="section-title">FAQ候補 <span class="badge">' + (faqData.total_visible || 0) + '件</span></div></div>';
         html += renderFAQ(currentFaqResults, faqData.total_visible);
         html += renderPager("faq", faqHasMore, faqOffset, currentFaqResults.length);
-        
-        // Videos
-        html += '<div class="section-header">' +
-          '<div class="section-title">関連動画 ' +
-          '<span class="badge">' + (videoData.total_visible || 0) + '件</span>' +
-          '</div></div>';
+        html += '<div class="section-header"><div class="section-title">関連動画 <span class="badge">' + (videoData.total_visible || 0) + '件</span></div></div>';
         html += renderVideos(currentVideoResults, videoData.total_visible);
         html += renderPager("video", videoHasMore, videoOffset, currentVideoResults.length);
-        
         container.innerHTML = html;
-        
         setupCardListeners();
         setupPagerListeners();
       } catch (error) {
         console.error('検索エラー:', error);
-        container.innerHTML = '<div class="empty-state">' +
-          '<div class="muted">検索中にエラーが発生しました</div>' +
-          '</div>';
+        container.innerHTML = '<div class="empty-state"><div class="muted">検索中にエラーが発生しました</div></div>';
       }
     }
     
-    // ====== ライトボックス ======
     function openLightbox(item, type) {
       const lightbox = $("lightbox");
       const title = $("lightboxTitle");
       const body = $("lightboxBody");
-      
-      // ログ送信（追加）
       if (type === "faq") {
         sendSearchLog('faq', item.id);
-      } else if (type === "video") {
-        sendSearchLog('video', item.video_id);
-      }
-      
-      if (type === "faq") {
         const question = item.questions && item.questions[0] ? item.questions[0] : "";
         title.textContent = question;
         body.innerHTML = '<div style="white-space: pre-wrap;">' + esc(item.answer || "") + '</div>';
       } else if (type === "video") {
+        sendSearchLog('video', item.video_id);
         title.textContent = item.title || "";
         const videoId = item.video_id || "";
-        body.innerHTML = '<div class="lightbox-video">' +
-          '<iframe src="https://www.youtube.com/embed/' + esc(videoId) + '" allowfullscreen></iframe>' +
-          '</div>' +
-          '<div style="margin-top:1rem;white-space:pre-wrap;">' + esc(item.description || "") + '</div>';
+        body.innerHTML = '<div class="lightbox-video"><iframe src="https://www.youtube.com/embed/' + esc(videoId) + '" allowfullscreen></iframe></div><div style="margin-top:1rem;white-space:pre-wrap;">' + esc(item.description || "") + '</div>';
       }
-      
       lightbox.classList.add("active");
     }
     
@@ -587,14 +479,12 @@
       $("lightbox").classList.remove("active");
     }
     
-    // ====== イベントリスナー ======
     function setupCardListeners() {
       const cards = document.querySelectorAll(".card[data-type]");
       cards.forEach(function(card) {
         card.addEventListener("click", function() {
           const type = card.dataset.type;
           const index = parseInt(card.dataset.index, 10);
-          
           if (type === "faq") {
             const item = currentFaqResults[index];
             if (item) openLightbox(item, "faq");
@@ -611,28 +501,24 @@
       const faqNext = $("faqNext");
       const videoPrev = $("videoPrev");
       const videoNext = $("videoNext");
-      
       if (faqPrev) {
         faqPrev.addEventListener("click", function() {
           faqOffset = Math.max(0, faqOffset - PAGE_SIZE);
           renderResults();
         });
       }
-      
       if (faqNext) {
         faqNext.addEventListener("click", function() {
           faqOffset += PAGE_SIZE;
           renderResults();
         });
       }
-      
       if (videoPrev) {
         videoPrev.addEventListener("click", function() {
           videoOffset = Math.max(0, videoOffset - PAGE_SIZE);
           renderResults();
         });
       }
-      
       if (videoNext) {
         videoNext.addEventListener("click", function() {
           videoOffset += PAGE_SIZE;
@@ -648,7 +534,6 @@
       renderResults();
     }
     
-    // ====== 初期化 ======
     $("searchInput").addEventListener("input", function(e) {
       const query = e.target.value;
       clearTimeout(timer);
@@ -665,14 +550,12 @@
       }
     });
     
-    // ライトボックスクリック時に閉じる
     $("lightbox").addEventListener("click", function(e) {
       if (e.target.id === "lightbox") {
         closeLightbox();
       }
     });
     
-    // 初期表示
     loadSynonyms();
     renderResults();
   </script>

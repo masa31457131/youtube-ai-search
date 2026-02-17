@@ -5,182 +5,225 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>サポート検索 | 東レACS</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
-      background: #f5f5f5;
-      color: #333;
-      line-height: 1.6;
+      background: #f4f6f9; color: #333; line-height: 1.6;
+      min-height: 100vh; display: flex; flex-direction: column;
     }
+
+    /* ─── ヘッダー ─── */
     header {
-      background: #fff;
-      border-bottom: 3px solid #0066cc;
-      padding: 1.5rem 2rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background: #fff; border-bottom: 3px solid #0066cc;
+      padding: 1.2rem 2rem; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
     }
-    header h1 { font-size: 1.75rem; font-weight: 700; color: #0066cc; margin-bottom: 0.25rem; }
-    header p { font-size: 0.9rem; color: #666; }
-    main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
-    .search-wrap { max-width: 700px; margin: 0 auto 3rem; }
+    header h1 { font-size: 1.55rem; font-weight: 700; color: #0066cc; }
+    header p  { font-size: 0.87rem; color: #666; margin-top: 0.15rem; }
+
+    /* ─── メイン ─── */
+    main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ─── 検索 ─── */
+    .search-wrap { max-width: 680px; margin: 0 auto 2.5rem; }
     #searchInput {
-      width: 100%;
-      padding: 1rem 1.25rem;
-      font-size: 1.1rem;
-      border: 2px solid #ddd;
-      border-radius: 8px;
-      background: white;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      outline: none;
+      width: 100%; padding: 0.9rem 1.2rem; font-size: 1.05rem;
+      border: 2px solid #ddd; border-radius: 8px;
+      background: #fff; outline: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       transition: border-color 0.2s;
     }
     #searchInput:focus { border-color: #0066cc; }
 
-    /* セクション */
-    .section-header {
+    /* ─── セクションヘッダー ─── */
+    .sec-head {
       display: flex; align-items: center; justify-content: space-between;
-      margin: 2.5rem 0 1rem;
-      padding-bottom: 0.75rem;
+      margin: 2.2rem 0 1rem; padding-bottom: 0.6rem;
       border-bottom: 2px solid #0066cc;
     }
-    .section-title { font-size: 1.2rem; font-weight: 700; color: #0066cc; }
+    .sec-title { font-size: 1.05rem; font-weight: 700; color: #0066cc; }
     .badge {
-      font-size: 0.8rem; font-weight: 600;
-      padding: 0.2rem 0.7rem;
-      border-radius: 999px;
-      background: #e3f2fd; color: #0066cc;
-      border: 1px solid #0066cc;
+      font-size: 0.78rem; font-weight: 600; padding: 0.18rem 0.7rem;
+      border-radius: 999px; background: #e3f2fd; color: #0066cc;
+      border: 1px solid #90caf9;
     }
 
-    /* FAQグリッド：タイトルのみ */
+    /* ─── FAQ グリッド（3列 × 3行 = 9件） ─── */
     .faq-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1.5rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem; margin-bottom: 0.5rem;
     }
+    @media (max-width: 600px)  { .faq-grid { grid-template-columns: 1fr; } }
+    @media (min-width: 601px) and (max-width: 900px) { .faq-grid { grid-template-columns: repeat(2, 1fr); } }
+
     .faq-card {
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      padding: 1rem 1.25rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
+      background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+      padding: 0.85rem 1rem; cursor: pointer;
+      display: flex; align-items: flex-start; gap: 0.55rem;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
     }
-    .faq-card:hover { border-color: #0066cc; box-shadow: 0 4px 12px rgba(0,102,204,0.15); transform: translateY(-1px); }
-    .faq-card-icon { font-size: 1.2rem; flex-shrink: 0; color: #0066cc; }
-    .faq-card-title { font-size: 0.95rem; font-weight: 600; color: #0066cc; line-height: 1.4; }
+    .faq-card:hover {
+      border-color: #0066cc; transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,102,204,0.15);
+    }
+    .faq-q { color: #0066cc; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
+    .faq-text { font-size: 0.91rem; font-weight: 600; color: #1a1a1a; line-height: 1.45; }
 
-    /* 動画グリッド：サムネイルのみ */
-    .video-grid {
+    /* ─── 動画グリッド（3列 × 3行 = 9件） ─── */
+    .vid-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 1rem;
-      margin-bottom: 1.5rem;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem; margin-bottom: 0.5rem;
     }
-    .video-card {
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    @media (max-width: 600px)  { .vid-grid { grid-template-columns: 1fr; } }
+    @media (min-width: 601px) and (max-width: 900px) { .vid-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .vid-card {
+      border-radius: 8px; overflow: hidden;
+      cursor: pointer; position: relative;
       aspect-ratio: 16 / 9;
-      position: relative;
+      border: 1px solid #e0e0e0; background: #111;
+      transition: transform 0.15s, box-shadow 0.2s;
     }
-    .video-card:hover { border-color: #0066cc; box-shadow: 0 4px 12px rgba(0,102,204,0.15); transform: translateY(-2px); }
-    .video-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .video-card-overlay {
+    .vid-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.22); }
+    .vid-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .vid-no-thumb {
+      width: 100%; height: 100%; background: #ccc;
+      display: flex; align-items: center; justify-content: center;
+      color: #777; font-size: 0.85rem;
+    }
+    .vid-overlay {
       position: absolute; inset: 0;
-      background: rgba(0,0,0,0.35);
       display: flex; align-items: center; justify-content: center;
-      opacity: 0;
-      transition: opacity 0.2s;
+      background: rgba(0,0,0,0); transition: background 0.2s;
     }
-    .video-card:hover .video-card-overlay { opacity: 1; }
-    .play-icon { font-size: 2.5rem; color: white; text-shadow: 0 2px 8px rgba(0,0,0,0.5); }
-    .video-no-thumb {
-      width: 100%; height: 100%;
-      background: #ddd;
+    .vid-card:hover .vid-overlay { background: rgba(0,0,0,0.38); }
+    .play-btn {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: rgba(255,255,255,0.92);
       display: flex; align-items: center; justify-content: center;
-      color: #999; font-size: 0.9rem;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .vid-card:hover .play-btn { opacity: 1; }
+    .play-btn::after {
+      content: ""; margin-left: 4px;
+      border-style: solid; border-width: 10px 0 10px 17px;
+      border-color: transparent transparent transparent #0066cc;
     }
 
-    /* ページャー */
-    .pager { display: flex; gap: 1rem; align-items: center; justify-content: center; margin: 1.5rem 0; }
+    /* ─── ページャー ─── */
+    .pager { display: flex; gap: 0.75rem; align-items: center; justify-content: center; margin: 1rem 0 1.5rem; }
     .pager button {
-      padding: 0.5rem 1.2rem; border: 1px solid #ddd;
+      padding: 0.45rem 1.1rem; border: 1px solid #ccc;
       background: #fff; border-radius: 6px; cursor: pointer;
-      font-size: 0.9rem; color: #333; transition: all 0.2s;
+      font-size: 0.88rem; color: #333; transition: background 0.15s, color 0.15s;
     }
     .pager button:hover:not([disabled]) { background: #0066cc; color: #fff; border-color: #0066cc; }
-    .pager button[disabled] { opacity: 0.4; cursor: not-allowed; }
-    .pager-info { color: #999; font-size: 0.9rem; }
+    .pager button[disabled] { opacity: 0.38; cursor: not-allowed; }
+    .pager-info { color: #999; font-size: 0.88rem; min-width: 5rem; text-align: center; }
 
-    /* 状態表示 */
-    .empty-state { text-align: center; padding: 4rem 2rem; }
-    .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
-    .empty-title { color: #666; font-size: 1.1rem; margin-bottom: 0.5rem; }
-    .empty-sub { color: #999; font-size: 0.9rem; }
-    .loading { text-align: center; padding: 4rem 2rem; }
+    /* ─── 状態表示 ─── */
+    .empty-wrap { text-align: center; padding: 4rem 2rem; }
+    .empty-icon  { font-size: 3rem; margin-bottom: 0.75rem; }
+    .empty-title { color: #555; font-size: 1.05rem; margin-bottom: 0.4rem; }
+    .empty-sub   { color: #999; font-size: 0.9rem; }
+    .loading     { text-align: center; padding: 4rem 2rem; }
     .spinner {
-      width: 48px; height: 48px; margin: 0 auto 1rem;
-      border: 4px solid #f0f0f0;
-      border-top: 4px solid #0066cc;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      width: 44px; height: 44px; margin: 0 auto 1rem;
+      border: 4px solid #eee; border-top-color: #0066cc;
+      border-radius: 50%; animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ライトボックス */
-    .lightbox {
-      display: none; position: fixed; inset: 0; z-index: 9999;
-      background: rgba(0,0,0,0.82);
+    /* ─── ライトボックス ─── */
+    .lb-mask {
+      display: none; position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,0.76);
       align-items: center; justify-content: center;
     }
-    .lightbox.open { display: flex; }
+    .lb-mask.open { display: flex; }
     .lb-box {
-      background: #fff;
-      border-radius: 12px;
-      width: 90%; max-width: 820px;
-      max-height: 90vh;
-      overflow-y: auto;
-      position: relative;
-      padding: 2rem;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      background: #fff; border-radius: 12px;
+      width: 92%; max-width: 820px; max-height: 88vh;
+      overflow-y: auto; position: relative; padding: 2rem;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
     }
     .lb-close {
       position: absolute; top: 1rem; right: 1.25rem;
-      font-size: 2rem; cursor: pointer; color: #aaa;
-      line-height: 1; border: none; background: none;
+      font-size: 2rem; line-height: 1; cursor: pointer;
+      color: #bbb; background: none; border: none;
       transition: color 0.2s;
     }
     .lb-close:hover { color: #333; }
     .lb-title {
-      font-size: 1.35rem; font-weight: 700; color: #0066cc;
-      padding-right: 2.5rem; margin-bottom: 1.25rem;
-      border-bottom: 1px solid #eee; padding-bottom: 1rem;
+      font-size: 1.2rem; font-weight: 700; color: #0066cc;
+      border-bottom: 2px solid #e3f2fd;
+      padding-bottom: 0.85rem; margin-bottom: 1.25rem;
+      padding-right: 2.5rem; line-height: 1.5;
     }
-    .lb-body { line-height: 1.85; color: #333; }
-    .lb-answer { white-space: pre-wrap; font-size: 0.98rem; }
-    .lb-video-wrap { position: relative; padding-top: 56.25%; margin-bottom: 1.25rem; }
-    .lb-video-wrap iframe {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      border: none; border-radius: 8px;
+
+    /* FAQ ライトボックス */
+    .lb-category {
+      display: inline-block; background: #e3f2fd; color: #0066cc;
+      padding: 0.18rem 0.75rem; border-radius: 999px;
+      font-size: 0.82rem; font-weight: 600; margin-bottom: 1.1rem;
     }
-    .lb-desc { color: #555; font-size: 0.9rem; white-space: pre-wrap; border-top: 1px solid #eee; padding-top: 1rem; margin-top: 0.5rem; }
+    .lb-steps-title {
+      font-size: 0.9rem; font-weight: 700; color: #444;
+      margin-bottom: 0.6rem;
+    }
+    .lb-steps { list-style: none; padding: 0; }
+    .lb-steps li {
+      display: flex; gap: 0.75rem; align-items: flex-start;
+      padding: 0.65rem 0.85rem; margin-bottom: 0.5rem;
+      background: #f8faff; border-left: 3px solid #0066cc;
+      border-radius: 0 6px 6px 0; font-size: 0.95rem; line-height: 1.6;
+    }
+    .lb-step-num {
+      background: #0066cc; color: #fff;
+      min-width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 2px;
+    }
+    .lb-keywords { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #eee; }
+    .lb-kw-label { font-size: 0.82rem; color: #888; margin-bottom: 0.5rem; }
+    .kw-tag {
+      display: inline-block; background: #f5f5f5; color: #555;
+      padding: 0.18rem 0.65rem; border-radius: 4px;
+      font-size: 0.82rem; margin: 0.15rem 0.2rem;
+      border: 1px solid #ddd;
+    }
+    .lb-no-steps {
+      background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+      padding: 1rem 1.25rem; color: #795548; font-size: 0.92rem;
+    }
+
+    /* 動画 ライトボックス */
+    .lb-video-wrap {
+      position: relative; padding-top: 56.25%;
+      margin-bottom: 1.25rem; border-radius: 8px; overflow: hidden;
+    }
+    .lb-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+    .lb-no-video { color: #c00; margin-bottom: 1rem; font-size: 0.92rem; }
+    .lb-yt-link { color: #0066cc; font-size: 0.95rem; }
+    .lb-desc { color: #555; font-size: 0.9rem; white-space: pre-wrap; padding-top: 1rem; border-top: 1px solid #eee; }
+
+    /* ─── フッター ─── */
+    footer {
+      background: #1a1a2e; color: #9ca3c0;
+      text-align: center; padding: 1.1rem 1rem;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
+
 <header>
   <h1>🏢 東レACS サポート検索</h1>
   <p>FAQ・マニュアル・動画から、お探しの情報を検索できます</p>
 </header>
+
 <main>
   <div class="search-wrap">
     <input type="text" id="searchInput" placeholder="🔍 キーワードを入力してください" autocomplete="off" />
@@ -189,403 +232,400 @@
 </main>
 
 <!-- ライトボックス -->
-<div id="lightbox" class="lightbox">
+<div id="lb" class="lb-mask">
   <div class="lb-box">
     <button class="lb-close" onclick="closeLb()" aria-label="閉じる">&times;</button>
     <div id="lbTitle" class="lb-title"></div>
-    <div id="lbBody" class="lb-body"></div>
+    <div id="lbBody"></div>
   </div>
 </div>
 
+<footer>
+  <p>Copyright &copy; 2026 Toray Advanced Computer Solution, Inc.</p>
+</footer>
+
 <script>
-  /* =============================================
-     設定
-  ============================================= */
-  var PAGE_SIZE  = 20;
-  var DEBOUNCE   = 300;
+/* ======================================================
+   設定
+====================================================== */
+var PAGE_SIZE = 9;    /* 初期表示9件 */
+var DEBOUNCE  = 300;
 
-  /* =============================================
-     状態
-  ============================================= */
-  var lastQuery   = "";
-  var faqOffset   = 0;
-  var videoOffset = 0;
-  var faqHasMore  = false;
-  var vidHasMore  = false;
-  var faqItems    = [];
-  var vidItems    = [];
-  var synonyms    = {};
-  var timer       = null;
+/* ======================================================
+   状態
+====================================================== */
+var lastQuery  = "";
+var faqOffset  = 0;
+var vidOffset  = 0;
+var faqHasMore = false;
+var vidHasMore = false;
+var faqItems   = [];
+var vidItems   = [];
+var synonyms   = {};
+var timer      = null;
 
-  /* =============================================
-     ユーティリティ
-  ============================================= */
-  function $(id){ return document.getElementById(id); }
+/* ======================================================
+   ユーティリティ
+====================================================== */
+function $(id){ return document.getElementById(id); }
 
-  function esc(s){
-    var d = document.createElement("div");
-    d.textContent = s || "";
-    return d.innerHTML;
-  }
+function esc(s){
+  var d = document.createElement("div");
+  d.textContent = (s == null ? "" : String(s));
+  return d.innerHTML;
+}
 
-  // URLからYouTube video_idを抽出
-  function extractVideoId(item){
-    if(item.video_id && item.video_id.trim()) return item.video_id.trim();
-    var url = item.url || "";
-    var m = url.match(/[?&]v=([^&]+)/);
-    if(m) return m[1];
-    m = url.match(/youtu\.be\/([^?&]+)/);
-    if(m) return m[1];
-    return "";
-  }
+/* URLから YouTube video_id を抽出 */
+function getVideoId(item){
+  var vid = String(item.video_id || "").trim();
+  if(vid) return vid;
+  var url = String(item.url || "");
+  var m = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  m = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  return "";
+}
 
-  // FAQの質問文を取得（複数フィールド名に対応）
-  function getFaqQuestion(item){
-    if(item.questions && item.questions.length) return item.questions[0];
-    if(item.utterances && item.utterances.length) return item.utterances[0];
-    if(item.question) return item.question;
-    if(item.intent)   return item.intent;
-    return "（質問なし）";
-  }
+/* ======================================================
+   Synonyms（同義語展開）
+====================================================== */
+function loadSynonyms(){
+  fetch("/api/synonyms")
+    .then(function(r){ return r.ok ? r.json() : {}; })
+    .then(function(d){ synonyms = d || {}; })
+    .catch(function(){});
+}
 
-  // FAQの回答文を取得（複数フィールド名に対応）
-  function getFaqAnswer(item){
-    if(item.answer)    return item.answer;
-    if(item.response)  return item.response;
-    if(item.content)   return item.content;
-    return "";
-  }
-
-  /* =============================================
-     Synonyms
-  ============================================= */
-  function loadSynonyms(){
-    fetch("/api/synonyms")
-      .then(function(r){ return r.ok ? r.json() : {}; })
-      .then(function(d){ synonyms = d; })
-      .catch(function(){});
-  }
-
-  function expandQuery(q){
-    var words = q.toLowerCase().split(/\s+/);
-    var set = {};
-    for(var i=0;i<words.length;i++) set[words[i]]=1;
-
-    for(var i=0;i<words.length;i++){
-      var w = words[i];
-      for(var key in synonyms){
-        var vars = synonyms[key];
-        if(!Array.isArray(vars)) continue;
-        var inVars = false;
-        for(var j=0;j<vars.length;j++){
-          if(vars[j].toLowerCase()===w){ inVars=true; break; }
-        }
-        if(inVars){
-          set[key]=1;
-          for(var j=0;j<vars.length;j++) set[vars[j]]=1;
-        } else if(key.toLowerCase()===w){
-          for(var j=0;j<vars.length;j++) set[vars[j]]=1;
-        }
+function expandQuery(q){
+  var words = q.toLowerCase().split(/\s+/);
+  var set = {};
+  for(var i = 0; i < words.length; i++) set[words[i]] = 1;
+  for(var i = 0; i < words.length; i++){
+    var w = words[i];
+    for(var key in synonyms){
+      var vars = synonyms[key];
+      if(!Array.isArray(vars)) continue;
+      var hit = false;
+      for(var j = 0; j < vars.length; j++){
+        if(String(vars[j] || "").toLowerCase() === w){ hit = true; break; }
+      }
+      if(hit){
+        set[key] = 1;
+        for(var j = 0; j < vars.length; j++) set[vars[j]] = 1;
+      } else if(key.toLowerCase() === w){
+        for(var j = 0; j < vars.length; j++) set[vars[j]] = 1;
       }
     }
-
-    var arr=[];
-    for(var k in set) arr.push(k);
-    return arr.join(" ");
   }
+  var arr = [];
+  for(var k in set) arr.push(k);
+  return arr.join(" ");
+}
 
-  /* =============================================
-     ログ
-  ============================================= */
-  function sendLog(type, id){
-    fetch("/api/log_search",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({query:lastQuery, result_type:type, result_id:id, timestamp:new Date().toISOString()})
-    }).catch(function(){});
-  }
+/* ======================================================
+   クリックログ
+====================================================== */
+function sendLog(type, id){
+  fetch("/api/log_search", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: lastQuery, result_type: type,
+      result_id: String(id || ""), timestamp: new Date().toISOString()
+    })
+  }).catch(function(){});
+}
 
-  /* =============================================
-     API
-  ============================================= */
-  function apiFetch(path){
-    return fetch(path).then(function(r){
-      if(!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    });
-  }
+/* ======================================================
+   API フェッチ
+====================================================== */
+function apiFetch(path){
+  return fetch(path).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status + " / " + path);
+    return r.json();
+  });
+}
 
-  function loadFAQ(){
-    var q = expandQuery(lastQuery);
-    var p = new URLSearchParams({query:q, offset:faqOffset, limit:PAGE_SIZE, paged:1});
-    return apiFetch("/faq/search?" + p);
-  }
+function loadFAQ(){
+  var q = expandQuery(lastQuery);
+  var p = new URLSearchParams({ query: q, offset: faqOffset, limit: PAGE_SIZE, paged: 1 });
+  return apiFetch("/faq/search?" + p.toString());
+}
 
-  function loadVideos(){
-    var q = expandQuery(lastQuery);
-    var p = new URLSearchParams({query:q, offset:videoOffset, limit:PAGE_SIZE, paged:1});
-    return apiFetch("/search?" + p);
-  }
+function loadVideos(){
+  var q = expandQuery(lastQuery);
+  var p = new URLSearchParams({ query: q, offset: vidOffset, limit: PAGE_SIZE, paged: 1 });
+  return apiFetch("/search?" + p.toString());
+}
 
-  /* =============================================
-     描画
-  ============================================= */
-  function renderFAQ(items){
-    if(!items || !items.length)
-      return '<p style="color:#999;padding:1rem 0;">FAQが見つかりませんでした</p>';
-
-    var html = '<div class="faq-grid">';
-    for(var i=0;i<items.length;i++){
-      var q = esc(getFaqQuestion(items[i]));
-      html += '<div class="faq-card" data-type="faq" data-index="' + i + '">'
-            + '<span class="faq-card-icon">Q</span>'
-            + '<span class="faq-card-title">' + q + '</span>'
-            + '</div>';
-    }
-    html += '</div>';
-    return html;
-  }
-
-  function renderVideos(items){
-    if(!items || !items.length)
-      return '<p style="color:#999;padding:1rem 0;">動画が見つかりませんでした</p>';
-
-    var html = '<div class="video-grid">';
-    for(var i=0;i<items.length;i++){
-      var v    = items[i];
-      var vid  = extractVideoId(v);
-      var thumb = v.thumbnail || "";
-      var title = esc(v.title || "");
-
-      html += '<div class="video-card" data-type="video" data-index="' + i + '" title="' + title + '">';
-      if(thumb){
-        html += '<img src="' + esc(thumb) + '" alt="' + title + '" loading="lazy">';
-      } else {
-        html += '<div class="video-no-thumb">動画</div>';
-      }
-      html += '<div class="video-card-overlay"><span class="play-icon">▶</span></div>';
-      html += '</div>';
-    }
-    html += '</div>';
-    return html;
-  }
-
-  function renderPager(type, hasMore, offset, count){
-    var prev = type==="faq" ? "faqPrev" : "vidPrev";
-    var next = type==="faq" ? "faqNext" : "vidNext";
-    var pd   = offset<=0 ? "disabled" : "";
-    var nd   = !hasMore   ? "disabled" : "";
-    var info = count>0 ? (offset+1) + "–" + (offset+count) + "件" : "";
-    return '<div class="pager">'
-          + '<button id="'+prev+'" '+pd+'>← 前</button>'
-          + '<button id="'+next+'" '+nd+'>次 →</button>'
-          + '<span class="pager-info">'+info+'</span>'
+/* ======================================================
+   カード描画
+====================================================== */
+function renderFAQ(items){
+  if(!items || !items.length)
+    return '<p style="color:#999;padding:0.75rem 0;">FAQが見つかりませんでした</p>';
+  var html = '<div class="faq-grid">';
+  for(var i = 0; i < items.length; i++){
+    var q = items[i].question || (items[i].utterances && items[i].utterances[0]) || "（質問なし）";
+    html += '<div class="faq-card" data-type="faq" data-index="' + i + '">'
+          + '<span class="faq-q">Q</span>'
+          + '<span class="faq-text">' + esc(q) + '</span>'
           + '</div>';
   }
+  return html + '</div>';
+}
 
-  /* =============================================
-     検索実行
-  ============================================= */
-  function renderResults(){
-    var c = $("resultsContainer");
-    if(!lastQuery.trim()){
-      c.innerHTML = '<div class="empty-state">'
-                  + '<div class="empty-icon">🔍</div>'
-                  + '<div class="empty-title">キーワードを入力して検索</div>'
-                  + '<div class="empty-sub">動画とFAQから最適な情報を見つけます</div>'
-                  + '</div>';
-      return;
-    }
-
-    c.innerHTML = '<div class="loading"><div class="spinner"></div><p>検索中...</p></div>';
-
-    Promise.all([loadFAQ(), loadVideos()])
-      .then(function(res){
-        var fd = res[0]; var vd = res[1];
-        faqHasMore  = fd.has_more  || false;
-        vidHasMore  = vd.has_more  || false;
-        faqItems    = fd.items     || [];
-        vidItems    = vd.items     || [];
-
-        var html = "";
-
-        // FAQ
-        html += '<div class="section-header">'
-              + '<span class="section-title">FAQ候補</span>'
-              + '<span class="badge">' + (fd.total_visible||0) + '件</span>'
-              + '</div>';
-        html += renderFAQ(faqItems);
-        html += renderPager("faq", faqHasMore, faqOffset, faqItems.length);
-
-        // 動画
-        html += '<div class="section-header">'
-              + '<span class="section-title">関連動画</span>'
-              + '<span class="badge">' + (vd.total_visible||0) + '件</span>'
-              + '</div>';
-        html += renderVideos(vidItems);
-        html += renderPager("video", vidHasMore, videoOffset, vidItems.length);
-
-        c.innerHTML = html;
-        bindCards();
-        bindPager();
-      })
-      .catch(function(e){
-        c.innerHTML = '<div class="empty-state"><div class="empty-sub">検索エラー: ' + esc(e.message) + '</div></div>';
-      });
-  }
-
-  /* =============================================
-     カードクリック
-  ============================================= */
-  function bindCards(){
-    var cards = document.querySelectorAll("[data-type]");
-    for(var i=0;i<cards.length;i++){
-      (function(card){
-        card.addEventListener("click", function(){
-          var type  = card.dataset.type;
-          var index = parseInt(card.dataset.index, 10);
-          if(type==="faq"){
-            var item = faqItems[index];
-            if(item) openFaqLb(item);
-          } else if(type==="video"){
-            var item = vidItems[index];
-            if(item) openVideoLb(item);
-          }
-        });
-      })(cards[i]);
-    }
-  }
-
-  /* =============================================
-     ライトボックス（FAQ）
-  ============================================= */
-  function openFaqLb(item){
-    var q = getFaqQuestion(item);
-    var a = getFaqAnswer(item);
-
-    sendLog("faq", item.id || item.intent || "");
-
-    $("lbTitle").textContent = q;
-
-    // 回答が空の場合
-    if(!a || !a.trim()){
-      $("lbBody").innerHTML = '<p style="color:#999;">回答が登録されていません</p>';
+function renderVideos(items){
+  if(!items || !items.length)
+    return '<p style="color:#999;padding:0.75rem 0;">動画が見つかりませんでした</p>';
+  var html = '<div class="vid-grid">';
+  for(var i = 0; i < items.length; i++){
+    var v     = items[i];
+    var thumb = v.thumbnail || "";
+    var title = esc(v.title || "");
+    html += '<div class="vid-card" data-type="video" data-index="' + i + '" title="' + title + '">';
+    if(thumb){
+      html += '<img src="' + esc(thumb) + '" alt="' + title + '" loading="lazy">';
     } else {
-      $("lbBody").innerHTML = '<div class="lb-answer">' + esc(a) + '</div>';
+      html += '<div class="vid-no-thumb">動画</div>';
     }
-
-    openLb();
+    html += '<div class="vid-overlay"><div class="play-btn"></div></div>';
+    html += '</div>';
   }
+  return html + '</div>';
+}
 
-  /* =============================================
-     ライトボックス（動画）
-  ============================================= */
-  function openVideoLb(item){
-    var vid   = extractVideoId(item);
-    var title = item.title || "";
-    var desc  = item.description || "";
+function renderPager(type, hasMore, offset, count){
+  var pid = type === "faq" ? "faqPrev" : "vidPrev";
+  var nid = type === "faq" ? "faqNext" : "vidNext";
+  var pd  = (offset <= 0) ? "disabled" : "";
+  var nd  = !hasMore      ? "disabled" : "";
+  var info = count > 0 ? (offset + 1) + "–" + (offset + count) + "件" : "0件";
+  return '<div class="pager">'
+       + '<button id="' + pid + '" ' + pd + '>← 前の ' + PAGE_SIZE + ' 件</button>'
+       + '<span class="pager-info">' + info + '</span>'
+       + '<button id="' + nid + '" ' + nd + '>次の ' + PAGE_SIZE + ' 件 →</button>'
+       + '</div>';
+}
 
-    sendLog("video", vid || item.video_id || "");
+/* ======================================================
+   検索実行
+====================================================== */
+function renderResults(){
+  var c = $("resultsContainer");
+  if(!lastQuery.trim()){
+    c.innerHTML = '<div class="empty-wrap">'
+                + '<div class="empty-icon">🔍</div>'
+                + '<div class="empty-title">キーワードを入力して検索</div>'
+                + '<div class="empty-sub">動画とFAQから最適な情報を見つけます</div>'
+                + '</div>';
+    return;
+  }
+  c.innerHTML = '<div class="loading"><div class="spinner"></div><p style="color:#888;">検索中...</p></div>';
 
-    $("lbTitle").textContent = title;
+  Promise.all([loadFAQ(), loadVideos()])
+    .then(function(res){
+      var fd = res[0];
+      var vd = res[1];
+      faqHasMore = fd.has_more || false;
+      vidHasMore = vd.has_more || false;
+      faqItems   = fd.items    || [];
+      vidItems   = vd.items    || [];
 
-    var body = "";
+      var html = "";
 
-    if(vid){
-      // autoplay=1, origin指定でブロック回避
-      var embedUrl = "https://www.youtube.com/embed/" + vid
-                   + "?autoplay=1&rel=0&modestbranding=1";
-      body += '<div class="lb-video-wrap">'
-            + '<iframe src="' + embedUrl + '"'
-            + ' allow="autoplay; encrypted-media; fullscreen; picture-in-picture"'
-            + ' allowfullscreen>'
-            + '</iframe>'
+      /* FAQ セクション */
+      html += '<div class="sec-head">'
+            + '<span class="sec-title">FAQ候補</span>'
+            + '<span class="badge">' + (fd.total_visible || 0) + '件</span>'
             + '</div>';
-    } else {
-      body += '<p style="color:#c00;margin-bottom:1rem;">⚠️ 動画IDが取得できませんでした</p>';
-      if(item.url){
-        body += '<p><a href="' + esc(item.url) + '" target="_blank" rel="noopener">YouTubeで開く →</a></p>';
-      }
+      html += renderFAQ(faqItems);
+      html += renderPager("faq", faqHasMore, faqOffset, faqItems.length);
+
+      /* 動画セクション */
+      html += '<div class="sec-head">'
+            + '<span class="sec-title">関連動画</span>'
+            + '<span class="badge">' + (vd.total_visible || 0) + '件</span>'
+            + '</div>';
+      html += renderVideos(vidItems);
+      html += renderPager("video", vidHasMore, vidOffset, vidItems.length);
+
+      c.innerHTML = html;
+      bindCards();
+      bindPager();
+    })
+    .catch(function(e){
+      c.innerHTML = '<div class="empty-wrap"><div class="empty-sub">エラー: ' + esc(e.message) + '</div></div>';
+    });
+}
+
+/* ======================================================
+   カードイベント
+====================================================== */
+function bindCards(){
+  var cards = document.querySelectorAll("[data-type]");
+  for(var i = 0; i < cards.length; i++){
+    (function(card){
+      card.addEventListener("click", function(){
+        var type  = card.getAttribute("data-type");
+        var index = parseInt(card.getAttribute("data-index"), 10);
+        if(type === "faq"   && faqItems[index]) openFaqLb(faqItems[index]);
+        if(type === "video" && vidItems[index]) openVideoLb(vidItems[index]);
+      });
+    })(cards[i]);
+  }
+}
+
+/* ======================================================
+   FAQ ライトボックス
+   フィールド: question / utterances / steps / keywords / category / intent
+====================================================== */
+function openFaqLb(item){
+  var question = item.question
+              || (item.utterances && item.utterances[0])
+              || "(質問なし)";
+  var category = item.category || "";
+  var steps    = item.steps    || [];
+  var keywords = item.keywords || [];
+
+  sendLog("faq", item.id || item.intent || "");
+
+  /* タイトル */
+  $("lbTitle").textContent = question;
+
+  var body = "";
+
+  /* カテゴリバッジ */
+  if(category){
+    body += '<div class="lb-category">📂 ' + esc(category) + '</div>';
+  }
+
+  /* 手順（steps）が回答本体 */
+  if(steps.length){
+    body += '<div class="lb-steps-title">✅ 手順・回答</div>';
+    body += '<ol class="lb-steps">';
+    for(var i = 0; i < steps.length; i++){
+      body += '<li>'
+            + '<span class="lb-step-num">' + (i + 1) + '</span>'
+            + '<span>' + esc(steps[i]) + '</span>'
+            + '</li>';
     }
+    body += '</ol>';
+  } else {
+    body += '<div class="lb-no-steps">回答手順が登録されていません。</div>';
+  }
 
-    if(desc.trim()){
-      body += '<div class="lb-desc">' + esc(desc) + '</div>';
+  /* キーワード */
+  if(keywords.length){
+    body += '<div class="lb-keywords">'
+          + '<div class="lb-kw-label">🔑 関連キーワード</div>';
+    for(var i = 0; i < keywords.length; i++){
+      body += '<span class="kw-tag">' + esc(keywords[i]) + '</span>';
     }
-
-    $("lbBody").innerHTML = body;
-    openLb();
+    body += '</div>';
   }
 
-  /* =============================================
-     ライトボックス 開閉
-  ============================================= */
-  function openLb(){
-    $("lightbox").classList.add("open");
-    document.body.style.overflow = "hidden";
-  }
+  $("lbBody").innerHTML = body;
+  openLb();
+}
 
-  function closeLb(){
-    // iframeを破棄して動画停止
-    var iframe = $("lightbox").querySelector("iframe");
-    if(iframe) iframe.src = "";
+/* ======================================================
+   動画 ライトボックス
+====================================================== */
+function openVideoLb(item){
+  var vid   = getVideoId(item);
+  var title = item.title       || "";
+  var desc  = item.description || "";
 
-    $("lightbox").classList.remove("open");
-    document.body.style.overflow = "";
-    $("lbBody").innerHTML = "";
-  }
+  sendLog("video", vid || "");
 
-  // 背景クリックで閉じる
-  $("lightbox").addEventListener("click", function(e){
-    if(e.target === $("lightbox")) closeLb();
-  });
+  $("lbTitle").textContent = title;
 
-  // ESCキーで閉じる
-  document.addEventListener("keydown", function(e){
-    if(e.key === "Escape") closeLb();
-  });
+  var body = "";
 
-  /* =============================================
-     ページャー
-  ============================================= */
-  function bindPager(){
-    function on(id, fn){
-      var el = $(id);
-      if(el) el.addEventListener("click", fn);
+  if(vid){
+    var src = "https://www.youtube.com/embed/" + vid
+            + "?autoplay=1&rel=0&modestbranding=1";
+    body += '<div class="lb-video-wrap">'
+          + '<iframe src="' + src + '"'
+          + ' allow="autoplay; encrypted-media; fullscreen; picture-in-picture"'
+          + ' allowfullscreen loading="lazy"></iframe>'
+          + '</div>';
+  } else {
+    body += '<p class="lb-no-video">⚠️ 動画IDが取得できませんでした。</p>';
+    if(item.url){
+      body += '<p><a class="lb-yt-link" href="' + esc(item.url) + '"'
+            + ' target="_blank" rel="noopener">▶ YouTubeで開く</a></p>';
     }
-    on("faqPrev", function(){ faqOffset = Math.max(0, faqOffset-PAGE_SIZE); renderResults(); });
-    on("faqNext", function(){ faqOffset += PAGE_SIZE; renderResults(); });
-    on("vidPrev", function(){ videoOffset = Math.max(0, videoOffset-PAGE_SIZE); renderResults(); });
-    on("vidNext", function(){ videoOffset += PAGE_SIZE; renderResults(); });
   }
 
-  /* =============================================
-     検索入力
-  ============================================= */
-  function doSearch(q){
-    lastQuery   = q;
-    faqOffset   = 0;
-    videoOffset = 0;
-    renderResults();
+  if(desc.trim()){
+    body += '<div class="lb-desc">' + esc(desc) + '</div>';
   }
 
-  $("searchInput").addEventListener("input", function(e){
-    clearTimeout(timer);
-    var q = e.target.value;
-    timer = setTimeout(function(){ doSearch(q); }, DEBOUNCE);
-  });
+  $("lbBody").innerHTML = body;
+  openLb();
+}
 
-  $("searchInput").addEventListener("keydown", function(e){
-    if(e.key === "Enter"){
-      clearTimeout(timer);
-      doSearch(e.target.value);
-    }
-  });
+/* ======================================================
+   ライトボックス 開閉
+====================================================== */
+function openLb(){
+  $("lb").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
 
-  /* =============================================
-     初期化
-  ============================================= */
-  loadSynonyms();
+function closeLb(){
+  var iframe = $("lb").querySelector("iframe");
+  if(iframe) iframe.src = "";          /* 動画停止 */
+  $("lb").classList.remove("open");
+  document.body.style.overflow = "";
+  $("lbBody").innerHTML = "";
+}
+
+$("lb").addEventListener("click", function(e){
+  if(e.target === $("lb")) closeLb();
+});
+
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape") closeLb();
+});
+
+/* ======================================================
+   ページャー
+====================================================== */
+function bindPager(){
+  function on(id, fn){ var el = $(id); if(el) el.addEventListener("click", fn); }
+  on("faqPrev", function(){ faqOffset = Math.max(0, faqOffset - PAGE_SIZE); renderResults(); });
+  on("faqNext", function(){ faqOffset += PAGE_SIZE; renderResults(); });
+  on("vidPrev", function(){ vidOffset = Math.max(0, vidOffset - PAGE_SIZE); renderResults(); });
+  on("vidNext", function(){ vidOffset += PAGE_SIZE; renderResults(); });
+}
+
+/* ======================================================
+   入力
+====================================================== */
+function doSearch(q){
+  lastQuery = q; faqOffset = 0; vidOffset = 0;
   renderResults();
+}
+
+$("searchInput").addEventListener("input", function(e){
+  clearTimeout(timer);
+  var q = e.target.value;
+  timer = setTimeout(function(){ doSearch(q); }, DEBOUNCE);
+});
+
+$("searchInput").addEventListener("keydown", function(e){
+  if(e.key === "Enter"){ clearTimeout(timer); doSearch(e.target.value); }
+});
+
+/* ======================================================
+   初期化
+====================================================== */
+loadSynonyms();
+renderResults();
 </script>
 </body>
 </html>

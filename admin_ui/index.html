@@ -2,180 +2,193 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ログイン - ACS FAQ Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>管理画面ログイン - ACS FAQ Manager</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+      background: linear-gradient(135deg, #0066cc 0%, #004fa3 100%);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      padding: 20px;
     }
-    
+
     .login-card {
       background: white;
-      border-radius: 12px;
-      padding: 40px;
-      width: 90%;
+      border-radius: 14px;
+      padding: 40px 36px;
+      width: 100%;
       max-width: 400px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.25);
     }
-    
+
     .logo {
       text-align: center;
-      font-size: 64px;
-      margin-bottom: 16px;
+      font-size: 52px;
+      margin-bottom: 12px;
     }
-    
+
     .title {
       text-align: center;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 700;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: #111827;
     }
-    
+
     .subtitle {
       text-align: center;
       color: #6b7280;
-      margin-bottom: 32px;
-      font-size: 14px;
+      margin-bottom: 28px;
+      font-size: 13px;
     }
-    
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
+
+    .form-group { margin-bottom: 18px; }
+
     .form-label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
       color: #374151;
     }
-    
+
     .form-input {
       width: 100%;
-      padding: 12px 16px;
-      border: 1px solid #d1d5db;
+      padding: 11px 14px;
+      border: 1.5px solid #d1d5db;
       border-radius: 8px;
       font-size: 14px;
-      transition: all 0.3s;
-    }
-    
-    .form-input:focus {
+      font-family: inherit;
+      transition: all 0.2s;
       outline: none;
-      border-color: #667eea;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
-    
+
+    .form-input:focus {
+      border-color: #0066cc;
+      box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+    }
+
     .btn-login {
       width: 100%;
       padding: 12px;
-      background: #667eea;
+      background: #0066cc;
       color: white;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s;
+      font-family: inherit;
     }
-    
-    .btn-login:hover {
-      background: #5568d3;
-    }
-    
+
+    .btn-login:hover { background: #004fa3; }
+    .btn-login:active { transform: scale(0.98); }
+
     .error {
       background: #fee2e2;
       color: #991b1b;
-      padding: 12px;
+      padding: 11px 14px;
       border-radius: 8px;
-      margin-bottom: 20px;
-      font-size: 14px;
+      margin-bottom: 18px;
+      font-size: 13px;
       display: none;
+      border-left: 3px solid #ef4444;
     }
-    
+
     .help-text {
       text-align: center;
       color: #9ca3af;
       font-size: 12px;
-      margin-top: 24px;
+      margin-top: 20px;
     }
-    
+
     footer {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      bottom: 0; left: 0; right: 0;
       text-align: center;
-      padding: 16px;
-      color: rgba(255,255,255,0.9);
-      font-size: 14px;
+      padding: 14px;
+      color: rgba(255,255,255,0.75);
+      font-size: 12px;
     }
   </style>
 </head>
 <body>
+
   <div class="login-card">
     <div class="logo">🏢</div>
     <h1 class="title">ACS FAQ Manager</h1>
     <p class="subtitle">管理画面ログイン</p>
-    
+
     <div id="errorMsg" class="error"></div>
-    
-    <form id="loginForm">
+
+    <div id="loginForm">
       <div class="form-group">
         <label class="form-label" for="username">ユーザー名</label>
-        <input type="text" id="username" class="form-input" required autofocus />
+        <input type="text" id="username" class="form-input" autocomplete="username" autofocus />
       </div>
-      
+
       <div class="form-group">
         <label class="form-label" for="password">パスワード</label>
-        <input type="password" id="password" class="form-input" required />
+        <input type="password" id="password" class="form-input" autocomplete="current-password" />
       </div>
-      
-      <button type="submit" class="btn-login">ログイン</button>
-    </form>
-    
-    <p class="help-text">
-      デフォルト認証: admin / abc123
-    </p>
+
+      <button type="button" class="btn-login" id="loginBtn">ログイン</button>
+    </div>
+
+    <p class="help-text">デフォルト認証: admin / abc123</p>
   </div>
-  
-  <footer>
-    Copyright © 2026 Toray Advanced Computer Solution, Inc.
-  </footer>
+
+  <footer>Copyright © 2026 Toray Advanced Computer Solution, Inc.</footer>
 
   <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      const errorMsg = document.getElementById('errorMsg');
-      
-      try {
-        const authHeader = 'Basic ' + btoa(username + ':' + password);
-        const res = await fetch('/admin/api/faq', {
-          headers: { 'Authorization': authHeader }
-        });
-        
+    function doLogin() {
+      var username = document.getElementById('username').value;
+      var password = document.getElementById('password').value;
+      var errorMsg = document.getElementById('errorMsg');
+      var btn = document.getElementById('loginBtn');
+
+      errorMsg.style.display = 'none';
+      btn.textContent = 'ログイン中...';
+      btn.disabled = true;
+
+      var authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(username + ':' + password)));
+
+      // Bug#5修正: 正しいAPIパス /admin/api/faq を使用
+      fetch('/admin/api/faq', {
+        headers: { 'Authorization': authHeader }
+      })
+      .then(function(res) {
         if (res.ok) {
-          localStorage.setItem('admin_auth', JSON.stringify({ username, password }));
-          window.location.href = '/admin/dashboard.html';
+          localStorage.setItem('admin_auth', JSON.stringify({ username: username, password: password }));
+          window.location.href = '/admin/dashboard';
         } else {
           errorMsg.textContent = 'ユーザー名またはパスワードが正しくありません';
           errorMsg.style.display = 'block';
+          btn.textContent = 'ログイン';
+          btn.disabled = false;
         }
-      } catch (error) {
-        errorMsg.textContent = 'ログインに失敗しました';
+      })
+      .catch(function() {
+        errorMsg.textContent = 'サーバーに接続できませんでした';
         errorMsg.style.display = 'block';
-      }
+        btn.textContent = 'ログイン';
+        btn.disabled = false;
+      });
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', doLogin);
+    document.getElementById('password').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('username').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('password').focus();
     });
   </script>
 </body>

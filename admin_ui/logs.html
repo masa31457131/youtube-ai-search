@@ -2,343 +2,179 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>ログ閲覧 - ACS FAQ Manager</title>
   <style>
+    :root {
+      --brand: #0066cc; --brand-dark: #004fa3; --brand-light: #e8f0fb;
+      --bg: #f6f7fb; --white: #fff; --text: #111827; --text-muted: #6b7280;
+      --border: #e5e7eb; --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
-      background: #f6f7fb;
-      color: #111827;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    header {
-      background: #001529;
-      color: #fff;
-      padding: 16px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    
-    .logo { font-size: 24px; }
-    
-    .header-title {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    
-    .header-right {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-    
-    nav {
-      display: flex;
-      gap: 20px;
-    }
-    
-    nav a {
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      transition: all 0.3s;
-    }
-    
-    nav a:hover, nav a.active {
-      background: rgba(255,255,255,0.1);
-      color: white;
-    }
-    
-    .btn-logout {
-      background: none;
-      border: none;
-      color: rgba(255,255,255,0.85);
-      cursor: pointer;
-      padding: 8px 12px;
-      font-size: 14px;
-      border-radius: 6px;
-    }
-    
-    .btn-logout:hover {
-      background: rgba(255,255,255,0.1);
-      color: white;
-    }
-    
-    main {
-      flex: 1;
-      max-width: 1400px;
-      margin: 0 auto;
-      width: 100%;
-      padding: 24px;
-    }
-    
-    .page-title {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 24px;
-    }
-    
-    .card {
-      background: white;
-      border-radius: 8px;
-      padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      margin-bottom: 24px;
-    }
-    
-    .card-title {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 16px;
-    }
-    
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
-    .form-label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    
-    .select {
-      padding: 10px 12px;
-      border: 1px solid #d9d9d9;
-      border-radius: 6px;
-      font-size: 14px;
-      min-width: 200px;
-    }
-    
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    
-    .stat-card {
-      background: #f9fafb;
-      padding: 16px;
-      border-radius: 8px;
-      border: 1px solid #e5e7eb;
-    }
-    
-    .stat-label {
-      font-size: 12px;
-      color: #6b7280;
-      margin-bottom: 4px;
-    }
-    
-    .stat-value {
-      font-size: 24px;
-      font-weight: 700;
-      color: #111827;
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    th {
-      background: #fafafa;
-      padding: 12px 16px;
-      text-align: left;
-      font-weight: 600;
-      border-bottom: 2px solid #f0f0f0;
-    }
-    
-    td {
-      padding: 12px 16px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    tr:hover {
-      background: #fafafa;
-    }
-    
-    footer {
-      background: white;
-      border-top: 1px solid #e5e7eb;
-      padding: 20px 24px;
-      text-align: center;
-      color: #6b7280;
-      font-size: 14px;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; font-size: 14px; }
+    header { background: #001529; color: #fff; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); gap: 12px; }
+    .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .header-title { font-size: 16px; font-weight: 700; }
+    nav { display: flex; gap: 4px; overflow-x: auto; }
+    nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 13px; white-space: nowrap; transition: all 0.2s; }
+    nav a:hover, nav a.active { background: rgba(255,255,255,0.12); color: #fff; }
+    .btn-logout { background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer; padding: 7px 12px; font-size: 13px; border-radius: 6px; font-family: inherit; white-space: nowrap; }
+    .btn-logout:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    main { flex: 1; max-width: 1100px; margin: 0 auto; width: 100%; padding: 24px; }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .toolbar-title { font-size: 20px; font-weight: 700; flex: 1; }
+    select { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; background: #fff; }
+    select:focus { border-color: var(--brand); }
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.2s; }
+    .btn-outline { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--brand); color: var(--brand); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); padding: 20px; }
+    .card-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+    .loading { text-align: center; padding: 30px; color: var(--text-muted); }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    tr:last-child td { border-bottom: none; }
+    .bar-wrap { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .bar-wrap:last-child { border-bottom: none; }
+    .bar-label { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { width: 120px; height: 8px; background: var(--border); border-radius: 4px; flex-shrink: 0; }
+    .bar-fill { height: 100%; background: var(--brand); border-radius: 4px; }
+    .bar-count { font-size: 12px; color: var(--text-muted); min-width: 32px; text-align: right; }
+    footer { background: var(--white); border-top: 1px solid var(--border); padding: 16px 24px; text-align: center; color: var(--text-muted); font-size: 12px; }
+    @media (max-width: 700px) { header { padding: 0 12px; } .header-title { display: none; } main { padding: 16px 12px; } .grid-2 { grid-template-columns: 1fr; } .bar-track { width: 80px; } }
   </style>
 </head>
 <body>
   <header>
     <div class="header-left">
-      <span class="logo">🏢</span>
+      <span style="font-size:20px;">🏢</span>
       <span class="header-title">ACS FAQ Manager</span>
     </div>
-    <div class="header-right">
-      <nav>
-        <a href="/admin/dashboard.html">ダッシュボード</a>
-        <a href="/admin/videos.html">動画データ</a>
-        <a href="/admin/synonyms.html">Synonyms編集</a>
-        <a href="/admin/faq.html">FAQ編集</a>
-        <a href="/admin/logs.html" class="active">ログ閲覧</a>
-      </nav>
-      <button class="btn-logout" onclick="logout()">ログアウト</button>
-    </div>
+    <nav>
+      <a href="/admin/dashboard">ダッシュボード</a>
+      <a href="/admin/videos">動画データ</a>
+      <a href="/admin/synonyms">同義語</a>
+      <a href="/admin/faq">FAQ編集</a>
+      <a href="/admin/logs" class="active">ログ閲覧</a>
+    </nav>
+    <button class="btn-logout" onclick="logout()">ログアウト</button>
   </header>
 
   <main>
-    <h1 class="page-title">ログ閲覧</h1>
+    <div class="toolbar">
+      <div class="toolbar-title">📊 ログ閲覧</div>
+      <select id="monthSelect" onchange="loadSummary()">
+        <option value="">月を選択...</option>
+      </select>
+      <a id="exportBtn" href="/admin/api/logs/export" class="btn btn-outline" style="text-decoration:none;">📥 CSV出力</a>
+    </div>
 
-    <div class="card">
-      <div class="form-group">
-        <label class="form-label">月を選択</label>
-        <select id="monthSelect" class="select" onchange="loadSummary()">
-          <option value="">選択してください...</option>
-        </select>
-      </div>
-
-      <div id="summarySection" style="display:none;">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-label">総検索数</div>
-            <div class="stat-value" id="totalCount">-</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-label">ユニーク検索数</div>
-            <div class="stat-value" id="uniqueCount">-</div>
-          </div>
+    <div id="loadingArea" class="loading"><div class="spinner"></div></div>
+    <div id="summaryArea" style="display:none;">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📅 日別 検索数</div>
+          <div id="dayTable"></div>
         </div>
-
-        <div class="card-title">日別検索数</div>
-        <table id="daysTable">
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>検索数</th>
-            </tr>
-          </thead>
-          <tbody id="daysBody">
-          </tbody>
-        </table>
-
-        <div class="card-title" style="margin-top: 32px;">人気の検索クエリ TOP20</div>
-        <table id="queriesTable">
-          <thead>
-            <tr>
-              <th style="width: 60px;">順位</th>
-              <th>検索クエリ</th>
-              <th style="width: 120px;">回数</th>
-            </tr>
-          </thead>
-          <tbody id="queriesBody">
-          </tbody>
-        </table>
+        <div class="card">
+          <div class="card-title">🔍 人気キーワード TOP50</div>
+          <div id="queryChart"></div>
+        </div>
       </div>
     </div>
+    <div id="emptyArea" style="display:none;text-align:center;padding:60px;color:#6b7280;">月を選択してください</div>
   </main>
 
-  <footer>
-    Copyright © 2026 Toray Advanced Computer Solution, Inc.
-  </footer>
+  <footer>Copyright © 2026 Toray Advanced Computer Solution, Inc.</footer>
 
   <script>
-    const auth = localStorage.getItem('admin_auth');
-    if (!auth) {
-      window.location.href = '/admin';
-    }
-    const { username, password } = JSON.parse(auth);
-    const authHeader = 'Basic ' + btoa(username + ':' + password);
+    var auth = localStorage.getItem('admin_auth');
+    if (!auth) { window.location.href = '/admin'; }
+    var authData = JSON.parse(auth);
+    var authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(authData.username + ':' + authData.password)));
 
-    async function loadMonths() {
-      try {
-        const res = await fetch('/admin/api/logs/months', {
-          headers: { 'Authorization': authHeader }
+    function logout() { localStorage.removeItem('admin_auth'); window.location.href = '/admin'; }
+
+    function loadMonths() {
+      fetch('/admin/api/logs/months', { headers: { 'Authorization': authHeader } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var sel = document.getElementById('monthSelect');
+          (data.months || []).forEach(function(m) {
+            var opt = document.createElement('option');
+            opt.value = m; opt.textContent = m;
+            sel.appendChild(opt);
+          });
+          if (data.months && data.months.length > 0) {
+            sel.value = data.months[0];
+            loadSummary();
+          } else {
+            document.getElementById('loadingArea').style.display = 'none';
+            document.getElementById('emptyArea').style.display = '';
+          }
+        })
+        .catch(function() {
+          document.getElementById('loadingArea').innerHTML = '<p style="color:#ef4444;">読み込みに失敗しました。</p>';
         });
-        const data = await res.json();
-        const months = data.months || [];
-        
-        const select = document.getElementById('monthSelect');
-        select.innerHTML = '<option value="">選択してください...</option>';
-        months.forEach(month => {
-          select.innerHTML += `<option value="${month}">${month}</option>`;
+    }
+
+    function loadSummary() {
+      var month = document.getElementById('monthSelect').value;
+      if (!month) return;
+
+      document.getElementById('loadingArea').style.display = '';
+      document.getElementById('summaryArea').style.display = 'none';
+      document.getElementById('emptyArea').style.display = 'none';
+
+      fetch('/admin/api/logs/summary?month=' + encodeURIComponent(month), { headers: { 'Authorization': authHeader } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          renderDays(data.days || []);
+          renderQueries(data.top_queries || []);
+          document.getElementById('loadingArea').style.display = 'none';
+          document.getElementById('summaryArea').style.display = '';
         });
-      } catch (error) {
-        console.error('Failed to load months:', error);
-      }
     }
 
-    async function loadSummary() {
-      const month = document.getElementById('monthSelect').value;
-      if (!month) {
-        document.getElementById('summarySection').style.display = 'none';
-        return;
-      }
-
-      try {
-        const res = await fetch(`/admin/api/logs/summary?month=${month}`, {
-          headers: { 'Authorization': authHeader }
-        });
-        const data = await res.json();
-        
-        document.getElementById('totalCount').textContent = data.total_count || 0;
-        document.getElementById('uniqueCount').textContent = data.unique_queries || 0;
-        
-        // 日別データ
-        const daysBody = document.getElementById('daysBody');
-        daysBody.innerHTML = (data.days || []).map(day => `
-          <tr>
-            <td>${day.date}</td>
-            <td>${day.count}</td>
-          </tr>
-        `).join('');
-        
-        // 人気クエリ
-        const queriesBody = document.getElementById('queriesBody');
-        queriesBody.innerHTML = (data.top_queries || []).map((q, idx) => `
-          <tr>
-            <td style="text-align:center;">${idx + 1}</td>
-            <td>${escapeHtml(q.query)}</td>
-            <td>${q.count}</td>
-          </tr>
-        `).join('');
-        
-        document.getElementById('summarySection').style.display = 'block';
-      } catch (error) {
-        console.error('Failed to load summary:', error);
-        alert('データの取得に失敗しました');
-      }
+    function renderDays(days) {
+      var el = document.getElementById('dayTable');
+      if (days.length === 0) { el.innerHTML = '<p style="color:#6b7280;padding:16px;">データがありません</p>'; return; }
+      var total = days.reduce(function(s, d) { return s + d.count; }, 0);
+      var max = Math.max.apply(null, days.map(function(d) { return d.count; }));
+      var html = '<table><thead><tr><th>日付</th><th>件数</th></tr></thead><tbody>';
+      days.forEach(function(d) {
+        html += '<tr><td>' + esc(d.day) + '</td><td><b>' + d.count + '</b></td></tr>';
+      });
+      html += '<tr><td><b>合計</b></td><td><b>' + total + '</b></td></tr>';
+      html += '</tbody></table>';
+      el.innerHTML = html;
     }
 
-    function escapeHtml(s) {
-      return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    function renderQueries(queries) {
+      var el = document.getElementById('queryChart');
+      if (queries.length === 0) { el.innerHTML = '<p style="color:#6b7280;padding:16px;">データがありません</p>'; return; }
+      var max = queries[0].count;
+      var html = '';
+      queries.forEach(function(q) {
+        var pct = max > 0 ? (q.count / max * 100) : 0;
+        html +=
+          '<div class="bar-wrap">' +
+            '<div class="bar-label" title="' + esc(q.query) + '">' + esc(q.query) + '</div>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + pct.toFixed(1) + '%;"></div></div>' +
+            '<div class="bar-count">' + q.count + '</div>' +
+          '</div>';
+      });
+      el.innerHTML = html;
     }
 
-    function logout() {
-      localStorage.removeItem('admin_auth');
-      window.location.href = '/admin';
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
-    // 初期読み込み
     loadMonths();
   </script>
 </body>

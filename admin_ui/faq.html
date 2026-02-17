@@ -2,966 +2,408 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FAQ編集 - ACS FAQ Manager</title>
   <style>
+    :root {
+      --brand: #0066cc; --brand-dark: #004fa3; --brand-light: #e8f0fb;
+      --bg: #f6f7fb; --white: #fff; --text: #111827; --text-muted: #6b7280;
+      --border: #e5e7eb; --danger: #ef4444; --success: #10b981;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
-      background: #f6f7fb;
-      color: #111827;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      display: flex; flex-direction: column; font-size: 14px;
     }
-    
     header {
-      background: #001529;
-      color: #fff;
-      padding: 16px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      background: #001529; color: #fff; padding: 0 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); gap: 12px;
     }
-    
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    
-    .logo { font-size: 24px; }
-    
-    .header-title {
-      font-size: 18px;
-      font-weight: 700;
-    }
-    
-    .header-right {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-    
-    nav {
-      display: flex;
-      gap: 20px;
-    }
-    
-    nav a {
-      color: rgba(255,255,255,0.85);
-      text-decoration: none;
-      padding: 8px 12px;
-      border-radius: 6px;
-      transition: all 0.3s;
-    }
-    
-    nav a:hover, nav a.active {
-      background: rgba(255,255,255,0.1);
-      color: white;
-    }
-    
-    .btn-logout {
-      background: none;
-      border: none;
-      color: rgba(255,255,255,0.85);
-      cursor: pointer;
-      padding: 8px 12px;
-      font-size: 14px;
-      border-radius: 6px;
-    }
-    
-    .btn-logout:hover {
-      background: rgba(255,255,255,0.1);
-      color: white;
-    }
-    
-    main {
-      flex: 1;
-      max-width: 1400px;
-      margin: 0 auto;
-      width: 100%;
-      padding: 24px;
-    }
-    
-    .page-title {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 24px;
-    }
-    
-    .usage-info {
-      background: #e6f7ff;
-      border: 1px solid #91d5ff;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 24px;
-    }
-    
-    .usage-title {
-      font-weight: 700;
-      font-size: 16px;
-      color: #0050b3;
-      margin-bottom: 12px;
-    }
-    
-    .usage-content {
-      font-size: 14px;
-      line-height: 1.8;
-      color: #002766;
-    }
-    
-    .usage-content strong {
-      display: block;
-      margin-top: 12px;
-      margin-bottom: 4px;
-    }
-    
-    .usage-content ul {
-      margin-left: 20px;
-      margin-top: 8px;
-    }
-    
+    .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .header-title { font-size: 16px; font-weight: 700; }
+    nav { display: flex; gap: 4px; overflow-x: auto; }
+    nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 13px; white-space: nowrap; transition: all 0.2s; }
+    nav a:hover, nav a.active { background: rgba(255,255,255,0.12); color: #fff; }
+    .btn-logout { background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer; padding: 7px 12px; font-size: 13px; border-radius: 6px; font-family: inherit; white-space: nowrap; }
+    .btn-logout:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+    main { flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; padding: 24px; }
+
     .toolbar {
-      background: white;
-      padding: 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
+      display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
     }
-    
-    .search-input {
-      flex: 1;
-      min-width: 250px;
-      padding: 10px 12px;
-      border: 1px solid #d9d9d9;
-      border-radius: 6px;
-      font-size: 14px;
+    .toolbar-title { font-size: 20px; font-weight: 700; flex: 1; }
+    .search-box {
+      padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; font-family: inherit; outline: none; min-width: 200px;
     }
-    
-    .select {
-      padding: 10px 12px;
-      border: 1px solid #d9d9d9;
-      border-radius: 6px;
-      font-size: 14px;
-      min-width: 180px;
+    .search-box:focus { border-color: var(--brand); }
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.2s; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { opacity: 0.85; }
+    .btn-outline { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--brand); color: var(--brand); }
+
+    .card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: hidden; }
+
+    table { width: 100%; border-collapse: collapse; }
+    thead { background: var(--bg); }
+    th { padding: 11px 14px; text-align: left; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-brand { background: var(--brand-light); color: var(--brand); }
+
+    .action-btns { display: flex; gap: 6px; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+    .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000;
+      display: none; align-items: flex-start; justify-content: center;
+      padding: 40px 16px; overflow-y: auto; backdrop-filter: blur(2px);
     }
-    
-    .btn {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 12px; width: 100%; max-width: 600px;
+      margin: auto; box-shadow: var(--shadow-md); animation: modalIn 0.2s ease;
     }
-    
-    .btn-primary {
-      background: #1890ff;
-      color: white;
+    @keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 17px; font-weight: 700; }
+    .modal-close { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
+    .modal-close:hover { background: var(--bg); }
+    .modal-body { padding: 20px 24px; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-input, .form-textarea, .form-select {
+      width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+      font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s;
     }
-    
-    .btn-primary:hover {
-      background: #40a9ff;
+    .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--brand); }
+    .form-textarea { resize: vertical; min-height: 100px; }
+    .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+      background: var(--text); color: #fff; border-radius: 8px; font-size: 13px;
+      z-index: 9999; opacity: 0; transform: translateY(8px); transition: all 0.3s;
+      max-width: 300px;
     }
-    
-    .btn-danger {
-      background: #ff4d4f;
-      color: white;
-    }
-    
-    .btn-danger:hover {
-      background: #ff7875;
-    }
-    
-    .table-container {
-      background: white;
-      border-radius: 8px;
-      overflow: hidden;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    
-    th {
-      background: #fafafa;
-      padding: 14px 16px;
-      text-align: left;
-      font-weight: 600;
-      border-bottom: 2px solid #f0f0f0;
-      white-space: nowrap;
-    }
-    
-    td {
-      padding: 14px 16px;
-      border-bottom: 1px solid #f0f0f0;
-    }
-    
-    tr:hover {
-      background: #fafafa;
-    }
-    
-    .tag {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      margin-right: 6px;
-      margin-bottom: 4px;
-      background: #e6f7ff;
-      color: #0050b3;
-    }
-    
-    .btn-link {
-      background: none;
-      border: none;
-      color: #1890ff;
-      cursor: pointer;
-      padding: 4px 8px;
-      font-size: 14px;
-      text-decoration: none;
-    }
-    
-    .btn-link:hover {
-      text-decoration: underline;
-    }
-    
-    .btn-link.danger {
-      color: #ff4d4f;
-    }
-    
-    .modal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .modal.show {
-      display: flex;
-    }
-    
-    .modal-content {
-      background: white;
-      border-radius: 12px;
-      width: 90%;
-      max-width: 800px;
-      max-height: 90vh;
-      overflow: auto;
-    }
-    
-    .modal-header {
-      padding: 20px 24px;
-      border-bottom: 1px solid #f0f0f0;
-      font-size: 18px;
-      font-weight: 700;
-    }
-    
-    .modal-body {
-      padding: 24px;
-    }
-    
-    .modal-footer {
-      padding: 16px 24px;
-      border-top: 1px solid #f0f0f0;
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-    }
-    
-    .form-group {
-      margin-bottom: 20px;
-    }
-    
-    .form-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      font-weight: 600;
-      font-size: 14px;
-    }
-    
-    .info-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      background: #1890ff;
-      color: white;
-      border-radius: 50%;
-      font-size: 12px;
-      font-weight: 700;
-      cursor: help;
-      position: relative;
-    }
-    
-    .info-icon:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 125%;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 8px 12px;
-      background: #1f2937;
-      color: white;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 400;
-      white-space: nowrap;
-      z-index: 1000;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-    }
-    
-    .info-icon:hover::before {
-      content: '';
-      position: absolute;
-      bottom: 115%;
-      left: 50%;
-      transform: translateX(-50%);
-      border: 6px solid transparent;
-      border-top-color: #1f2937;
-      z-index: 1000;
-    }
-    
-    .form-input {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d9d9d9;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    
-    .form-input:focus {
-      outline: none;
-      border-color: #40a9ff;
-      box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
-    }
-    
-    .form-textarea {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d9d9d9;
-      border-radius: 6px;
-      font-size: 14px;
-      min-height: 100px;
-      resize: vertical;
-    }
-    
-    .form-textarea:focus {
-      outline: none;
-      border-color: #40a9ff;
-      box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
-    }
-    
-    .keyword-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    
-    .keyword-tag {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      background: #f0f0f0;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    
-    .keyword-tag button {
-      background: none;
-      border: none;
-      color: #999;
-      cursor: pointer;
-      font-size: 16px;
-      line-height: 1;
-    }
-    
-    .steps-list {
-      margin-bottom: 8px;
-    }
-    
-    .step-item {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    
-    .step-number {
-      min-width: 30px;
-      padding: 8px 0;
-      text-align: center;
-      font-weight: 600;
-      color: #666;
-    }
-    
-    .step-input {
-      flex: 1;
-      padding: 8px 12px;
-      border: 1px solid #d9d9d9;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    
-    .step-remove {
-      padding: 8px 12px;
-      background: #ff4d4f;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .btn-add-step {
-      width: 100%;
-      padding: 8px;
-      background: #f0f0f0;
-      border: 1px dashed #d9d9d9;
-      border-radius: 6px;
-      color: #666;
-      cursor: pointer;
-      font-size: 14px;
-    }
-    
-    .btn-add-step:hover {
-      background: #e0e0e0;
-      border-color: #999;
-    }
-    
-    .pagination {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 16px;
-      background: white;
-      border-top: 1px solid #f0f0f0;
-    }
-    
-    footer {
-      background: white;
-      border-top: 1px solid #e5e7eb;
-      padding: 20px 24px;
-      text-align: center;
-      color: #6b7280;
-      font-size: 14px;
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { background: var(--success); }
+    .toast.error { background: var(--danger); }
+
+    footer { background: var(--white); border-top: 1px solid var(--border); padding: 16px 24px; text-align: center; color: var(--text-muted); font-size: 12px; }
+
+    @media (max-width: 600px) {
+      header { padding: 0 12px; }
+      .header-title { display: none; }
+      main { padding: 16px 12px; }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      th:nth-child(3), td:nth-child(3) { display: none; }
     }
   </style>
 </head>
 <body>
   <header>
     <div class="header-left">
-      <span class="logo">🏢</span>
+      <span style="font-size:20px;">🏢</span>
       <span class="header-title">ACS FAQ Manager</span>
     </div>
-    <div class="header-right">
-      <nav>
-        <a href="/admin/dashboard.html">ダッシュボード</a>
-        <a href="/admin/videos.html">動画データ</a>
-        <a href="/admin/synonyms.html">Synonyms編集</a>
-        <a href="/admin/faq.html" class="active">FAQ編集</a>
-        <a href="/admin/logs.html">ログ閲覧</a>
-      </nav>
-      <button class="btn-logout" onclick="logout()">ログアウト</button>
-    </div>
+    <nav>
+      <a href="/admin/dashboard">ダッシュボード</a>
+      <a href="/admin/videos">動画データ</a>
+      <a href="/admin/synonyms">同義語</a>
+      <a href="/admin/faq" class="active">FAQ編集</a>
+      <a href="/admin/logs">ログ閲覧</a>
+    </nav>
+    <button class="btn-logout" onclick="logout()">ログアウト</button>
   </header>
 
   <main>
-    <h1 class="page-title">FAQ編集</h1>
-
-    <div class="usage-info">
-      <div class="usage-title">📘 faq_chatbot_fixed_only.json - FAQデータファイル</div>
-      <div class="usage-content">
-        <strong>【用途】</strong>
-        <p>
-          チャットボットが応答するFAQ(よくある質問)の質問と回答のペアを管理します。
-          Intent(意図)ごとに質問パターンと回答を定義し、ユーザーからの問い合わせに自動応答します。
-        </p>
-        <strong>【データ構造】</strong>
-        <ul>
-          <li>ID: 一意の識別子</li>
-          <li>Category: FAQ分類 (例: ログイン, 操作方法)</li>
-          <li>Intent: ユーザーの意図 (例: password_reset)</li>
-          <li>Questions: 質問のバリエーション</li>
-          <li>Answer: 回答文</li>
-        </ul>
-      </div>
-    </div>
-
     <div class="toolbar">
-      <input type="text" id="searchInput" class="search-input" placeholder="🔍 検索..." />
-      <select id="categoryFilter" class="select">
-        <option value="">すべてのカテゴリ</option>
-      </select>
-      <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規作成</button>
-      <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
-        🗑️ 選択したN件を削除
-      </button>
+      <div class="toolbar-title">📝 FAQ編集</div>
+      <input type="search" id="searchBox" class="search-box" placeholder="キーワードで絞り込み..." oninput="filterFaq()" />
+      <button class="btn btn-primary" onclick="openCreateModal()">＋ 新規作成</button>
     </div>
 
-    <div class="table-container">
-      <table>
+    <div class="card">
+      <div id="loadingArea" class="loading"><div class="spinner"></div></div>
+      <table id="faqTable" style="display:none;">
         <thead>
           <tr>
-            <th style="width: 40px;">
-              <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
-            </th>
-            <th style="width: 100px;">ID</th>
-            <th style="width: 150px;">カテゴリ</th>
+            <th>ID</th>
+            <th>カテゴリ</th>
             <th>質問</th>
-            <th style="width: 200px;">キーワード</th>
-            <th style="width: 150px;">操作</th>
+            <th style="width:140px;">操作</th>
           </tr>
         </thead>
-        <tbody id="tableBody">
-          <tr><td colspan="6" style="text-align:center;padding:40px;">読み込み中...</td></tr>
-        </tbody>
+        <tbody id="faqTbody"></tbody>
       </table>
-      <div class="pagination">
-        <button class="btn" onclick="prevPage()" id="prevBtn">← 前の20件</button>
-        <span id="pageInfo">1-20件</span>
-        <button class="btn" onclick="nextPage()" id="nextBtn">次の20件 →</button>
-      </div>
     </div>
   </main>
 
-  <footer>
-    Copyright © 2026 Toray Advanced Computer Solution, Inc.
-  </footer>
-
-  <!-- モーダル -->
-  <div id="modal" class="modal" onclick="closeModal(event)">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header" id="modalTitle">FAQ編集</div>
+  <!-- 編集/作成モーダル -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">FAQ作成</div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
       <div class="modal-body">
-        <form id="faqForm">
-          <div class="form-group">
-            <label class="form-label">
-              <span>ID</span>
-              <span class="info-icon" data-tooltip="一意の識別子。重複不可。例: faq_001">ⓘ</span>
-            </label>
-            <input type="text" id="faqId" class="form-input" required />
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <span>カテゴリ</span>
-              <span class="info-icon" data-tooltip="FAQの分類。検索・フィルタリングに使用。例: ログイン">ⓘ</span>
-            </label>
-            <input type="text" id="faqCategory" class="form-input" required />
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <span>Intent</span>
-              <span class="info-icon" data-tooltip="ユーザーの意図。チャットボットのマッチングに使用。例: password_reset">ⓘ</span>
-            </label>
-            <input type="text" id="faqIntent" class="form-input" />
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <span>質問</span>
-              <span class="info-icon" data-tooltip="メインの質問文。ユーザーが尋ねる代表的な質問">ⓘ</span>
-            </label>
-            <input type="text" id="faqQuestion" class="form-input" required />
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <span>キーワード</span>
-              <span class="info-icon" data-tooltip="検索用キーワード。複数設定可能">ⓘ</span>
-            </label>
-            <div id="keywordTags" class="keyword-tags"></div>
-            <input 
-              type="text" 
-              id="keywordInput" 
-              class="form-input" 
-              placeholder="キーワードを入力してEnter"
-              onkeydown="handleKeywordInput(event)"
-            />
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">
-              <span>手順</span>
-              <span class="info-icon" data-tooltip="回答の手順。番号付きで表示されます">ⓘ</span>
-            </label>
-            <div id="stepsList" class="steps-list"></div>
-            <button type="button" class="btn-add-step" onclick="addStep()">➕ 手順を追加</button>
-          </div>
-        </form>
+        <div class="form-group">
+          <label class="form-label">ID</label>
+          <input type="text" id="fieldId" class="form-input" placeholder="FAQ-0001" />
+          <div class="form-hint">新規作成時のみ設定可能</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">カテゴリ</label>
+          <input type="text" id="fieldCategory" class="form-input" placeholder="起動・画面" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">質問</label>
+          <input type="text" id="fieldQuestion" class="form-input" placeholder="質問内容を入力" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">手順（1行1ステップ）</label>
+          <textarea id="fieldSteps" class="form-textarea" placeholder="手順1&#10;手順2&#10;手順3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">キーワード（カンマ区切り）</label>
+          <input type="text" id="fieldKeywords" class="form-input" placeholder="キーワード1, キーワード2" />
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal()">キャンセル</button>
-        <button class="btn btn-primary" onclick="saveFAQ()">保存</button>
+        <button class="btn btn-outline" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveFaq()">保存</button>
       </div>
     </div>
   </div>
 
+  <!-- 削除確認モーダル -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">削除の確認</div>
+        <button class="modal-close" onclick="closeDeleteModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteConfirmMsg" style="font-size:14px;line-height:1.6;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeDeleteModal()">キャンセル</button>
+        <button class="btn btn-danger" onclick="confirmDelete()">削除する</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <footer>Copyright © 2026 Toray Advanced Computer Solution, Inc.</footer>
+
   <script>
-    const auth = localStorage.getItem('admin_auth');
-    if (!auth) {
-      window.location.href = '/admin';
+    var auth = localStorage.getItem('admin_auth');
+    if (!auth) { window.location.href = '/admin'; }
+    var authData = JSON.parse(auth);
+    var authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(authData.username + ':' + authData.password)));
+
+    var allItems = [];
+    var editingId = null;
+    var deletingId = null;
+
+    function logout() { localStorage.removeItem('admin_auth'); window.location.href = '/admin'; }
+
+    function getHeaders() {
+      return { 'Authorization': authHeader, 'Content-Type': 'application/json' };
     }
-    const { username, password } = JSON.parse(auth);
-    const authHeader = 'Basic ' + btoa(username + ':' + password);
 
-    let allItems = [];
-    let filteredItems = [];
-    let currentPage = 0;
-    const pageSize = 20;
-    let editingId = null;
-    let selectedIds = new Set();
-    let currentKeywords = [];
-    let currentSteps = [];
-
-    async function loadFAQ() {
-      try {
-        const res = await fetch('/admin/api/faq/items?limit=1000', {
-          headers: { 'Authorization': authHeader }
+    // 読み込み
+    function loadFaq() {
+      fetch('/admin/api/faq/items?limit=1000', { headers: { 'Authorization': authHeader } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          allItems = data.items || [];
+          renderTable(allItems);
+          document.getElementById('loadingArea').style.display = 'none';
+          document.getElementById('faqTable').style.display = '';
+        })
+        .catch(function() {
+          document.getElementById('loadingArea').innerHTML = '<p style="color:#ef4444;padding:24px;">データの読み込みに失敗しました。</p>';
         });
-        const data = await res.json();
-        allItems = data.items || [];
-        
-        // カテゴリ一覧を構築
-        const categories = [...new Set(allItems.map(item => item.category))];
-        const categoryFilter = document.getElementById('categoryFilter');
-        categoryFilter.innerHTML = '<option value="">すべてのカテゴリ</option>';
-        categories.forEach(cat => {
-          categoryFilter.innerHTML += `<option value="${cat}">${cat}</option>`;
-        });
-        
-        applyFilters();
-      } catch (error) {
-        alert('FAQ一覧の取得に失敗しました');
-        console.error(error);
-      }
     }
 
-    function applyFilters() {
-      const searchText = document.getElementById('searchInput').value.toLowerCase();
-      const category = document.getElementById('categoryFilter').value;
-      
-      filteredItems = allItems.filter(item => {
-        const matchSearch = !searchText || 
-          item.question?.toLowerCase().includes(searchText) ||
-          item.category?.toLowerCase().includes(searchText) ||
-          item.keywords?.some(kw => kw.toLowerCase().includes(searchText));
-        
-        const matchCategory = !category || item.category === category;
-        
-        return matchSearch && matchCategory;
-      });
-      
-      currentPage = 0;
-      renderTable();
-    }
-
-    function renderTable() {
-      const start = currentPage * pageSize;
-      const end = start + pageSize;
-      const pageItems = filteredItems.slice(start, end);
-      
-      const tbody = document.getElementById('tableBody');
-      if (pageItems.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">該当するFAQがありません</td></tr>';
-      } else {
-        tbody.innerHTML = pageItems.map(item => `
-          <tr>
-            <td>
-              <input type="checkbox" ${selectedIds.has(item.id) ? 'checked' : ''} 
-                     onchange="toggleSelect('${item.id}')" />
-            </td>
-            <td>${escapeHtml(item.id)}</td>
-            <td><span class="tag">${escapeHtml(item.category || '')}</span></td>
-            <td>${escapeHtml(item.question || '')}</td>
-            <td>
-              ${(item.keywords || []).slice(0, 3).map(kw => `<span class="tag">${escapeHtml(kw)}</span>`).join('')}
-            </td>
-            <td>
-              <button class="btn-link" onclick='editFAQ(${JSON.stringify(item).replace(/'/g, "&apos;")})'>
-                ✏️ 編集
-              </button>
-              <button class="btn-link danger" onclick="deleteFAQ('${item.id}')">
-                🗑️ 削除
-              </button>
-            </td>
-          </tr>
-        `).join('');
-      }
-      
-      // ページネーション情報
-      document.getElementById('pageInfo').textContent = 
-        pageItems.length > 0 ? `${start + 1}-${start + pageItems.length}件 / 全${filteredItems.length}件` : '0件';
-      
-      document.getElementById('prevBtn').disabled = currentPage === 0;
-      document.getElementById('nextBtn').disabled = end >= filteredItems.length;
-      
-      updateBulkDeleteButton();
-    }
-
-    function escapeHtml(s) {
-      return String(s || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    function toggleSelectAll() {
-      const checked = document.getElementById('selectAll').checked;
-      const start = currentPage * pageSize;
-      const end = start + pageSize;
-      const pageItems = filteredItems.slice(start, end);
-      
-      pageItems.forEach(item => {
-        if (checked) {
-          selectedIds.add(item.id);
-        } else {
-          selectedIds.delete(item.id);
-        }
-      });
-      
-      renderTable();
-    }
-
-    function toggleSelect(id) {
-      if (selectedIds.has(id)) {
-        selectedIds.delete(id);
-      } else {
-        selectedIds.add(id);
-      }
-      updateBulkDeleteButton();
-    }
-
-    function updateBulkDeleteButton() {
-      const btn = document.getElementById('bulkDeleteBtn');
-      if (selectedIds.size > 0) {
-        btn.style.display = 'block';
-        btn.textContent = `🗑️ 選択した${selectedIds.size}件を削除`;
-      } else {
-        btn.style.display = 'none';
-      }
-    }
-
-    function prevPage() {
-      if (currentPage > 0) {
-        currentPage--;
-        renderTable();
-      }
-    }
-
-    function nextPage() {
-      const maxPage = Math.ceil(filteredItems.length / pageSize) - 1;
-      if (currentPage < maxPage) {
-        currentPage++;
-        renderTable();
-      }
-    }
-
-    function openCreateModal() {
-      editingId = null;
-      currentKeywords = [];
-      currentSteps = [];
-      document.getElementById('modalTitle').textContent = 'FAQ新規作成';
-      document.getElementById('faqForm').reset();
-      document.getElementById('faqId').disabled = false;
-      renderKeywordTags();
-      renderSteps();
-      document.getElementById('modal').classList.add('show');
-    }
-
-    function editFAQ(item) {
-      editingId = item.id;
-      currentKeywords = item.keywords || [];
-      currentSteps = item.steps || [];
-      document.getElementById('modalTitle').textContent = 'FAQ編集';
-      document.getElementById('faqId').value = item.id;
-      document.getElementById('faqId').disabled = true;
-      document.getElementById('faqCategory').value = item.category || '';
-      document.getElementById('faqIntent').value = item.intent || '';
-      document.getElementById('faqQuestion').value = item.question || '';
-      renderKeywordTags();
-      renderSteps();
-      document.getElementById('modal').classList.add('show');
-    }
-
-    function renderKeywordTags() {
-      const container = document.getElementById('keywordTags');
-      container.innerHTML = currentKeywords.map((kw, idx) => `
-        <div class="keyword-tag">
-          <span>${escapeHtml(kw)}</span>
-          <button onclick="removeKeyword(${idx})" type="button">×</button>
-        </div>
-      `).join('');
-    }
-
-    function handleKeywordInput(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const value = e.target.value.trim();
-        if (value && !currentKeywords.includes(value)) {
-          currentKeywords.push(value);
-          e.target.value = '';
-          renderKeywordTags();
-        }
-      }
-    }
-
-    function removeKeyword(idx) {
-      currentKeywords.splice(idx, 1);
-      renderKeywordTags();
-    }
-
-    function renderSteps() {
-      const container = document.getElementById('stepsList');
-      container.innerHTML = currentSteps.map((step, idx) => `
-        <div class="step-item">
-          <div class="step-number">${idx + 1}</div>
-          <input 
-            type="text" 
-            class="step-input" 
-            value="${escapeHtml(step)}"
-            onchange="updateStep(${idx}, this.value)"
-          />
-          <button type="button" class="step-remove" onclick="removeStep(${idx})">×</button>
-        </div>
-      `).join('');
-    }
-
-    function addStep() {
-      currentSteps.push('');
-      renderSteps();
-    }
-
-    function updateStep(idx, value) {
-      currentSteps[idx] = value;
-    }
-
-    function removeStep(idx) {
-      currentSteps.splice(idx, 1);
-      renderSteps();
-    }
-
-    function closeModal(event) {
-      if (!event || event.target.id === 'modal') {
-        document.getElementById('modal').classList.remove('show');
-      }
-    }
-
-    async function saveFAQ() {
-      const id = document.getElementById('faqId').value.trim();
-      const category = document.getElementById('faqCategory').value.trim();
-      const intent = document.getElementById('faqIntent').value.trim();
-      const question = document.getElementById('faqQuestion').value.trim();
-      
-      if (!id || !category || !question) {
-        alert('ID、カテゴリ、質問は必須項目です');
+    function renderTable(items) {
+      var tbody = document.getElementById('faqTbody');
+      tbody.innerHTML = '';
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:#6b7280;">FAQがありません。</td></tr>';
         return;
       }
-      
-      const data = {
-        id,
-        category,
-        intent,
-        question,
-        keywords: currentKeywords.filter(Boolean),
-        steps: currentSteps.filter(Boolean)
-      };
-      
-      try {
-        const url = editingId 
-          ? `/admin/api/faq/item/${editingId}`
-          : '/admin/api/faq/item';
-        
-        const res = await fetch(url, {
-          method: editingId ? 'PATCH' : 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(data)
-        });
-        
-        if (!res.ok) throw new Error('保存に失敗しました');
-        
-        alert(editingId ? '更新しました' : '作成しました');
+      items.forEach(function(item) {
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td><code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px;">' + esc(item.id || '') + '</code></td>' +
+          '<td><span class="badge badge-brand">' + esc(item.category || '') + '</span></td>' +
+          '<td style="max-width:400px;">' + esc(item.question || '') + '</td>' +
+          '<td><div class="action-btns">' +
+            '<button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + esc(item.id) + '\')">編集</button>' +
+            '<button class="btn btn-danger btn-sm" onclick="openDeleteModal(\'' + esc(item.id) + '\',\'' + esc(item.question || '') + '\')">削除</button>' +
+          '</div></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterFaq() {
+      var q = document.getElementById('searchBox').value.toLowerCase();
+      if (!q) { renderTable(allItems); return; }
+      var filtered = allItems.filter(function(item) {
+        return (item.question || '').toLowerCase().indexOf(q) !== -1 ||
+               (item.category || '').toLowerCase().indexOf(q) !== -1 ||
+               (item.id || '').toLowerCase().indexOf(q) !== -1;
+      });
+      renderTable(filtered);
+    }
+
+    // 作成モーダル
+    function openCreateModal() {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = 'FAQ新規作成';
+      document.getElementById('fieldId').value = '';
+      document.getElementById('fieldId').disabled = false;
+      document.getElementById('fieldCategory').value = '';
+      document.getElementById('fieldQuestion').value = '';
+      document.getElementById('fieldSteps').value = '';
+      document.getElementById('fieldKeywords').value = '';
+      document.getElementById('editModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function openEditModal(id) {
+      var item = allItems.find(function(i) { return i.id === id; });
+      if (!item) return;
+      editingId = id;
+      document.getElementById('modalTitle').textContent = 'FAQ編集';
+      document.getElementById('fieldId').value = item.id || '';
+      document.getElementById('fieldId').disabled = true;
+      document.getElementById('fieldCategory').value = item.category || '';
+      document.getElementById('fieldQuestion').value = item.question || '';
+      document.getElementById('fieldSteps').value = (item.steps || []).join('\n');
+      document.getElementById('fieldKeywords').value = (item.keywords || []).join(', ');
+      document.getElementById('editModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+      document.getElementById('editModal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function saveFaq() {
+      var id = document.getElementById('fieldId').value.trim();
+      var category = document.getElementById('fieldCategory').value.trim();
+      var question = document.getElementById('fieldQuestion').value.trim();
+      var stepsRaw = document.getElementById('fieldSteps').value;
+      var steps = stepsRaw.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+      var kwRaw = document.getElementById('fieldKeywords').value;
+      var keywords = kwRaw.split(',').map(function(k) { return k.trim(); }).filter(Boolean);
+
+      if (!id || !question) { showToast('IDと質問は必須です', 'error'); return; }
+
+      var itemData = { id: id, category: category, question: question, steps: steps, keywords: keywords, utterances: [question] };
+
+      var url, method;
+      if (editingId) {
+        url = '/admin/api/faq/item/' + encodeURIComponent(editingId);
+        method = 'PATCH';
+      } else {
+        url = '/admin/api/faq/item';
+        method = 'POST';
+      }
+
+      document.getElementById('saveBtn').textContent = '保存中...';
+      document.getElementById('saveBtn').disabled = true;
+
+      fetch(url, {
+        method: method,
+        headers: getHeaders(),
+        body: JSON.stringify(itemData)
+      })
+      .then(function(r) {
+        if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || 'エラー'); });
+        return r.json();
+      })
+      .then(function() {
         closeModal();
-        loadFAQ();
-      } catch (error) {
-        alert('保存に失敗しました: ' + error.message);
-        console.error(error);
-      }
+        showToast(editingId ? '更新しました' : '作成しました', 'success');
+        loadFaq();
+      })
+      .catch(function(e) {
+        showToast('保存失敗: ' + e.message, 'error');
+      })
+      .finally(function() {
+        document.getElementById('saveBtn').textContent = '保存';
+        document.getElementById('saveBtn').disabled = false;
+      });
     }
 
-    async function deleteFAQ(id) {
-      if (!confirm('このFAQを削除しますか？')) return;
-      
-      try {
-        const res = await fetch(`/admin/api/faq/item/${id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': authHeader }
-        });
-        
-        if (!res.ok) throw new Error('削除に失敗しました');
-        
-        alert('削除しました');
-        loadFAQ();
-      } catch (error) {
-        alert('削除に失敗しました: ' + error.message);
-        console.error(error);
-      }
+    function openDeleteModal(id, question) {
+      deletingId = id;
+      document.getElementById('deleteConfirmMsg').textContent = '「' + question + '」を削除しますか？この操作は元に戻せません。';
+      document.getElementById('deleteModal').classList.add('active');
+      document.body.style.overflow = 'hidden';
     }
 
-    async function bulkDelete() {
-      if (!confirm(`選択した${selectedIds.size}件を削除しますか？\nこの操作は取り消せません。`)) return;
-      
-      try {
-        for (const id of selectedIds) {
-          await fetch(`/admin/api/faq/item/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': authHeader }
-          });
-        }
-        
-        alert('削除しました');
-        selectedIds.clear();
-        loadFAQ();
-      } catch (error) {
-        alert('一部の削除に失敗しました');
-        console.error(error);
-      }
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').classList.remove('active');
+      document.body.style.overflow = '';
     }
 
-    function logout() {
-      localStorage.removeItem('admin_auth');
-      window.location.href = '/admin';
+    function confirmDelete() {
+      if (!deletingId) return;
+      fetch('/admin/api/faq/item/' + encodeURIComponent(deletingId), {
+        method: 'DELETE',
+        headers: { 'Authorization': authHeader }
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('削除失敗');
+        closeDeleteModal();
+        showToast('削除しました', 'success');
+        loadFaq();
+      })
+      .catch(function() { showToast('削除に失敗しました', 'error'); });
     }
 
-    // イベントリスナー
-    document.getElementById('searchInput').addEventListener('input', applyFilters);
-    document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+    function showToast(msg, type) {
+      var el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'toast show' + (type ? ' ' + type : '');
+      setTimeout(function() { el.className = 'toast'; }, 3000);
+    }
 
-    // 初期読み込み
-    loadFAQ();
+    function esc(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+    document.getElementById('deleteModal').addEventListener('click', function(e) { if (e.target === this) closeDeleteModal(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { closeModal(); closeDeleteModal(); } });
+
+    loadFaq();
   </script>
 </body>
 </html>

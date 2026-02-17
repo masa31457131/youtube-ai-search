@@ -1,8 +1,8 @@
 """
-最適化されたFastAPI サポート検索システム (Render.com対応版)
-- 起動時間削減 (lazy loading)
-- FAISS インデックス最適化
-- 既存の静的ファイル構成との互換性維持
+æœ€é©åŒ–ã•ã‚ŒãŸFastAPI ã‚µãƒãƒ¼ãƒˆæ¤œç´¢ã‚·ã‚¹ãƒ†ãƒ  (Render.comå¯¾å¿œç‰ˆ)
+- èµ·å‹•æ™‚é–“å‰Šæ¸› (lazy loading)
+- FAISS ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æœ€é©åŒ–
+- æ—¢å­˜ã®é™çš„ãƒ•ã‚¡ã‚¤ãƒ«æ§‹æˆã¨ã®äº’æ›æ€§ç¶­æŒ
 """
 
 from fastapi import FastAPI, Query, HTTPException, Depends, BackgroundTasks
@@ -28,10 +28,10 @@ from collections import Counter
 import unicodedata
 
 # ============================================
-# 設定
+# è¨­å®š
 # ============================================
 
-APP_TITLE = "サポート検索（動画 + FAQ）最適化版"
+APP_TITLE = "ã‚µãƒãƒ¼ãƒˆæ¤œç´¢ï¼ˆå‹•ç”» + FAQï¼‰æœ€é©åŒ–ç‰ˆ"
 DEFAULT_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 
@@ -39,7 +39,7 @@ DEFAULT_TOP_K = 10
 DEFAULT_PAGE_LIMIT = 10
 MAX_PAGE_LIMIT = 50
 
-# 管理者認証
+# ç®¡ç†è€…èªè¨¼
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "abc123")
 
@@ -49,18 +49,18 @@ SYNONYMS_PATH = BASE_DIR / "synonyms.json"
 FAQ_PATH = BASE_DIR / "faq_chatbot_fixed_only.json"
 SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
 
-# 静的ファイルパス
+# é™çš„ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
 frontend_path = BASE_DIR / "frontend"
 admin_path = BASE_DIR / "admin_ui"
 
 # ============================================
-# グローバル状態管理
+# ã‚°ãƒ­ãƒ¼ãƒãƒ«çŠ¶æ…‹ç®¡ç†
 # ============================================
 
 class AppState:
-    """アプリケーション状態の一元管理"""
+    """ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³çŠ¶æ…‹ã®ä¸€å…ƒç®¡ç†"""
     def __init__(self):
-        # 動画検索用
+        # å‹•ç”»æ¤œç´¢ç”¨
         self.videos: List[Dict[str, Any]] = []
         self.text_corpus: List[str] = []
         self.synonyms: Dict[str, List[str]] = {}
@@ -68,33 +68,33 @@ class AppState:
         self.video_index: Optional[faiss.Index] = None
         self.video_embeddings: Optional[np.ndarray] = None
         
-        # FAQ検索用
+        # FAQæ¤œç´¢ç”¨
         self.faq_data: Dict[str, Any] = {}
         self.faq_items_flat: List[Dict[str, Any]] = []
         self.faq_corpus: List[str] = []
         self.faq_index: Optional[faiss.Index] = None
         self.faq_embeddings: Optional[np.ndarray] = None
         
-        # 初期化状態
+        # åˆæœŸåŒ–çŠ¶æ…‹
         self.video_loaded = False
         self.faq_loaded = False
         self.model_loaded = False
         
     async def ensure_model_loaded(self):
-        """モデルの遅延ロード"""
+        """ãƒ¢ãƒ‡ãƒ«ã®é…å»¶ãƒ­ãƒ¼ãƒ‰"""
         if not self.model_loaded:
-            print(f"🔄 Loading model: {EMBEDDING_MODEL}")
+            print(f"ðŸ”„ Loading model: {EMBEDDING_MODEL}")
             self.model = SentenceTransformer(EMBEDDING_MODEL)
             self.model_loaded = True
-            print("✅ Model loaded")
+            print("âœ… Model loaded")
     
     async def ensure_video_loaded(self):
-        """動画データの遅延ロード"""
+        """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ã®é…å»¶ãƒ­ãƒ¼ãƒ‰"""
         if not self.video_loaded:
             await self.ensure_model_loaded()
-            print("🔄 Loading video data...")
+            print("ðŸ”„ Loading video data...")
             
-            # データ読み込み
+            # ãƒ‡ãƒ¼ã‚¿èª­ã¿è¾¼ã¿
             if DATA_PATH.exists():
                 with open(DATA_PATH, "r", encoding="utf-8") as f:
                     self.videos = json.load(f)
@@ -103,13 +103,13 @@ class AppState:
                 with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
                     self.synonyms = json.load(f)
             
-            # コーパス構築
+            # ã‚³ãƒ¼ãƒ‘ã‚¹æ§‹ç¯‰
             self.text_corpus = []
             for v in self.videos:
                 text = f"{v.get('title', '')} {v.get('description', '')} {v.get('transcript', '')}"
                 self.text_corpus.append(normalize_text(text))
             
-            # FAISS インデックス構築
+            # FAISS ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æ§‹ç¯‰
             if self.text_corpus:
                 self.video_embeddings = self.model.encode(
                     self.text_corpus, 
@@ -120,31 +120,31 @@ class AppState:
                 self.video_index = build_optimized_index(self.video_embeddings)
             
             self.video_loaded = True
-            print(f"✅ Video data loaded: {len(self.videos)} videos")
+            print(f"âœ… Video data loaded: {len(self.videos)} videos")
     
     async def ensure_faq_loaded(self):
-        """FAQデータの遅延ロード"""
+        """FAQãƒ‡ãƒ¼ã‚¿ã®é…å»¶ãƒ­ãƒ¼ãƒ‰"""
         if not self.faq_loaded:
             await self.ensure_model_loaded()
-            print("🔄 Loading FAQ data...")
+            print("ðŸ”„ Loading FAQ data...")
             
             if FAQ_PATH.exists():
                 with open(FAQ_PATH, "r", encoding="utf-8") as f:
                     self.faq_data = json.load(f)
             
-            # FAQ アイテムをフラット化
-            # 対応フォーマット:
-            #   A) {"faqs": [...], "meta": {...}}  ← faqs配列直接
-            #   B) {"カテゴリ名": [...], ...}       ← カテゴリ辞書
+            # FAQ ã‚¢ã‚¤ãƒ†ãƒ ã‚’ãƒ•ãƒ©ãƒƒãƒˆåŒ–
+            # å¯¾å¿œãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆ:
+            #   A) {"faqs": [...], "meta": {...}}  â† faqsé…åˆ—ç›´æŽ¥
+            #   B) {"ã‚«ãƒ†ã‚´ãƒªå": [...], ...}       â† ã‚«ãƒ†ã‚´ãƒªè¾žæ›¸
             self.faq_items_flat = []
 
-            # フォーマットA: "faqs" キーに配列が入っている場合
+            # ãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆA: "faqs" ã‚­ãƒ¼ã«é…åˆ—ãŒå…¥ã£ã¦ã„ã‚‹å ´åˆ
             if "faqs" in self.faq_data and isinstance(self.faq_data["faqs"], list):
                 for item in self.faq_data["faqs"]:
                     if isinstance(item, dict):
                         self.faq_items_flat.append(item)
             else:
-                # フォーマットB: カテゴリ辞書形式
+                # ãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆB: ã‚«ãƒ†ã‚´ãƒªè¾žæ›¸å½¢å¼
                 for category_key, items in self.faq_data.items():
                     if isinstance(items, list):
                         for item in items:
@@ -153,7 +153,7 @@ class AppState:
                                     item["category"] = category_key
                                 self.faq_items_flat.append(item)
             
-            # コーパス構築（question / utterances / steps / keywords を統合）
+            # ã‚³ãƒ¼ãƒ‘ã‚¹æ§‹ç¯‰ï¼ˆquestion / utterances / steps / keywords ã‚’çµ±åˆï¼‰
             self.faq_corpus = []
             for item in self.faq_items_flat:
                 text_parts = [
@@ -167,7 +167,7 @@ class AppState:
                 combined = " ".join(filter(None, text_parts))
                 self.faq_corpus.append(normalize_text(combined))
             
-            # FAISS インデックス構築
+            # FAISS ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æ§‹ç¯‰
             if self.faq_corpus:
                 self.faq_embeddings = self.model.encode(
                     self.faq_corpus,
@@ -178,17 +178,17 @@ class AppState:
                 self.faq_index = build_optimized_index(self.faq_embeddings)
             
             self.faq_loaded = True
-            print(f"✅ FAQ data loaded: {len(self.faq_items_flat)} items")
+            print(f"âœ… FAQ data loaded: {len(self.faq_items_flat)} items")
 
 state = AppState()
 
 # ============================================
-# ユーティリティ関数
+# ãƒ¦ãƒ¼ãƒ†ã‚£ãƒªãƒ†ã‚£é–¢æ•°
 # ============================================
 
 @lru_cache(maxsize=1000)
 def normalize_text(text: str) -> str:
-    """テキスト正規化（キャッシュ付き）"""
+    """ãƒ†ã‚­ã‚¹ãƒˆæ­£è¦åŒ–ï¼ˆã‚­ãƒ£ãƒƒã‚·ãƒ¥ä»˜ãï¼‰"""
     if not text:
         return ""
     text = unicodedata.normalize("NFKC", text)
@@ -197,7 +197,7 @@ def normalize_text(text: str) -> str:
     return text
 
 def expand_with_synonyms(query: str, synonyms: Dict[str, List[str]]) -> str:
-    """同義語展開（シンプル版）"""
+    """åŒç¾©èªžå±•é–‹ï¼ˆã‚·ãƒ³ãƒ—ãƒ«ç‰ˆï¼‰"""
     expanded_terms = [query]
     for term, syns in synonyms.items():
         if term.lower() in query.lower():
@@ -205,7 +205,7 @@ def expand_with_synonyms(query: str, synonyms: Dict[str, List[str]]) -> str:
     return " ".join(expanded_terms)
 
 def build_optimized_index(embeddings: np.ndarray) -> faiss.Index:
-    """最適化されたFAISSインデックス構築"""
+    """æœ€é©åŒ–ã•ã‚ŒãŸFAISSã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æ§‹ç¯‰"""
     n, dim = embeddings.shape
     
     if n <= 1000:
@@ -222,16 +222,16 @@ def build_optimized_index(embeddings: np.ndarray) -> faiss.Index:
     return index
 
 def log_search(query: str):
-    """検索ログ記録"""
+    """æ¤œç´¢ãƒ­ã‚°è¨˜éŒ²"""
     try:
         with open(SEARCH_LOG_PATH, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([datetime.now(timezone.utc).isoformat(), query])
     except Exception as e:
-        print(f"⚠️ Log write failed: {e}")
+        print(f"âš ï¸ Log write failed: {e}")
 
 def parse_logs() -> List[Dict[str, Any]]:
-    """ログパース（管理画面用）"""
+    """ãƒ­ã‚°ãƒ‘ãƒ¼ã‚¹ï¼ˆç®¡ç†ç”»é¢ç”¨ï¼‰"""
     if not SEARCH_LOG_PATH.exists():
         return []
     
@@ -249,13 +249,13 @@ def parse_logs() -> List[Dict[str, Any]]:
     return rows
 
 # ============================================
-# 認証
+# èªè¨¼
 # ============================================
 
 security = HTTPBasic()
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    """管理者認証"""
+    """ç®¡ç†è€…èªè¨¼"""
     correct_username = secrets.compare_digest(credentials.username, ADMIN_USER)
     correct_password = secrets.compare_digest(credentials.password, ADMIN_PASS)
     
@@ -268,29 +268,29 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
     return credentials.username
 
 # ============================================
-# Lifespan管理
+# Lifespanç®¡ç†
 # ============================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """起動時は最小限の初期化のみ"""
-    print("🚀 Application starting...")
+    """èµ·å‹•æ™‚ã¯æœ€å°é™ã®åˆæœŸåŒ–ã®ã¿"""
+    print("ðŸš€ Application starting...")
     
-    # ログファイル初期化
+    # ãƒ­ã‚°ãƒ•ã‚¡ã‚¤ãƒ«åˆæœŸåŒ–
     if not SEARCH_LOG_PATH.exists():
         with open(SEARCH_LOG_PATH, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["timestamp", "query"])
     
-    # ディレクトリ作成
+    # ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªä½œæˆ
     admin_path.mkdir(parents=True, exist_ok=True)
     
-    print("✅ Application ready (lazy loading enabled)")
+    print("âœ… Application ready (lazy loading enabled)")
     yield
-    print("🛑 Application shutting down...")
+    print("ðŸ›‘ Application shutting down...")
 
 # ============================================
-# FastAPI アプリケーション
+# FastAPI ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³
 # ============================================
 
 app = FastAPI(title=APP_TITLE, lifespan=lifespan)
@@ -304,12 +304,12 @@ app.add_middleware(
 )
 
 # ============================================
-# ヘルスチェック
+# ãƒ˜ãƒ«ã‚¹ãƒã‚§ãƒƒã‚¯
 # ============================================
 
 @app.get("/health")
 async def health_check():
-    """ヘルスチェック（Render.com用）"""
+    """ãƒ˜ãƒ«ã‚¹ãƒã‚§ãƒƒã‚¯ï¼ˆRender.comç”¨ï¼‰"""
     return {
         "status": "healthy",
         "model_loaded": state.model_loaded,
@@ -318,7 +318,7 @@ async def health_check():
     }
 
 # ============================================
-# 動画検索エンドポイント
+# å‹•ç”»æ¤œç´¢ã‚¨ãƒ³ãƒ‰ãƒã‚¤ãƒ³ãƒˆ
 # ============================================
 
 @app.get("/search")
@@ -328,7 +328,7 @@ async def search_videos(
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
     paged: int = Query(0)
 ):
-    """動画検索（ページング対応）"""
+    """å‹•ç”»æ¤œç´¢ï¼ˆãƒšãƒ¼ã‚¸ãƒ³ã‚°å¯¾å¿œï¼‰"""
     await state.ensure_video_loaded()
     
     if not state.video_index:
@@ -368,7 +368,7 @@ async def search_videos(
     return {"items": items}
 
 # ============================================
-# FAQ検索エンドポイント
+# FAQæ¤œç´¢ã‚¨ãƒ³ãƒ‰ãƒã‚¤ãƒ³ãƒˆ
 # ============================================
 
 @app.get("/faq/search")
@@ -378,7 +378,7 @@ async def search_faq(
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
     paged: int = Query(0)
 ):
-    """FAQ検索（ページング対応）"""
+    """FAQæ¤œç´¢ï¼ˆãƒšãƒ¼ã‚¸ãƒ³ã‚°å¯¾å¿œï¼‰"""
     await state.ensure_faq_loaded()
     
     if not state.faq_index:
@@ -387,7 +387,9 @@ async def search_faq(
     log_search(f"faq:{query}")
     
     normalized_query = normalize_text(query)
-    query_embedding = state.model.encode([normalized_query], convert_to_numpy=True)
+    # 同義語展開で検索精度向上（Bug#5対応）
+    expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
+    query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
     
     k = min(offset + limit + 50, len(state.faq_items_flat))
@@ -416,12 +418,12 @@ async def search_faq(
     return {"items": items}
 
 # ============================================
-# 管理API - データ編集
+# ç®¡ç†API - ãƒ‡ãƒ¼ã‚¿ç·¨é›†
 # ============================================
 
 @app.get("/admin/api/synonyms", dependencies=[Depends(verify_admin)])
 async def get_synonyms():
-    """同義語辞書取得"""
+    """åŒç¾©èªžè¾žæ›¸å–å¾—"""
     if SYNONYMS_PATH.exists():
         with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -429,7 +431,7 @@ async def get_synonyms():
 
 @app.put("/admin/api/synonyms", dependencies=[Depends(verify_admin)])
 async def update_synonyms(data: dict, background_tasks: BackgroundTasks):
-    """同義語辞書更新"""
+    """åŒç¾©èªžè¾žæ›¸æ›´æ–°"""
     with open(SYNONYMS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     
@@ -437,13 +439,13 @@ async def update_synonyms(data: dict, background_tasks: BackgroundTasks):
     return {"status": "ok", "count": len(data)}
 
 async def reload_video_data():
-    """動画データのリロード"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ã®ãƒªãƒ­ãƒ¼ãƒ‰"""
     state.video_loaded = False
     await state.ensure_video_loaded()
 
 @app.post("/admin/api/synonyms/generate", dependencies=[Depends(verify_admin)])
 async def generate_synonyms(background_tasks: BackgroundTasks):
-    """data.jsonから同義語を生成"""
+    """data.jsonã‹ã‚‰åŒç¾©èªžã‚’ç”Ÿæˆ"""
     await state.ensure_video_loaded()
     
     synonym_map = {}
@@ -451,7 +453,7 @@ async def generate_synonyms(background_tasks: BackgroundTasks):
         title = v.get("title", "")
         desc = v.get("description", "")
         
-        # タイトルから主要キーワード抽出（簡易版）
+        # ã‚¿ã‚¤ãƒˆãƒ«ã‹ã‚‰ä¸»è¦ã‚­ãƒ¼ãƒ¯ãƒ¼ãƒ‰æŠ½å‡ºï¼ˆç°¡æ˜“ç‰ˆï¼‰
         words = re.findall(r'[\w]+', title + " " + desc)
         for word in words:
             if len(word) > 2:
@@ -466,7 +468,7 @@ async def generate_synonyms(background_tasks: BackgroundTasks):
 
 @app.patch("/admin/api/synonyms/{term}", dependencies=[Depends(verify_admin)])
 async def update_synonym_term(term: str, values: List[str], background_tasks: BackgroundTasks):
-    """同義語の個別更新"""
+    """åŒç¾©èªžã®å€‹åˆ¥æ›´æ–°"""
     synonyms = {}
     if SYNONYMS_PATH.exists():
         with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
@@ -482,7 +484,7 @@ async def update_synonym_term(term: str, values: List[str], background_tasks: Ba
 
 @app.delete("/admin/api/synonyms/{term}", dependencies=[Depends(verify_admin)])
 async def delete_synonym_term(term: str, background_tasks: BackgroundTasks):
-    """同義語の個別削除"""
+    """åŒç¾©èªžã®å€‹åˆ¥å‰Šé™¤"""
     synonyms = {}
     if SYNONYMS_PATH.exists():
         with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
@@ -499,7 +501,7 @@ async def delete_synonym_term(term: str, background_tasks: BackgroundTasks):
 
 @app.get("/admin/api/faq", dependencies=[Depends(verify_admin)])
 async def get_faq():
-    """FAQ全体取得"""
+    """FAQå…¨ä½“å–å¾—"""
     if FAQ_PATH.exists():
         with open(FAQ_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -507,7 +509,7 @@ async def get_faq():
 
 @app.put("/admin/api/faq", dependencies=[Depends(verify_admin)])
 async def update_faq(data: dict, background_tasks: BackgroundTasks):
-    """FAQ全体更新"""
+    """FAQå…¨ä½“æ›´æ–°"""
     with open(FAQ_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     
@@ -515,17 +517,17 @@ async def update_faq(data: dict, background_tasks: BackgroundTasks):
     return {"status": "ok"}
 
 async def reload_faq_data():
-    """FAQデータのリロード"""
+    """FAQãƒ‡ãƒ¼ã‚¿ã®ãƒªãƒ­ãƒ¼ãƒ‰"""
     state.faq_loaded = False
     await state.ensure_faq_loaded()
 
 # ============================================
-# 管理API - FAQ個別編集
+# ç®¡ç†API - FAQå€‹åˆ¥ç·¨é›†
 # ============================================
 
 @app.get("/admin/api/faq/items", dependencies=[Depends(verify_admin)])
 async def list_faq_items(offset: int = 0, limit: int = 50, q: str = ""):
-    """FAQ一覧取得（検索・ページング対応）"""
+    """FAQä¸€è¦§å–å¾—ï¼ˆæ¤œç´¢ãƒ»ãƒšãƒ¼ã‚¸ãƒ³ã‚°å¯¾å¿œï¼‰"""
     await state.ensure_faq_loaded()
     
     items = state.faq_items_flat
@@ -546,7 +548,7 @@ async def list_faq_items(offset: int = 0, limit: int = 50, q: str = ""):
 
 @app.post("/admin/api/faq/item", dependencies=[Depends(verify_admin)])
 async def create_faq_item(item: dict, background_tasks: BackgroundTasks):
-    """FAQ新規作成"""
+    """FAQæ–°è¦ä½œæˆ"""
     faq_id = item.get("id")
     if not faq_id:
         raise HTTPException(400, "ID is required")
@@ -555,7 +557,7 @@ async def create_faq_item(item: dict, background_tasks: BackgroundTasks):
     if any(f.get("id") == faq_id for f in state.faq_items_flat):
         raise HTTPException(400, f"ID '{faq_id}' already exists")
     
-    category = item.get("category", "その他")
+    category = item.get("category", "ãã®ä»–")
     if category not in state.faq_data:
         state.faq_data[category] = []
     
@@ -569,19 +571,28 @@ async def create_faq_item(item: dict, background_tasks: BackgroundTasks):
 
 @app.patch("/admin/api/faq/item/{item_id}", dependencies=[Depends(verify_admin)])
 async def update_faq_item(item_id: str, item: dict, background_tasks: BackgroundTasks):
-    """FAQ更新"""
+    """FAQæ›´æ–°"""
     await state.ensure_faq_loaded()
     
     found = False
-    for category, items in state.faq_data.items():
-        if isinstance(items, list):
-            for i, existing in enumerate(items):
-                if existing.get("id") == item_id:
-                    state.faq_data[category][i] = item
-                    found = True
-                    break
-        if found:
-            break
+    # faqs配列形式（Bug#1修正）
+    if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        for i, existing in enumerate(state.faq_data["faqs"]):
+            if isinstance(existing, dict) and existing.get("id") == item_id:
+                state.faq_data["faqs"][i] = item
+                found = True
+                break
+    else:
+        # カテゴリ辞書形式（後方互換）
+        for category, items in state.faq_data.items():
+            if isinstance(items, list):
+                for i, existing in enumerate(items):
+                    if existing.get("id") == item_id:
+                        state.faq_data[category][i] = item
+                        found = True
+                        break
+            if found:
+                break
     
     if not found:
         raise HTTPException(404, f"FAQ item '{item_id}' not found")
@@ -594,19 +605,28 @@ async def update_faq_item(item_id: str, item: dict, background_tasks: Background
 
 @app.delete("/admin/api/faq/item/{item_id}", dependencies=[Depends(verify_admin)])
 async def delete_faq_item(item_id: str, background_tasks: BackgroundTasks):
-    """FAQ削除"""
+    """FAQå‰Šé™¤"""
     await state.ensure_faq_loaded()
     
     found = False
-    for category, items in state.faq_data.items():
-        if isinstance(items, list):
-            for i, existing in enumerate(items):
-                if existing.get("id") == item_id:
-                    del state.faq_data[category][i]
-                    found = True
-                    break
-        if found:
-            break
+    # faqs配列形式（Bug#1修正）
+    if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        for i, existing in enumerate(state.faq_data["faqs"]):
+            if isinstance(existing, dict) and existing.get("id") == item_id:
+                del state.faq_data["faqs"][i]
+                found = True
+                break
+    else:
+        # カテゴリ辞書形式（後方互換）
+        for category, items in state.faq_data.items():
+            if isinstance(items, list):
+                for i, existing in enumerate(items):
+                    if existing.get("id") == item_id:
+                        del state.faq_data[category][i]
+                        found = True
+                        break
+            if found:
+                break
     
     if not found:
         raise HTTPException(404, f"FAQ item '{item_id}' not found")
@@ -618,12 +638,12 @@ async def delete_faq_item(item_id: str, background_tasks: BackgroundTasks):
     return {"status": "deleted", "id": item_id}
 
 # ============================================
-# 管理API - 動画データ
+# ç®¡ç†API - å‹•ç”»ãƒ‡ãƒ¼ã‚¿
 # ============================================
 
 @app.get("/admin/api/videos", dependencies=[Depends(verify_admin)])
 async def get_videos():
-    """動画データ一覧取得"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ä¸€è¦§å–å¾—"""
     if not DATA_PATH.exists():
         return []
     
@@ -634,7 +654,7 @@ async def get_videos():
 
 @app.post("/admin/api/videos", dependencies=[Depends(verify_admin)])
 async def create_video(video_data: dict, background_tasks: BackgroundTasks):
-    """動画データ作成"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ä½œæˆ"""
     videos = []
     if DATA_PATH.exists():
         with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -650,7 +670,7 @@ async def create_video(video_data: dict, background_tasks: BackgroundTasks):
 
 @app.patch("/admin/api/videos/{video_id}", dependencies=[Depends(verify_admin)])
 async def update_video(video_id: str, video_data: dict, background_tasks: BackgroundTasks):
-    """動画データ更新"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿æ›´æ–°"""
     if not DATA_PATH.exists():
         raise HTTPException(404, "Data file not found")
     
@@ -675,7 +695,7 @@ async def update_video(video_id: str, video_data: dict, background_tasks: Backgr
 
 @app.delete("/admin/api/videos/{video_id}", dependencies=[Depends(verify_admin)])
 async def delete_video(video_id: str, background_tasks: BackgroundTasks):
-    """動画データ削除"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿å‰Šé™¤"""
     if not DATA_PATH.exists():
         raise HTTPException(404, "Data file not found")
     
@@ -700,7 +720,7 @@ async def delete_video(video_id: str, background_tasks: BackgroundTasks):
 
 @app.post("/admin/api/videos/bulk-delete", dependencies=[Depends(verify_admin)])
 async def bulk_delete_videos(request_data: dict, background_tasks: BackgroundTasks):
-    """動画データ一括削除"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ä¸€æ‹¬å‰Šé™¤"""
     video_ids = request_data.get("video_ids", [])
     
     if not video_ids:
@@ -712,10 +732,10 @@ async def bulk_delete_videos(request_data: dict, background_tasks: BackgroundTas
     with open(DATA_PATH, "r", encoding="utf-8") as f:
         videos = json.load(f)
     
-    # 削除対象以外を残す
+    # å‰Šé™¤å¯¾è±¡ä»¥å¤–ã‚’æ®‹ã™
     filtered_videos = [v for v in videos if v.get('video_id') not in video_ids]
     
-    # no番号を振り直し
+    # noç•ªå·ã‚’æŒ¯ã‚Šç›´ã—
     for i, video in enumerate(filtered_videos, 1):
         video['no'] = i
     
@@ -733,9 +753,9 @@ async def bulk_delete_videos(request_data: dict, background_tasks: BackgroundTas
 @app.post("/admin/api/videos/delete-all", dependencies=[Depends(verify_admin)])
 @app.delete("/admin/api/videos/all", dependencies=[Depends(verify_admin)])
 async def delete_all_videos(background_tasks: BackgroundTasks):
-    """data.json全削除（完全リセット）"""
+    """data.jsonå…¨å‰Šé™¤ï¼ˆå®Œå…¨ãƒªã‚»ãƒƒãƒˆï¼‰"""
     if not DATA_PATH.exists():
-        # data.jsonがない場合も空配列を作成
+        # data.jsonãŒãªã„å ´åˆã‚‚ç©ºé…åˆ—ã‚’ä½œæˆ
         with open(DATA_PATH, "w", encoding="utf-8") as f:
             json.dump([], f, ensure_ascii=False, indent=2)
         return {
@@ -743,7 +763,7 @@ async def delete_all_videos(background_tasks: BackgroundTasks):
             "message": "Data file created as empty array"
         }
     
-    # 空の配列で上書き
+    # ç©ºã®é…åˆ—ã§ä¸Šæ›¸ã
     with open(DATA_PATH, "w", encoding="utf-8") as f:
         json.dump([], f, ensure_ascii=False, indent=2)
     
@@ -756,7 +776,7 @@ async def delete_all_videos(background_tasks: BackgroundTasks):
 
 @app.post("/admin/api/videos/import", dependencies=[Depends(verify_admin)])
 async def import_videos(import_data: dict, background_tasks: BackgroundTasks):
-    """動画データインポート"""
+    """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ã‚¤ãƒ³ãƒãƒ¼ãƒˆ"""
     mode = import_data.get("mode", "merge")
     new_data = import_data.get("data", [])
     
@@ -767,12 +787,12 @@ async def import_videos(import_data: dict, background_tasks: BackgroundTasks):
     updated = 0
     
     if mode == "replace":
-        # 全体置換
+        # å…¨ä½“ç½®æ›
         with open(DATA_PATH, "w", encoding="utf-8") as f:
             json.dump(new_data, f, ensure_ascii=False, indent=2)
         added = len(new_data)
     else:
-        # 差分マージ
+        # å·®åˆ†ãƒžãƒ¼ã‚¸
         existing_videos = []
         if DATA_PATH.exists():
             with open(DATA_PATH, "r", encoding="utf-8") as f:
@@ -795,18 +815,15 @@ async def import_videos(import_data: dict, background_tasks: BackgroundTasks):
     background_tasks.add_task(reload_video_data)
     return {"status": "imported", "added": added, "updated": updated}
 
-async def reload_video_data():
-    """動画データ再読み込み"""
-    state.video_loaded = False
-    # 次回検索時に自動的に再ロード
+# reload_video_data defined above
 
 # ============================================
-# 管理API - YouTube文字起こし
+# ç®¡ç†API - YouTubeæ–‡å­—èµ·ã“ã—
 # ============================================
 
 @app.post("/admin/api/youtube/fetch", dependencies=[Depends(verify_admin)])
 async def fetch_youtube_videos(request_data: dict):
-    """YouTubeチャンネルから動画リストを取得"""
+    """YouTubeãƒãƒ£ãƒ³ãƒãƒ«ã‹ã‚‰å‹•ç”»ãƒªã‚¹ãƒˆã‚’å–å¾—"""
     try:
         from googleapiclient.discovery import build
         
@@ -817,17 +834,17 @@ async def fetch_youtube_videos(request_data: dict):
         channel_url = request_data.get("channel_url", "")
         max_results = request_data.get("max_results", 50)
         
-        # チャンネルIDを抽出
+        # ãƒãƒ£ãƒ³ãƒãƒ«IDã‚’æŠ½å‡º
         channel_id = None
         if "/c/" in channel_url or "/channel/" in channel_url or "/@" in channel_url:
-            # チャンネル名からIDを取得する必要がある
-            # 簡略化のため、ユーザーにチャンネルIDを直接入力してもらう方式も検討
+            # ãƒãƒ£ãƒ³ãƒãƒ«åã‹ã‚‰IDã‚’å–å¾—ã™ã‚‹å¿…è¦ãŒã‚ã‚‹
+            # ç°¡ç•¥åŒ–ã®ãŸã‚ã€ãƒ¦ãƒ¼ã‚¶ãƒ¼ã«ãƒãƒ£ãƒ³ãƒãƒ«IDã‚’ç›´æŽ¥å…¥åŠ›ã—ã¦ã‚‚ã‚‰ã†æ–¹å¼ã‚‚æ¤œè¨Ž
             parts = channel_url.rstrip('/').split('/')
             channel_name = parts[-1]
             
             youtube = build('youtube', 'v3', developerKey=api_key)
             
-            # チャンネル名から検索
+            # ãƒãƒ£ãƒ³ãƒãƒ«åã‹ã‚‰æ¤œç´¢
             search_response = youtube.search().list(
                 q=channel_name,
                 type='channel',
@@ -843,7 +860,7 @@ async def fetch_youtube_videos(request_data: dict):
         if not channel_id:
             raise HTTPException(404, "Channel not found")
         
-        # チャンネルのアップロードプレイリストIDを取得
+        # ãƒãƒ£ãƒ³ãƒãƒ«ã®ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆIDã‚’å–å¾—
         youtube = build('youtube', 'v3', developerKey=api_key)
         channel_response = youtube.channels().list(
             id=channel_id,
@@ -855,7 +872,7 @@ async def fetch_youtube_videos(request_data: dict):
         
         uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
         
-        # プレイリストから動画を取得
+        # ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‹ã‚‰å‹•ç”»ã‚’å–å¾—
         videos = []
         next_page_token = None
         
@@ -896,19 +913,19 @@ async def fetch_youtube_videos(request_data: dict):
 
 @app.post("/admin/api/youtube/transcribe", dependencies=[Depends(verify_admin)])
 async def transcribe_youtube_video(request_data: dict, background_tasks: BackgroundTasks):
-    """YouTube動画を文字起こし"""
+    """YouTubeå‹•ç”»ã‚’æ–‡å­—èµ·ã“ã—"""
     try:
         video_id = request_data.get("video_id")
         if not video_id:
             raise HTTPException(400, "video_id is required")
         
-        # 既存のdata.jsonを読み込み
+        # æ—¢å­˜ã®data.jsonã‚’èª­ã¿è¾¼ã¿
         existing_videos = []
         if DATA_PATH.exists():
             with open(DATA_PATH, "r", encoding="utf-8") as f:
                 existing_videos = json.load(f)
         
-        # 既に存在するかチェック
+        # æ—¢ã«å­˜åœ¨ã™ã‚‹ã‹ãƒã‚§ãƒƒã‚¯
         for video in existing_videos:
             if video.get('video_id') == video_id:
                 return {
@@ -917,7 +934,7 @@ async def transcribe_youtube_video(request_data: dict, background_tasks: Backgro
                     'video_id': video_id
                 }
         
-        # バックグラウンドで文字起こし処理
+        # ãƒãƒƒã‚¯ã‚°ãƒ©ã‚¦ãƒ³ãƒ‰ã§æ–‡å­—èµ·ã“ã—å‡¦ç†
         background_tasks.add_task(process_transcription, video_id, request_data)
         
         return {
@@ -931,7 +948,7 @@ async def transcribe_youtube_video(request_data: dict, background_tasks: Backgro
 
 @app.post("/admin/api/youtube/sync", dependencies=[Depends(verify_admin)])
 async def sync_with_youtube(request_data: dict):
-    """YouTubeチャンネルとdata.jsonを同期（差分検出）"""
+    """YouTubeãƒãƒ£ãƒ³ãƒãƒ«ã¨data.jsonã‚’åŒæœŸï¼ˆå·®åˆ†æ¤œå‡ºï¼‰"""
     try:
         from googleapiclient.discovery import build
         
@@ -941,7 +958,7 @@ async def sync_with_youtube(request_data: dict):
         
         channel_url = request_data.get("channel_url", "")
         
-        # チャンネルIDを抽出
+        # ãƒãƒ£ãƒ³ãƒãƒ«IDã‚’æŠ½å‡º
         channel_id = None
         if "/c/" in channel_url or "/channel/" in channel_url or "/@" in channel_url:
             parts = channel_url.rstrip('/').split('/')
@@ -962,7 +979,7 @@ async def sync_with_youtube(request_data: dict):
         if not channel_id:
             raise HTTPException(404, "Channel not found")
         
-        # チャンネルの全動画を取得
+        # ãƒãƒ£ãƒ³ãƒãƒ«ã®å…¨å‹•ç”»ã‚’å–å¾—
         youtube = build('youtube', 'v3', developerKey=api_key)
         channel_response = youtube.channels().list(
             id=channel_id,
@@ -974,7 +991,7 @@ async def sync_with_youtube(request_data: dict):
         
         uploads_playlist_id = channel_response['items'][0]['contentDetails']['relatedPlaylists']['uploads']
         
-        # プレイリストから全動画を取得
+        # ãƒ—ãƒ¬ã‚¤ãƒªã‚¹ãƒˆã‹ã‚‰å…¨å‹•ç”»ã‚’å–å¾—
         youtube_videos = []
         next_page_token = None
         
@@ -1003,20 +1020,20 @@ async def sync_with_youtube(request_data: dict):
             if not next_page_token:
                 break
         
-        # 既存のdata.jsonを読み込み
+        # æ—¢å­˜ã®data.jsonã‚’èª­ã¿è¾¼ã¿
         existing_videos = []
         if DATA_PATH.exists():
             with open(DATA_PATH, "r", encoding="utf-8") as f:
                 existing_videos = json.load(f)
         
-        # 差分を計算
+        # å·®åˆ†ã‚’è¨ˆç®—
         youtube_ids = set(v['video_id'] for v in youtube_videos)
         existing_ids = set(v.get('video_id') for v in existing_videos)
         
-        # YouTubeにあるが、data.jsonにない（追加すべき動画）
+        # YouTubeã«ã‚ã‚‹ãŒã€data.jsonã«ãªã„ï¼ˆè¿½åŠ ã™ã¹ãå‹•ç”»ï¼‰
         missing_in_data = [v for v in youtube_videos if v['video_id'] not in existing_ids]
         
-        # data.jsonにあるが、YouTubeにない（削除すべき動画）
+        # data.jsonã«ã‚ã‚‹ãŒã€YouTubeã«ãªã„ï¼ˆå‰Šé™¤ã™ã¹ãå‹•ç”»ï¼‰
         missing_in_youtube = [v for v in existing_videos if v.get('video_id') not in youtube_ids]
         
         return {
@@ -1034,7 +1051,7 @@ async def sync_with_youtube(request_data: dict):
 
 @app.post("/admin/api/youtube/cleanup", dependencies=[Depends(verify_admin)])
 async def cleanup_orphaned_videos(request_data: dict, background_tasks: BackgroundTasks):
-    """YouTubeに存在しない動画をdata.jsonから削除"""
+    """YouTubeã«å­˜åœ¨ã—ãªã„å‹•ç”»ã‚’data.jsonã‹ã‚‰å‰Šé™¤"""
     try:
         video_ids_to_delete = request_data.get("video_ids", [])
         
@@ -1047,10 +1064,10 @@ async def cleanup_orphaned_videos(request_data: dict, background_tasks: Backgrou
         with open(DATA_PATH, "r", encoding="utf-8") as f:
             videos = json.load(f)
         
-        # 削除対象以外の動画を残す
+        # å‰Šé™¤å¯¾è±¡ä»¥å¤–ã®å‹•ç”»ã‚’æ®‹ã™
         filtered_videos = [v for v in videos if v.get('video_id') not in video_ids_to_delete]
         
-        # no番号を振り直し
+        # noç•ªå·ã‚’æŒ¯ã‚Šç›´ã—
         for i, video in enumerate(filtered_videos, 1):
             video['no'] = i
         
@@ -1069,7 +1086,7 @@ async def cleanup_orphaned_videos(request_data: dict, background_tasks: Backgrou
         raise HTTPException(500, f"Failed to cleanup: {str(e)}")
 
 async def process_transcription(video_id: str, video_data: dict):
-    """文字起こし処理（バックグラウンド）- yt-dlp Pythonライブラリ使用"""
+    """æ–‡å­—èµ·ã“ã—å‡¦ç†ï¼ˆãƒãƒƒã‚¯ã‚°ãƒ©ã‚¦ãƒ³ãƒ‰ï¼‰- yt-dlp Pythonãƒ©ã‚¤ãƒ–ãƒ©ãƒªä½¿ç”¨"""
     import tempfile
     import os
     import yt_dlp
@@ -1079,7 +1096,7 @@ async def process_transcription(video_id: str, video_data: dict):
     try:
         print(f"[INFO] Starting transcription for {video_id}: {video_data.get('title', '')}")
         
-        # 1. 音声ダウンロード（yt-dlp Pythonライブラリを使用）
+        # 1. éŸ³å£°ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ï¼ˆyt-dlp Pythonãƒ©ã‚¤ãƒ–ãƒ©ãƒªã‚’ä½¿ç”¨ï¼‰
         temp_dir = tempfile.gettempdir()
         output_basename = f"audio_{video_id}"
         output_path = os.path.join(temp_dir, output_basename)
@@ -1087,13 +1104,13 @@ async def process_transcription(video_id: str, video_data: dict):
         
         print(f"[INFO] Downloading audio from {video_url}")
         
-        # yt-dlp設定（bot検出回避を含む）
+        # yt-dlpè¨­å®šï¼ˆbotæ¤œå‡ºå›žé¿ã‚’å«ã‚€ï¼‰
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': output_path + '.%(ext)s',
             'quiet': True,
             'no_warnings': True,
-            # bot検出回避: iOSクライアントを使用
+            # botæ¤œå‡ºå›žé¿: iOSã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆã‚’ä½¿ç”¨
             'extractor_args': {
                 'youtube': {
                     'player_client': ['ios', 'android', 'web']
@@ -1108,7 +1125,7 @@ async def process_transcription(video_id: str, video_data: dict):
             'prefer_ffmpeg': True,
         }
         
-        # yt-dlpでダウンロード
+        # yt-dlpã§ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video_url])
@@ -1116,22 +1133,22 @@ async def process_transcription(video_id: str, video_data: dict):
             error_msg = str(e)
             print(f"[ERROR] yt-dlp download failed: {error_msg}")
             
-            # bot検出エラーの判定
+            # botæ¤œå‡ºã‚¨ãƒ©ãƒ¼ã®åˆ¤å®š
             if 'Sign in to confirm' in error_msg or 'bot' in error_msg.lower():
                 raise Exception(
-                    "YouTube bot検出: この動画は現在ダウンロードできません。"
+                    "YouTube botæ¤œå‡º: ã“ã®å‹•ç”»ã¯ç¾åœ¨ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ã§ãã¾ã›ã‚“ã€‚"
                 )
             
             raise Exception(f"yt-dlp download failed: {error_msg[:300]}")
         
-        # MP3ファイルの存在確認
+        # MP3ãƒ•ã‚¡ã‚¤ãƒ«ã®å­˜åœ¨ç¢ºèª
         audio_path = output_path + '.mp3'
         if not os.path.exists(audio_path):
             raise Exception(f"Audio file not created: {audio_path}")
         
         print(f"[INFO] Audio downloaded to {audio_path}")
         
-        # 2. Whisperで文字起こし
+        # 2. Whisperã§æ–‡å­—èµ·ã“ã—
         try:
             import whisper
             print(f"[INFO] Loading Whisper model...")
@@ -1145,13 +1162,13 @@ async def process_transcription(video_id: str, video_data: dict):
         except Exception as e:
             raise Exception(f"Whisper transcription failed: {str(e)}")
         
-        # 3. data.jsonに追加
+        # 3. data.jsonã«è¿½åŠ 
         existing_videos = []
         if DATA_PATH.exists():
             with open(DATA_PATH, "r", encoding="utf-8") as f:
                 existing_videos = json.load(f)
         
-        # 新しいno番号を生成
+        # æ–°ã—ã„noç•ªå·ã‚’ç”Ÿæˆ
         max_no = max([v.get('no', 0) for v in existing_videos], default=0)
         
         new_video = {
@@ -1172,14 +1189,14 @@ async def process_transcription(video_id: str, video_data: dict):
         
         print(f"[SUCCESS] Transcription saved for {video_id}")
         
-        # 動画データ再読み込み
+        # å‹•ç”»ãƒ‡ãƒ¼ã‚¿å†èª­ã¿è¾¼ã¿
         await reload_video_data()
         
     except Exception as e:
         error_msg = str(e)
         print(f"[ERROR] Transcription error for {video_id}: {error_msg}")
         
-        # エラー時もdata.jsonに記録（status: failed）
+        # ã‚¨ãƒ©ãƒ¼æ™‚ã‚‚data.jsonã«è¨˜éŒ²ï¼ˆstatus: failedï¼‰
         try:
             existing_videos = []
             if DATA_PATH.exists():
@@ -1188,19 +1205,19 @@ async def process_transcription(video_id: str, video_data: dict):
             
             max_no = max([v.get('no', 0) for v in existing_videos], default=0)
             
-            # エラーメッセージを分かりやすく変換
+            # ã‚¨ãƒ©ãƒ¼ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’åˆ†ã‹ã‚Šã‚„ã™ãå¤‰æ›
             friendly_error = error_msg
             if 'bot' in error_msg.lower() or 'Sign in to confirm' in error_msg:
-                friendly_error = "YouTube bot検出: この動画は現在ダウンロードできません。しばらく待ってから再試行してください。"
+                friendly_error = "YouTube botæ¤œå‡º: ã“ã®å‹•ç”»ã¯ç¾åœ¨ãƒ€ã‚¦ãƒ³ãƒ­ãƒ¼ãƒ‰ã§ãã¾ã›ã‚“ã€‚ã—ã°ã‚‰ãå¾…ã£ã¦ã‹ã‚‰å†è©¦è¡Œã—ã¦ãã ã•ã„ã€‚"
             elif 'JavaScript runtime' in error_msg:
-                friendly_error = "JavaScript処理エラー: この動画は特殊な処理が必要です。YouTube Data APIから取得した動画情報のみ保存されます。"
+                friendly_error = "JavaScriptå‡¦ç†ã‚¨ãƒ©ãƒ¼: ã“ã®å‹•ç”»ã¯ç‰¹æ®Šãªå‡¦ç†ãŒå¿…è¦ã§ã™ã€‚YouTube Data APIã‹ã‚‰å–å¾—ã—ãŸå‹•ç”»æƒ…å ±ã®ã¿ä¿å­˜ã•ã‚Œã¾ã™ã€‚"
             
             error_video = {
                 'no': max_no + 1,
                 'video_id': video_id,
                 'title': video_data.get('title', ''),
                 'description': video_data.get('description', ''),
-                'transcript': f'文字起こし失敗: {friendly_error}',
+                'transcript': f'æ–‡å­—èµ·ã“ã—å¤±æ•—: {friendly_error}',
                 'url': video_data.get('url', ''),
                 'thumbnail': video_data.get('thumbnail', ''),
                 'status': 'failed'
@@ -1216,7 +1233,7 @@ async def process_transcription(video_id: str, video_data: dict):
             print(f"[ERROR] Failed to save error status: {str(save_error)}")
     
     finally:
-        # 一時ファイル削除
+        # ä¸€æ™‚ãƒ•ã‚¡ã‚¤ãƒ«å‰Šé™¤
         if audio_path and os.path.exists(audio_path):
             try:
                 os.remove(audio_path)
@@ -1225,19 +1242,19 @@ async def process_transcription(video_id: str, video_data: dict):
                 print(f"[WARNING] Failed to remove temp file: {str(cleanup_error)}")
 
 # ============================================
-# 管理API - ログ
+# ç®¡ç†API - ãƒ­ã‚°
 # ============================================
 
 @app.get("/admin/api/logs/months", dependencies=[Depends(verify_admin)])
 async def get_log_months():
-    """利用可能な月一覧"""
+    """åˆ©ç”¨å¯èƒ½ãªæœˆä¸€è¦§"""
     rows = parse_logs()
     months = set(r["dt"].strftime("%Y-%m") for r in rows)
     return {"months": sorted(months, reverse=True)}
 
 @app.get("/admin/api/logs/summary", dependencies=[Depends(verify_admin)])
 async def get_log_summary(month: str = Query(...)):
-    """月別サマリー"""
+    """æœˆåˆ¥ã‚µãƒžãƒªãƒ¼"""
     rows = parse_logs()
     day_counter = Counter()
     query_counter = Counter()
@@ -1254,7 +1271,7 @@ async def get_log_summary(month: str = Query(...)):
 
 @app.get("/admin/api/logs/export", dependencies=[Depends(verify_admin)])
 async def export_logs():
-    """ログCSVエクスポート"""
+    """ãƒ­ã‚°CSVã‚¨ã‚¯ã‚¹ãƒãƒ¼ãƒˆ"""
     if not SEARCH_LOG_PATH.exists():
         raise HTTPException(404, "No logs found")
     
@@ -1263,19 +1280,19 @@ async def export_logs():
     return StreamingResponse(iter([csv_data]), media_type="text/csv", headers=headers)
 
 # ============================================
-# 静的ファイル配信
+# é™çš„ãƒ•ã‚¡ã‚¤ãƒ«é…ä¿¡
 # ============================================
 
-# フロントエンド静的ファイル
+# ãƒ•ãƒ­ãƒ³ãƒˆã‚¨ãƒ³ãƒ‰é™çš„ãƒ•ã‚¡ã‚¤ãƒ«
 if frontend_path.exists():
     app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
-# 管理画面静的ファイル
+# ç®¡ç†ç”»é¢é™çš„ãƒ•ã‚¡ã‚¤ãƒ«
 app.mount("/admin/static", StaticFiles(directory=admin_path), name="admin_static")
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def serve_index():
-    """検索画面"""
+    """æ¤œç´¢ç”»é¢"""
     index_file = frontend_path / "index.html"
     if not index_file.exists():
         return HTMLResponse("<h1>index.html not found</h1>", status_code=404)
@@ -1283,7 +1300,7 @@ def serve_index():
 
 @app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_home():
-    """管理画面トップ"""
+    """ç®¡ç†ç”»é¢ãƒˆãƒƒãƒ—"""
     f = admin_path / "index.html"
     if not f.exists():
         return HTMLResponse("<h1>admin index.html not found</h1>", status_code=404)
@@ -1291,7 +1308,7 @@ def serve_admin_home():
 
 @app.get("/admin/dashboard", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_dashboard():
-    """管理画面 - ダッシュボード"""
+    """ç®¡ç†ç”»é¢ - ãƒ€ãƒƒã‚·ãƒ¥ãƒœãƒ¼ãƒ‰"""
     f = admin_path / "dashboard.html"
     if not f.exists():
         return HTMLResponse("<h1>admin dashboard.html not found</h1>", status_code=404)
@@ -1299,7 +1316,7 @@ def serve_admin_dashboard():
 
 @app.get("/admin/videos", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_videos():
-    """管理画面 - 動画データ"""
+    """ç®¡ç†ç”»é¢ - å‹•ç”»ãƒ‡ãƒ¼ã‚¿"""
     f = admin_path / "videos.html"
     if not f.exists():
         return HTMLResponse("<h1>admin videos.html not found</h1>", status_code=404)
@@ -1307,7 +1324,7 @@ def serve_admin_videos():
 
 @app.get("/admin/synonyms", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_synonyms():
-    """管理画面 - Synonyms"""
+    """ç®¡ç†ç”»é¢ - Synonyms"""
     f = admin_path / "synonyms.html"
     if not f.exists():
         return HTMLResponse("<h1>admin synonyms.html not found</h1>", status_code=404)
@@ -1315,7 +1332,7 @@ def serve_admin_synonyms():
 
 @app.get("/admin/faq", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_faq():
-    """管理画面 - FAQ"""
+    """ç®¡ç†ç”»é¢ - FAQ"""
     f = admin_path / "faq.html"
     if not f.exists():
         return HTMLResponse("<h1>admin faq.html not found</h1>", status_code=404)
@@ -1323,16 +1340,16 @@ def serve_admin_faq():
 
 @app.get("/admin/logs", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_logs():
-    """管理画面 - ログ"""
+    """ç®¡ç†ç”»é¢ - ãƒ­ã‚°"""
     f = admin_path / "logs.html"
     if not f.exists():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
-# .html拡張子付きのルートも追加
+# .htmlæ‹¡å¼µå­ä»˜ãã®ãƒ«ãƒ¼ãƒˆã‚‚è¿½åŠ 
 @app.get("/admin/dashboard.html", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_dashboard_html():
-    """管理画面 - ダッシュボード (.html)"""
+    """ç®¡ç†ç”»é¢ - ãƒ€ãƒƒã‚·ãƒ¥ãƒœãƒ¼ãƒ‰ (.html)"""
     f = admin_path / "dashboard.html"
     if not f.exists():
         return HTMLResponse("<h1>admin dashboard.html not found</h1>", status_code=404)
@@ -1340,7 +1357,7 @@ def serve_admin_dashboard_html():
 
 @app.get("/admin/videos.html", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_videos_html():
-    """管理画面 - 動画データ (.html)"""
+    """ç®¡ç†ç”»é¢ - å‹•ç”»ãƒ‡ãƒ¼ã‚¿ (.html)"""
     f = admin_path / "videos.html"
     if not f.exists():
         return HTMLResponse("<h1>admin videos.html not found</h1>", status_code=404)
@@ -1348,7 +1365,7 @@ def serve_admin_videos_html():
 
 @app.get("/admin/synonyms.html", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_synonyms_html():
-    """管理画面 - Synonyms (.html)"""
+    """ç®¡ç†ç”»é¢ - Synonyms (.html)"""
     f = admin_path / "synonyms.html"
     if not f.exists():
         return HTMLResponse("<h1>admin synonyms.html not found</h1>", status_code=404)
@@ -1356,7 +1373,7 @@ def serve_admin_synonyms_html():
 
 @app.get("/admin/faq.html", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_faq_html():
-    """管理画面 - FAQ (.html)"""
+    """ç®¡ç†ç”»é¢ - FAQ (.html)"""
     f = admin_path / "faq.html"
     if not f.exists():
         return HTMLResponse("<h1>admin faq.html not found</h1>", status_code=404)
@@ -1364,19 +1381,19 @@ def serve_admin_faq_html():
 
 @app.get("/admin/logs.html", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_logs_html():
-    """管理画面 - ログ (.html)"""
+    """ç®¡ç†ç”»é¢ - ãƒ­ã‚° (.html)"""
     f = admin_path / "logs.html"
     if not f.exists():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
     return f.read_text(encoding="utf-8")
 
 # ============================================
-# 検索ログAPI・Synonyms API（追加）
+# æ¤œç´¢ãƒ­ã‚°APIãƒ»Synonyms APIï¼ˆè¿½åŠ ï¼‰
 # ============================================
 
 @app.post("/api/log_search")
-async def log_search(log_data: dict):
-    """検索ログを記録"""
+async def log_search_api(log_data: dict):
+    """æ¤œç´¢ãƒ­ã‚°ã‚’è¨˜éŒ²"""
     import json
     from pathlib import Path
     
@@ -1397,7 +1414,7 @@ async def log_search(log_data: dict):
         'timestamp': log_data.get('timestamp')
     })
     
-    # 最新1000件のみ保持
+    # æœ€æ–°1000ä»¶ã®ã¿ä¿æŒ
     with open(log_file, 'w', encoding='utf-8') as f:
         json.dump(logs[-1000:], f, ensure_ascii=False, indent=2)
     
@@ -1405,12 +1422,12 @@ async def log_search(log_data: dict):
 
 @app.get("/api/synonyms")
 async def get_synonyms():
-    """Synonyms.jsonを返す"""
+    """Synonyms.jsonã‚’è¿”ã™"""
     try:
         with open('synonyms.json', 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
-        print(f"Synonyms読み込みエラー: {e}")
+        print(f"Synonymsèª­ã¿è¾¼ã¿ã‚¨ãƒ©ãƒ¼: {e}")
         return {}
 
 if __name__ == "__main__":

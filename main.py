@@ -133,24 +133,38 @@ class AppState:
                     self.faq_data = json.load(f)
             
             # FAQ アイテムをフラット化
+            # 対応フォーマット:
+            #   A) {"faqs": [...], "meta": {...}}  ← faqs配列直接
+            #   B) {"カテゴリ名": [...], ...}       ← カテゴリ辞書
             self.faq_items_flat = []
-            for category_key, items in self.faq_data.items():
-                if isinstance(items, list):
-                    for item in items:
-                        if isinstance(item, dict):
-                            item["category"] = category_key
-                            self.faq_items_flat.append(item)
+
+            # フォーマットA: "faqs" キーに配列が入っている場合
+            if "faqs" in self.faq_data and isinstance(self.faq_data["faqs"], list):
+                for item in self.faq_data["faqs"]:
+                    if isinstance(item, dict):
+                        self.faq_items_flat.append(item)
+            else:
+                # フォーマットB: カテゴリ辞書形式
+                for category_key, items in self.faq_data.items():
+                    if isinstance(items, list):
+                        for item in items:
+                            if isinstance(item, dict):
+                                if "category" not in item:
+                                    item["category"] = category_key
+                                self.faq_items_flat.append(item)
             
-            # コーパス構築
+            # コーパス構築（question / utterances / steps / keywords を統合）
             self.faq_corpus = []
             for item in self.faq_items_flat:
                 text_parts = [
-                    item.get("intent", ""),
                     item.get("question", ""),
                     " ".join(item.get("utterances", [])),
-                    " ".join(item.get("keywords", []))
+                    " ".join(item.get("steps", [])),
+                    " ".join(item.get("keywords", [])),
+                    item.get("intent", ""),
+                    item.get("category", ""),
                 ]
-                combined = " ".join(text_parts)
+                combined = " ".join(filter(None, text_parts))
                 self.faq_corpus.append(normalize_text(combined))
             
             # FAISS インデックス構築

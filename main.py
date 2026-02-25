@@ -142,7 +142,16 @@ class AppState:
             if "faqs" in self.faq_data and isinstance(self.faq_data["faqs"], list):
                 for item in self.faq_data["faqs"]:
                     if isinstance(item, dict):
-                        self.faq_items_flat.append(item)
+                        # フィールド正規化: faq_id → id, answer_steps → steps
+                        normalized_item = item.copy()
+                        if "faq_id" in normalized_item and "id" not in normalized_item:
+                            normalized_item["id"] = normalized_item.pop("faq_id")
+                        if "answer_steps" in normalized_item and "steps" not in normalized_item:
+                            normalized_item["steps"] = normalized_item.pop("answer_steps")
+                        # utterances がない場合は question で代用
+                        if "utterances" not in normalized_item and "question" in normalized_item:
+                            normalized_item["utterances"] = [normalized_item["question"]]
+                        self.faq_items_flat.append(normalized_item)
             else:
                 # ãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆB: ã‚«ãƒ†ã‚´ãƒªè¾žæ›¸å½¢å¼
                 for category_key, items in self.faq_data.items():
@@ -161,6 +170,7 @@ class AppState:
                     " ".join(item.get("utterances", [])),
                     " ".join(item.get("steps", [])),
                     " ".join(item.get("keywords", [])),
+                    " ".join(item.get("tags", [])),  # tags も検索対象に
                     item.get("intent", ""),
                     item.get("category", ""),
                 ]

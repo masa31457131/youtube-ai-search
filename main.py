@@ -392,7 +392,54 @@ async def search_faq(
     await state.ensure_faq_loaded()
     
     if not state.faq_index:
-        return {"items": [], "has_more": False, "total_visible": 0}
+        # FAISSインデックスが使用できない場合のフォールバック検索（簡易テキストマッチング）
+        print(f"⚠️ FAQ index not available, using fallback text search")
+        
+        normalized_query = normalize_text(query)
+        expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
+        
+        # クエリを単語に分割
+        query_words = expanded_query.lower().split()
+        
+        # 各FAQアイテムとのマッチングスコアを計算
+        scored_items = []
+        for item in state.faq_items_flat:
+            # 検索対象テキストを構築
+            search_text = " ".join([
+                item.get("question", ""),
+                " ".join(item.get("utterances", [])),
+                " ".join(item.get("steps", [])),
+                " ".join(item.get("keywords", [])),
+                " ".join(item.get("tags", [])),
+                item.get("category", ""),
+            ]).lower()
+            
+            # マッチングスコアを計算（単語が含まれている数）
+            score = sum(1 for word in query_words if word in search_text)
+            
+            if score > 0:
+                item_copy = item.copy()
+                item_copy["score"] = float(score)
+                scored_items.append(item_copy)
+        
+        # スコア順にソート（降順）
+        scored_items.sort(key=lambda x: x["score"], reverse=True)
+        
+        total = len(scored_items)
+        items = scored_items[offset:offset + limit]
+        has_more = (offset + limit) < total
+        
+        if paged:
+            return {
+                "items": items,
+                "has_more": has_more,
+                "total_visible": total,
+                "offset": offset,
+                "limit": limit,
+                "fallback": True
+            }
+        
+        return {"items": items, "fallback": True}
     
     log_search(f"faq:{query}")
     

@@ -46,7 +46,7 @@ ADMIN_PASS = os.getenv("ADMIN_PASS", "abc123")
 BASE_DIR = pathlib.Path(__file__).parent
 DATA_PATH = BASE_DIR / "data.json"
 SYNONYMS_PATH = BASE_DIR / "synonyms.json"
-FAQ_PATH = BASE_DIR / "faq_chatbot_fixed_only.json"
+FAQ_PATH = BASE_DIR / "faq.json"
 SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
 
 # é™çš„ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹

@@ -129,8 +129,14 @@ class AppState:
             print("ðŸ”„ Loading FAQ data...")
             
             if FAQ_PATH.exists():
+                print(f"✅ FAQ file found: {FAQ_PATH}")
                 with open(FAQ_PATH, "r", encoding="utf-8") as f:
                     self.faq_data = json.load(f)
+                print(f"✅ FAQ file loaded, keys: {list(self.faq_data.keys())}")
+            else:
+                print(f"❌ FAQ file not found: {FAQ_PATH}")
+                print(f"   BASE_DIR: {BASE_DIR}")
+                self.faq_data = {}
             
             # FAQ ã‚¢ã‚¤ãƒ†ãƒ ã‚’ãƒ•ãƒ©ãƒƒãƒˆåŒ–
             # å¯¾å¿œãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆ:
@@ -140,6 +146,7 @@ class AppState:
 
             # ãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆA: "faqs" ã‚­ãƒ¼ã«é…åˆ—ãŒå…¥ã£ã¦ã„ã‚‹å ´åˆ
             if "faqs" in self.faq_data and isinstance(self.faq_data["faqs"], list):
+                print(f"📋 Processing {len(self.faq_data['faqs'])} FAQ items from 'faqs' array")
                 for item in self.faq_data["faqs"]:
                     if isinstance(item, dict):
                         # フィールド正規化: faq_id → id, answer_steps → steps
@@ -152,6 +159,7 @@ class AppState:
                         if "utterances" not in normalized_item and "question" in normalized_item:
                             normalized_item["utterances"] = [normalized_item["question"]]
                         self.faq_items_flat.append(normalized_item)
+                print(f"✅ Normalized {len(self.faq_items_flat)} FAQ items")
             else:
                 # ãƒ•ã‚©ãƒ¼ãƒžãƒƒãƒˆB: ã‚«ãƒ†ã‚´ãƒªè¾žæ›¸å½¢å¼
                 for category_key, items in self.faq_data.items():
@@ -163,6 +171,9 @@ class AppState:
                                 self.faq_items_flat.append(item)
             
             # ã‚³ãƒ¼ãƒ‘ã‚¹æ§‹ç¯‰ï¼ˆquestion / utterances / steps / keywords ã‚’çµ±åˆï¼‰
+            # FAQ items合計のログ出力
+            print(f"📊 Total FAQ items loaded: {len(self.faq_items_flat)}")
+            
             self.faq_corpus = []
             for item in self.faq_items_flat:
                 text_parts = [
@@ -324,7 +335,11 @@ async def health_check():
         "status": "healthy",
         "model_loaded": state.model_loaded,
         "video_loaded": state.video_loaded,
-        "faq_loaded": state.faq_loaded
+        "faq_loaded": state.faq_loaded,
+        "faq_items_count": len(state.faq_items_flat),
+        "faq_corpus_count": len(state.faq_corpus),
+        "faq_index_available": state.faq_index is not None,
+        "video_items_count": len(state.video_items_flat),
     }
 
 # ============================================
@@ -394,12 +409,16 @@ async def search_faq(
     if not state.faq_index:
         # FAISSインデックスが使用できない場合のフォールバック検索（簡易テキストマッチング）
         print(f"⚠️ FAQ index not available, using fallback text search")
+        print(f"   FAQ items available: {len(state.faq_items_flat)}")
+        print(f"   Query: '{query}'")
         
         normalized_query = normalize_text(query)
         expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
+        print(f"   Normalized/expanded query: '{expanded_query}'")
         
         # クエリを単語に分割
         query_words = expanded_query.lower().split()
+        print(f"   Query words: {query_words}")
         
         # 各FAQアイテムとのマッチングスコアを計算
         scored_items = []
@@ -421,6 +440,8 @@ async def search_faq(
                 item_copy = item.copy()
                 item_copy["score"] = float(score)
                 scored_items.append(item_copy)
+        
+        print(f"   Matched items: {len(scored_items)}")
         
         # スコア順にソート（降順）
         scored_items.sort(key=lambda x: x["score"], reverse=True)

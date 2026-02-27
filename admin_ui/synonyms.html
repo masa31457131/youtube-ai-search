@@ -130,7 +130,7 @@
     var auth = localStorage.getItem('admin_auth');
     if (!auth) { window.location.href = '/admin'; }
     var authData = JSON.parse(auth);
-    var authHeader = 'Basic ' + btoa(unescape(encodeURIComponent(authData.username + ':' + authData.password)));
+    var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
 
     var synonymData = {};
     var editingTerm = null;

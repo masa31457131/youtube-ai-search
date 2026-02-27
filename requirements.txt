@@ -11,3 +11,4 @@ torch
 numpy
 google-api-python-client
 faster-whisper
+chardet

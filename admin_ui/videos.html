@@ -2,112 +2,2071 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>動画データ管理 - ACS FAQ Manager</title>
   <style>
-    :root {
-      --brand: #0066cc; --brand-dark: #004fa3; --bg: #f6f7fb; --white: #fff;
-      --text: #111827; --text-muted: #6b7280; --border: #e5e7eb;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif;
-      background: var(--bg); color: var(--text); min-height: 100vh;
-      display: flex; flex-direction: column; font-size: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
+      background: #f6f7fb;
+      color: #111827;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
+    
     header {
-      background: #001529; color: #fff; padding: 0 24px;
-      display: flex; justify-content: space-between; align-items: center;
-      height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); gap: 12px;
+      background: #001529;
+      color: #fff;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
-    .header-left { display: flex; align-items: center; gap: 10px; }
-    .header-title { font-size: 16px; font-weight: 700; }
-    nav { display: flex; gap: 4px; overflow-x: auto; }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .logo { font-size: 24px; }
+    
+    .header-title {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .header-right {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    
+    nav {
+      display: flex;
+      gap: 20px;
+    }
+    
     nav a {
-      color: rgba(255,255,255,0.8); text-decoration: none;
-      padding: 7px 12px; border-radius: 6px; font-size: 13px;
-      white-space: nowrap; transition: all 0.2s;
+      color: rgba(255,255,255,0.85);
+      text-decoration: none;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: all 0.3s;
     }
-    nav a:hover, nav a.active { background: rgba(255,255,255,0.12); color: #fff; }
+    
+    nav a:hover, nav a.active {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
     .btn-logout {
-      background: none; border: none; color: rgba(255,255,255,0.8);
-      cursor: pointer; padding: 7px 12px; font-size: 13px;
-      border-radius: 6px; font-family: inherit;
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.85);
+      cursor: pointer;
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 6px;
     }
-    .btn-logout:hover { background: rgba(255,255,255,0.1); color: #fff; }
-    main { flex: 1; max-width: 1200px; margin: 0 auto; width: 100%; padding: 24px; }
-    .page-header { margin-bottom: 24px; }
-    .page-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-    .page-desc { color: var(--text-muted); font-size: 13px; }
-    .card {
-      background: var(--white); border-radius: 12px;
-      box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+    
+    .btn-logout:hover {
+      background: rgba(255,255,255,0.1);
+      color: white;
+    }
+    
+    main {
+      flex: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
       padding: 24px;
     }
-    .info-box {
-      background: #eff6ff; border: 1px solid #bfdbfe;
-      border-radius: 8px; padding: 16px; margin-bottom: 20px;
-      font-size: 13px; line-height: 1.6; color: #1e40af;
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 24px;
     }
+    
+    .usage-info {
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    
+    .usage-title {
+      font-weight: 700;
+      font-size: 16px;
+      color: #0050b3;
+      margin-bottom: 12px;
+    }
+    
+    .usage-content {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #002766;
+    }
+    
+    .usage-content strong {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+    
+    .usage-content ul {
+      margin-left: 20px;
+      margin-top: 8px;
+    }
+    
+    .usage-example {
+      background: rgba(255,255,255,0.5);
+      padding: 12px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      margin-top: 8px;
+      white-space: pre;
+    }
+    
+    .toolbar {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .search-input {
+      flex: 1;
+      min-width: 250px;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .select {
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 180px;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    .btn-primary {
+      background: #1890ff;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #40a9ff;
+    }
+    
+    .btn-success {
+      background: #52c41a;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #73d13d;
+    }
+    
+    .btn-danger {
+      background: #ff4d4f;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #ff7875;
+    }
+    
+    .btn-warning {
+      background: #faad14;
+      color: white;
+    }
+    
+    .btn-warning:hover {
+      background: #ffc53d;
+    }
+    
+    .table-container {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th {
+      background: #fafafa;
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #f0f0f0;
+      white-space: nowrap;
+    }
+    
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    tr:hover {
+      background: #fafafa;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-completed {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-failed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .btn-link {
+      background: none;
+      border: none;
+      color: #1890ff;
+      cursor: pointer;
+      padding: 4px 8px;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    
+    .btn-link:hover {
+      text-decoration: underline;
+    }
+    
+    .btn-link.danger {
+      color: #ff4d4f;
+    }
+    
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow: auto;
+      margin: 20px;
+    }
+    
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    
+    .modal-body {
+      padding: 24px;
+    }
+    
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #f0f0f0;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .info-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      background: #1890ff;
+      color: white;
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: help;
+      position: relative;
+    }
+    
+    .info-icon:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 12px;
+      background: #1f2937;
+      color: white;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: nowrap;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    .info-icon:hover::before {
+      content: '';
+      position: absolute;
+      bottom: 115%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 6px solid transparent;
+      border-top-color: #1f2937;
+      z-index: 1000;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #40a9ff;
+      box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+    }
+    
+    .form-textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 6px;
+      font-size: 14px;
+      min-height: 120px;
+      resize: vertical;
+      font-family: inherit;
+    }
+    
+    .form-textarea:focus {
+      outline: none;
+      border-color: #40a9ff;
+      box-shadow: 0 0 0 2px rgba(24,144,255,0.2);
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: white;
+      border-top: 1px solid #f0f0f0;
+    }
+    
+    .stats-bar {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111;
+    }
+    
     footer {
-      background: var(--white); border-top: 1px solid var(--border);
-      padding: 16px 24px; text-align: center;
-      color: var(--text-muted); font-size: 12px;
-    }
-    @media (max-width: 600px) {
-      header { padding: 0 12px; }
-      .header-title { display: none; }
-      main { padding: 16px 12px; }
+      background: white;
+      border-top: 1px solid #e5e7eb;
+      padding: 20px 24px;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
   <header>
     <div class="header-left">
-      <span style="font-size:20px;">🏢</span>
+      <span class="logo">🏢</span>
       <span class="header-title">ACS FAQ Manager</span>
     </div>
-    <nav>
-      <a href="/admin/dashboard">ダッシュボード</a>
-      <a href="/admin/videos" class="active">動画データ</a>
-      <a href="/admin/synonyms">同義語</a>
-      <a href="/admin/faq">FAQ編集</a>
-      <a href="/admin/logs">ログ閲覧</a>
-    </nav>
-    <button class="btn-logout" onclick="logout()">ログアウト</button>
+    <div class="header-right">
+      <nav>
+        <a href="/admin/dashboard.html">ダッシュボード</a>
+        <a href="/admin/videos.html" class="active">動画データ</a>
+        <a href="/admin/synonyms.html">Synonyms編集</a>
+        <a href="/admin/faq.html">FAQ編集</a>
+        <a href="/admin/logs.html">ログ閲覧</a>
+      </nav>
+      <button class="btn-logout" onclick="logout()">ログアウト</button>
+    </div>
   </header>
 
   <main>
-    <div class="page-header">
-      <h1 class="page-title">🎬 動画データ管理</h1>
-      <p class="page-desc">YouTube動画の文字起こしデータ管理（現在は空）</p>
+    <h1 class="page-title">動画データ管理</h1>
+
+    <div class="usage-info">
+      <div class="usage-title">📘 data.json - YouTube動画文字起こしデータファイル</div>
+      <div class="usage-content">
+        <strong>【用途】</strong>
+        <p>
+          YouTubeチャンネルの動画を自動で文字起こしした結果を保存します。
+          faster-whisperで処理された高精度な文字起こしテキストと動画メタデータを管理し、
+          検索システムで活用します。
+        </p>
+        <strong>【データ構造】</strong>
+        <ul>
+          <li>no: 通し番号</li>
+          <li>title: 動画タイトル</li>
+          <li>description: 動画説明</li>
+          <li>transcript: 文字起こしテキスト</li>
+          <li>url: YouTube動画URL</li>
+          <li>thumbnail: サムネイルURL</li>
+          <li>video_id: YouTube動画ID</li>
+          <li>status: 処理状態 (completed/pending/failed)</li>
+        </ul>
+        <strong>【データ例】</strong>
+        <div class="usage-example">{
+  "no": 1,
+  "title": "初期セットアップ解説",
+  "description": "システムの初期設定方法を...",
+  "transcript": "こんにちは。今日は...",
+  "url": "https://youtube.com/watch?v=...",
+  "thumbnail": "https://i.ytimg.com/...",
+  "video_id": "abc123",
+  "status": "completed"
+}</div>
+      </div>
     </div>
 
-    <div class="info-box">
-      <strong>📝 動画データについて</strong><br>
-      現在、動画データは登録されていません。<br>
-      動画データを追加するには、data.json ファイルに動画情報を追加してください。
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">総動画数</span>
+        <span class="stat-value" id="totalCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">完了</span>
+        <span class="stat-value" id="completedCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">処理中</span>
+        <span class="stat-value" id="pendingCount">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">失敗</span>
+        <span class="stat-value" id="failedCount">0</span>
+      </div>
     </div>
 
-    <div class="card">
-      <p style="text-align:center;padding:40px;color:#6b7280;">
-        動画データがありません。<br>
-        data.json に動画情報を追加すると、ここに表示されます。
-      </p>
+    <div class="toolbar">
+      <input type="text" id="searchInput" class="search-input" placeholder="🔍 タイトル・説明・文字起こしで検索..." />
+      <select id="statusFilter" class="select">
+        <option value="">すべての状態</option>
+        <option value="completed">完了</option>
+        <option value="pending">処理中</option>
+        <option value="failed">失敗</option>
+      </select>
+      <button class="btn btn-primary" onclick="selectAllVideos()">☑️ 全選択</button>
+      <button class="btn btn-primary" onclick="deselectAllVideos()">☐ 全解除</button>
+      <button class="btn btn-primary" onclick="openCreateModal()">➕ 新規追加</button>
+      <button class="btn btn-success" onclick="openYouTubeModal()">🎬 YouTube取込</button>
+      <button class="btn btn-primary" onclick="openSyncModal()">🔄 YouTube同期</button>
+      <button class="btn btn-success" onclick="exportData()">📥 エクスポート</button>
+      <button class="btn btn-warning" onclick="openImportModal()">📤 インポート</button>
+      <button class="btn btn-danger" onclick="deleteAllData()">🗑️ data.json全削除</button>
+      <button class="btn btn-danger" id="bulkDeleteBtn" style="display:none;" onclick="bulkDelete()">
+        🗑️ 選択したN件を削除
+      </button>
+    </div>
+
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 40px;">
+              <input type="checkbox" id="selectAll" onchange="toggleSelectAll()" />
+            </th>
+            <th style="width: 60px;">No</th>
+            <th style="width: 100px;">状態</th>
+            <th>タイトル</th>
+            <th style="width: 120px;">動画ID</th>
+            <th style="width: 180px;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;">読み込み中...</td></tr>
+        </tbody>
+      </table>
+      <div class="pagination">
+        <button class="btn" onclick="prevPage()" id="prevBtn">← 前の20件</button>
+        <span id="pageInfo">1-20件</span>
+        <button class="btn" onclick="nextPage()" id="nextBtn">次の20件 →</button>
+      </div>
     </div>
   </main>
 
-  <footer>Copyright © 2026 Toray Advanced Computer Solution, Inc.</footer>
+  <footer>
+    Copyright © 2026 Toray Advanced Computer Solution, Inc.
+  </footer>
+
+  <!-- 編集モーダル -->
+  <div id="editModal" class="modal" onclick="closeEditModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header" id="modalTitle">動画データ編集</div>
+      <div class="modal-body">
+        <form id="videoForm">
+          <div class="form-group">
+            <label class="form-label">
+              <span>No</span>
+              <span class="info-icon" data-tooltip="通し番号。自動採番されます">ⓘ</span>
+            </label>
+            <input type="number" id="videoNo" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>動画ID</span>
+              <span class="info-icon" data-tooltip="YouTube動画ID。例: abc123def45">ⓘ</span>
+            </label>
+            <input type="text" id="videoId" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>タイトル</span>
+              <span class="info-icon" data-tooltip="動画のタイトル">ⓘ</span>
+            </label>
+            <input type="text" id="videoTitle" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>URL</span>
+              <span class="info-icon" data-tooltip="YouTube動画URL">ⓘ</span>
+            </label>
+            <input type="url" id="videoUrl" class="form-input" required />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>サムネイルURL</span>
+              <span class="info-icon" data-tooltip="動画のサムネイル画像URL">ⓘ</span>
+            </label>
+            <input type="url" id="videoThumbnail" class="form-input" />
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>説明</span>
+              <span class="info-icon" data-tooltip="動画の説明文">ⓘ</span>
+            </label>
+            <textarea id="videoDescription" class="form-textarea"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>文字起こし</span>
+              <span class="info-icon" data-tooltip="faster-whisperで生成された文字起こしテキスト">ⓘ</span>
+            </label>
+            <textarea id="videoTranscript" class="form-textarea" style="min-height: 200px;"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">
+              <span>状態</span>
+              <span class="info-icon" data-tooltip="処理状態">ⓘ</span>
+            </label>
+            <select id="videoStatus" class="select">
+              <option value="completed">完了 (completed)</option>
+              <option value="pending">処理中 (pending)</option>
+              <option value="failed">失敗 (failed)</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeEditModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveVideo()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- インポートモーダル -->
+  <div id="importModal" class="modal" onclick="closeImportModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">データインポート</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">インポート方法</label>
+          <select id="importMode" class="select">
+            <option value="replace">全体置換（既存データを完全に置き換え）</option>
+            <option value="merge">差分マージ（既存データに追加・更新）</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">JSONファイル</label>
+          <input type="file" id="importFile" accept=".json" class="form-input" />
+        </div>
+        
+        <div id="importPreview" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title">プレビュー</div>
+            <div id="importPreviewContent"></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeImportModal()">キャンセル</button>
+        <button class="btn btn-warning" onclick="executeImport()">インポート実行</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTubeチャンネル取込モーダル -->
+  <div id="youtubeModal" class="modal" onclick="closeYouTubeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">🎬 YouTubeチャンネルから取込</div>
+      <div class="modal-body">
+        <div class="usage-info" style="margin-bottom: 20px;">
+          <div class="usage-title">💡 使い方</div>
+          <div class="usage-content">
+            <p>YouTubeチャンネルのURLを入力すると、チャンネル内の動画を自動取得します。</p>
+            <p>既存のdata.jsonと比較して、未登録の動画のみを文字起こし処理します。</p>
+            <p><strong>注意:</strong> YouTube Data API キーが必要です（環境変数: YOUTUBE_API_KEY）</p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>チャンネルURL</span>
+            <span class="info-icon" data-tooltip="例: https://www.youtube.com/c/TorayACSSupportChannel">ⓘ</span>
+          </label>
+          <input 
+            type="url" 
+            id="youtubeChannelUrl" 
+            class="form-input" 
+            placeholder="https://www.youtube.com/c/TorayACSSupportChannel"
+            value="https://www.youtube.com/c/TorayACSSupportChannel"
+          />
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">
+            <span>取得件数</span>
+            <span class="info-icon" data-tooltip="最新のN件の動画を取得">ⓘ</span>
+          </label>
+          <input 
+            type="number" 
+            id="youtubeMaxResults" 
+            class="form-input" 
+            value="50"
+            min="1"
+            max="600"
+          />
+        </div>
+
+        <div id="youtubeProgress" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title" id="progressTitle">処理中...</div>
+            <div id="progressContent"></div>
+          </div>
+        </div>
+
+        <div id="youtubeResults" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title">取得結果</div>
+            <div id="resultsContent"></div>
+            <div style="margin-top: 16px;">
+              <table style="width: 100%; font-size: 13px;">
+                <thead>
+                  <tr style="background: #f0f0f0;">
+                    <th style="padding: 8px; text-align: left;">
+                      <input type="checkbox" id="ytSelectAll" onchange="toggleYouTubeSelectAll()" />
+                    </th>
+                    <th style="padding: 8px; text-align: left;">タイトル</th>
+                    <th style="padding: 8px; text-align: left;">状態</th>
+                  </tr>
+                </thead>
+                <tbody id="videoListBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeYouTubeModal()">閉じる</button>
+        <button class="btn btn-primary" id="fetchVideosBtn" onclick="fetchYouTubeVideos()">
+          📺 動画リスト取得
+        </button>
+        <button class="btn btn-primary" id="selectAllYoutubeBtn" style="display:none;" onclick="selectAllYouTubeVideos()">
+          ☑️ 全選択
+        </button>
+        <button class="btn btn-primary" id="deselectAllYoutubeBtn" style="display:none;" onclick="deselectAllYouTubeVideos()">
+          ☐ 全解除
+        </button>
+        <button class="btn btn-success" id="transcribeBtn" style="display:none;" onclick="startTranscription()">
+          🎤 選択した動画を文字起こし
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- YouTube同期モーダル -->
+  <div id="syncModal" class="modal" onclick="closeSyncModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">🔄 YouTubeチャンネルと同期</div>
+      <div class="modal-body">
+        <div class="usage-info" style="margin-bottom: 20px;">
+          <div class="usage-title">💡 同期機能について</div>
+          <div class="usage-content">
+            <p><strong>この機能は以下を自動で行います:</strong></p>
+            <ul>
+              <li>✅ YouTubeチャンネル内の全動画を取得</li>
+              <li>✅ data.jsonと比較して差分を検出</li>
+              <li>➕ YouTubeにあるが未登録の動画 → 追加候補</li>
+              <li>🗑️ data.jsonにあるがYouTubeに存在しない動画 → 削除候補</li>
+            </ul>
+            <p style="margin-top: 12px; color: #d46b08;">
+              <strong>注意:</strong> 削除候補は慎重に確認してください。
+              削除したチャンネル動画が検出されます。
+            </p>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            <span>チャンネルURL</span>
+          </label>
+          <input 
+            type="url" 
+            id="syncChannelUrl" 
+            class="form-input" 
+            placeholder="https://www.youtube.com/c/TorayACSSupportChannel"
+            value="https://www.youtube.com/c/TorayACSSupportChannel"
+          />
+        </div>
+
+        <div id="syncProgress" style="display:none; margin-top: 16px;">
+          <div class="usage-info">
+            <div class="usage-title">🔄 同期中...</div>
+            <div id="syncProgressContent">YouTubeチャンネルを解析しています...</div>
+          </div>
+        </div>
+
+        <div id="syncResults" style="display:none; margin-top: 16px;">
+          <!-- 追加候補 -->
+          <div id="addSection" style="display:none;">
+            <div class="usage-info" style="background: #f6ffed; border-color: #b7eb8f;">
+              <div class="usage-title" style="color: #389e0d;">➕ 追加候補（YouTubeにあり、data.jsonにない）</div>
+              <div id="addSummary"></div>
+              <div style="margin-top: 12px;">
+                <table style="width: 100%; font-size: 13px;">
+                  <thead>
+                    <tr style="background: #f0f0f0;">
+                      <th style="padding: 8px; text-align: left;">
+                        <input type="checkbox" id="syncAddSelectAll" onchange="toggleSyncAddSelectAll()" />
+                      </th>
+                      <th style="padding: 8px; text-align: left;">タイトル</th>
+                      <th style="padding: 8px; text-align: left;">動画ID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="addListBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 削除候補 -->
+          <div id="deleteSection" style="display:none; margin-top: 16px;">
+            <div class="usage-info" style="background: #fff1f0; border-color: #ffa39e;">
+              <div class="usage-title" style="color: #cf1322;">🗑️ 削除候補（data.jsonにあり、YouTubeにない）</div>
+              <div id="deleteSummary"></div>
+              <div style="margin-top: 12px;">
+                <table style="width: 100%; font-size: 13px;">
+                  <thead>
+                    <tr style="background: #f0f0f0;">
+                      <th style="padding: 8px; text-align: left;">
+                        <input type="checkbox" id="syncDeleteSelectAll" onchange="toggleSyncDeleteSelectAll()" />
+                      </th>
+                      <th style="padding: 8px; text-align: left;">タイトル</th>
+                      <th style="padding: 8px; text-align: left;">動画ID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="deleteListBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 同期完了 -->
+          <div id="syncComplete" style="display:none;">
+            <div class="usage-info" style="background: #e6f7ff; border-color: #91d5ff;">
+              <div class="usage-title" style="color: #0050b3;">✅ 同期完了</div>
+              <div style="color: #002766;">
+                YouTubeチャンネルとdata.jsonは完全に同期しています。<br>
+                追加・削除すべき動画はありません。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeSyncModal()">閉じる</button>
+        <button class="btn btn-primary" id="syncAnalyzeBtn" onclick="analyzeSyncDiff()">
+          🔍 差分を解析
+        </button>
+        <button class="btn btn-primary" id="selectAllAddBtn" style="display:none;" onclick="selectAllSyncAdd()">
+          ☑️ 追加全選択
+        </button>
+        <button class="btn btn-primary" id="deselectAllAddBtn" style="display:none;" onclick="deselectAllSyncAdd()">
+          ☐ 追加全解除
+        </button>
+        <button class="btn btn-success" id="syncAddBtn" style="display:none;" onclick="executeSyncAdd()">
+          ➕ 選択した動画を追加
+        </button>
+        <button class="btn btn-primary" id="selectAllDeleteBtn" style="display:none;" onclick="selectAllSyncDelete()">
+          ☑️ 削除全選択
+        </button>
+        <button class="btn btn-primary" id="deselectAllDeleteBtn" style="display:none;" onclick="deselectAllSyncDelete()">
+          ☐ 削除全解除
+        </button>
+        <button class="btn btn-danger" id="syncDeleteBtn" style="display:none;" onclick="executeSyncDelete()">
+          🗑️ 選択した動画を削除
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script>
-    var auth = localStorage.getItem('admin_auth');
-    if (!auth) { window.location.href = '/admin'; }
+    const auth = localStorage.getItem('admin_auth');
+    if (!auth) {
+      console.error('認証情報がありません');
+      window.location.href = '/admin';
+    }
+    
+    let username, password, authHeader;
+    try {
+      const authData = JSON.parse(auth);
+      username = authData.username;
+      password = authData.password;
+      authHeader = 'Basic ' + btoa(username + ':' + password);
+      console.log('認証情報を取得しました:', username);
+    } catch (error) {
+      console.error('認証情報のパースに失敗:', error);
+      alert('認証情報が無効です。再ログインしてください。');
+      localStorage.removeItem('admin_auth');
+      window.location.href = '/admin';
+    }
+
+    let allVideos = [];
+    let filteredVideos = [];
+    let currentPage = 0;
+    const pageSize = 20;
+    let editingIndex = null;
+    let selectedVideoIds = new Set(); // インデックスではなくvideo_idを保存
+
+    async function loadVideos() {
+      console.log('loadVideos() 開始');
+      try {
+        console.log('APIリクエスト送信: /admin/api/videos');
+        const res = await fetch('/admin/api/videos', {
+          headers: { 'Authorization': authHeader }
+        });
+        
+        console.log('APIレスポンス:', res.status, res.statusText);
+        
+        if (!res.ok) {
+          console.error('API エラー:', res.status);
+          if (res.status === 401) {
+            alert('認証エラー: 再ログインしてください');
+            localStorage.removeItem('admin_auth');
+            window.location.href = '/admin';
+            return;
+          }
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+        
+        console.log('JSONパース開始');
+        const data = await res.json();
+        console.log('取得データ:', data);
+        allVideos = Array.isArray(data) ? data : [];
+        console.log('allVideos件数:', allVideos.length);
+        
+        updateStats();
+        applyFilters();
+        console.log('loadVideos() 完了');
+      } catch (error) {
+        console.error('動画データの取得に失敗:', error);
+        // エラー時も空配列で初期化して画面を表示
+        allVideos = [];
+        updateStats();
+        applyFilters();
+        alert('動画データの取得に失敗しました: ' + error.message);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('totalCount').textContent = allVideos.length;
+      document.getElementById('completedCount').textContent = 
+        allVideos.filter(v => (v.status || 'pending') === 'completed').length;
+      document.getElementById('pendingCount').textContent = 
+        allVideos.filter(v => (v.status || 'pending') === 'pending').length;
+      document.getElementById('failedCount').textContent = 
+        allVideos.filter(v => (v.status || 'pending') === 'failed').length;
+    }
+
+    function applyFilters() {
+      console.log('applyFilters() 開始');
+      const searchText = document.getElementById('searchInput').value.toLowerCase();
+      const status = document.getElementById('statusFilter').value;
+      
+      console.log('フィルター条件:', { searchText, status });
+      console.log('allVideos件数:', allVideos.length);
+      
+      filteredVideos = allVideos.filter(video => {
+        const matchSearch = !searchText || 
+          video.title?.toLowerCase().includes(searchText) ||
+          video.description?.toLowerCase().includes(searchText) ||
+          video.transcript?.toLowerCase().includes(searchText);
+        
+        const matchStatus = !status || video.status === status;
+        
+        return matchSearch && matchStatus;
+      });
+      
+      console.log('filteredVideos件数:', filteredVideos.length);
+      
+      currentPage = 0;
+      renderTable();
+      console.log('applyFilters() 完了');
+    }
+
+    function renderTable() {
+      console.log('renderTable() 開始');
+      const start = currentPage * pageSize;
+      const end = start + pageSize;
+      const pageItems = filteredVideos.slice(start, end);
+      
+      console.log('ページ情報:', { currentPage, start, end, pageItems: pageItems.length });
+      
+      const tbody = document.getElementById('tableBody');
+      if (!tbody) {
+        console.error('tableBody要素が見つかりません');
+        return;
+      }
+      
+      if (pageItems.length === 0) {
+        console.log('データなし: 空メッセージを表示');
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#999;">該当する動画データがありません</td></tr>';
+      } else {
+        console.log('データあり: テーブル生成開始');
+        try {
+          tbody.innerHTML = pageItems.map((video) => {
+            const status = video.status || 'pending';
+            const statusClass = `status-${status}`;
+            const statusText = status === 'completed' ? '完了' : 
+                             status === 'pending' ? '処理中' : '失敗';
+            const isSelected = selectedVideoIds.has(video.video_id);
+            
+            return `
+              <tr>
+                <td>
+                  <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                         onchange="toggleSelect('${video.video_id}')" />
+                </td>
+                <td>${video.no || '-'}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>${escapeHtml(video.title || '')}</td>
+                <td><code>${escapeHtml(video.video_id || '')}</code></td>
+                <td>
+                  <button class="btn-link" onclick="editVideoByVideoId('${video.video_id}')">
+                    ✏️ 編集
+                  </button>
+                  <button class="btn-link danger" onclick="deleteVideoByVideoId('${video.video_id}')">
+                    🗑️ 削除
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+          console.log('テーブルHTML生成完了');
+        } catch (error) {
+          console.error('テーブル生成エラー:', error);
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:red;">テーブル生成エラー</td></tr>';
+        }
+      }
+      
+      document.getElementById('pageInfo').textContent = 
+        pageItems.length > 0 ? `${start + 1}-${start + pageItems.length}件 / 全${filteredVideos.length}件` : '0件';
+      
+      document.getElementById('prevBtn').disabled = currentPage === 0;
+      document.getElementById('nextBtn').disabled = end >= filteredVideos.length;
+      
+      updateBulkDeleteButton();
+      console.log('renderTable() 完了');
+    }
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function toggleSelectAll() {
+      const checked = document.getElementById('selectAll').checked;
+      const start = currentPage * pageSize;
+      const end = start + pageSize;
+      const pageItems = filteredVideos.slice(start, end);
+      
+      pageItems.forEach(video => {
+        if (checked) {
+          selectedVideoIds.add(video.video_id);
+        } else {
+          selectedVideoIds.delete(video.video_id);
+        }
+      });
+      
+      renderTable();
+    }
+
+    function selectAllVideos() {
+      // 全動画を選択
+      filteredVideos.forEach(video => {
+        selectedVideoIds.add(video.video_id);
+      });
+      renderTable();
+      alert(`${filteredVideos.length}件の動画を選択しました`);
+    }
+
+    function deselectAllVideos() {
+      // すべての選択を解除
+      selectedVideoIds.clear();
+      renderTable();
+      alert('すべての選択を解除しました');
+    }
+
+    function toggleSelect(videoId) {
+      if (selectedVideoIds.has(videoId)) {
+        selectedVideoIds.delete(videoId);
+      } else {
+        selectedVideoIds.add(videoId);
+      }
+      updateBulkDeleteButton();
+    }
+
+    function updateBulkDeleteButton() {
+      const btn = document.getElementById('bulkDeleteBtn');
+      if (selectedVideoIds.size > 0) {
+        btn.style.display = 'block';
+        btn.textContent = `🗑️ 選択した${selectedVideoIds.size}件を削除`;
+      } else {
+        btn.style.display = 'none';
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        renderTable();
+      }
+    }
+
+    function nextPage() {
+      const maxPage = Math.ceil(filteredVideos.length / pageSize) - 1;
+      if (currentPage < maxPage) {
+        currentPage++;
+        renderTable();
+      }
+    }
+
+    function openCreateModal() {
+      editingIndex = null;
+      document.getElementById('modalTitle').textContent = '動画データ新規追加';
+      document.getElementById('videoForm').reset();
+      document.getElementById('videoNo').value = (allVideos.length + 1);
+      document.getElementById('videoStatus').value = 'pending';
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function editVideoByVideoId(videoId) {
+      const video = allVideos.find(v => v.video_id === videoId);
+      if (!video) {
+        alert('動画が見つかりません');
+        return;
+      }
+      
+      editingIndex = allVideos.indexOf(video);
+      
+      document.getElementById('modalTitle').textContent = '動画データ編集';
+      document.getElementById('videoNo').value = video.no || '';
+      document.getElementById('videoId').value = video.video_id || '';
+      document.getElementById('videoTitle').value = video.title || '';
+      document.getElementById('videoUrl').value = video.url || '';
+      document.getElementById('videoThumbnail').value = video.thumbnail || '';
+      document.getElementById('videoDescription').value = video.description || '';
+      document.getElementById('videoTranscript').value = video.transcript || '';
+      document.getElementById('videoStatus').value = video.status || 'pending';
+      
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    // 旧関数との互換性のため残す
+    function editVideo(idx) {
+      const video = filteredVideos[idx];
+      if (video) {
+        editVideoByVideoId(video.video_id);
+      }
+    }
+
+    function closeEditModal(event) {
+      if (!event || event.target.id === 'editModal') {
+        document.getElementById('editModal').classList.remove('show');
+      }
+    }
+
+    async function saveVideo() {
+      const videoData = {
+        no: parseInt(document.getElementById('videoNo').value),
+        video_id: document.getElementById('videoId').value.trim(),
+        title: document.getElementById('videoTitle').value.trim(),
+        url: document.getElementById('videoUrl').value.trim(),
+        thumbnail: document.getElementById('videoThumbnail').value.trim(),
+        description: document.getElementById('videoDescription').value.trim(),
+        transcript: document.getElementById('videoTranscript').value.trim(),
+        status: document.getElementById('videoStatus').value
+      };
+      
+      if (!videoData.video_id || !videoData.title || !videoData.url) {
+        alert('動画ID、タイトル、URLは必須項目です');
+        return;
+      }
+      
+      try {
+        const method = editingIndex !== null ? 'PATCH' : 'POST';
+        const url = editingIndex !== null 
+          ? `/admin/api/videos/${allVideos[editingIndex].video_id}`
+          : '/admin/api/videos';
+        
+        const res = await fetch(url, {
+          method,
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(videoData)
+        });
+        
+        if (!res.ok) throw new Error('保存に失敗しました');
+        
+        alert(editingIndex !== null ? '更新しました' : '作成しました');
+        closeEditModal();
+        loadVideos();
+      } catch (error) {
+        alert('保存に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    async function deleteVideoByVideoId(videoId) {
+      const video = allVideos.find(v => v.video_id === videoId);
+      if (!video) {
+        alert('動画が見つかりません');
+        return;
+      }
+      
+      if (!confirm(`「${video.title}」を削除しますか？`)) return;
+      
+      try {
+        const res = await fetch(`/admin/api/videos/${videoId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': authHeader }
+        });
+        
+        if (!res.ok) throw new Error('削除に失敗しました');
+        
+        alert('削除しました');
+        selectedVideoIds.delete(videoId);
+        loadVideos();
+      } catch (error) {
+        alert('削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    // 旧関数との互換性のため残す
+    async function deleteVideo(idx) {
+      const video = filteredVideos[idx];
+      if (video) {
+        await deleteVideoByVideoId(video.video_id);
+      }
+    }
+
+    async function bulkDelete() {
+      if (selectedVideoIds.size === 0) {
+        alert('削除する動画を選択してください');
+        return;
+      }
+
+      const idsToDelete = Array.from(selectedVideoIds);
+
+      if (!confirm(`選択した${selectedVideoIds.size}件を削除しますか？\nこの操作は取り消せません。`)) return;
+      
+      try {
+        const res = await fetch('/admin/api/videos/bulk-delete', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            video_ids: idsToDelete
+          })
+        });
+        
+        if (!res.ok) throw new Error('一括削除に失敗しました');
+        
+        const result = await res.json();
+        alert(`削除しました\n削除: ${result.deleted_count}件\n残り: ${result.remaining_count}件`);
+        selectedVideoIds.clear();
+        loadVideos();
+      } catch (error) {
+        alert('一括削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    async function deleteAllData() {
+      if (!confirm('⚠️ data.json全削除\n\nすべての動画データを削除します。\nこの操作は取り消せません。\n\n本当に実行しますか？')) {
+        return;
+      }
+
+      if (!confirm('最終確認\n\n本当にすべてのデータを削除しますか？\nバックアップは取得済みですか？')) {
+        return;
+      }
+
+      try {
+        const res = await fetch('/admin/api/videos/delete-all', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '削除に失敗しました');
+        }
+
+        alert('✅ data.jsonをリセットしました\nすべてのデータが削除されました');
+        loadVideos();
+      } catch (error) {
+        alert('削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function exportData() {
+      const dataStr = JSON.stringify(allVideos, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `data_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openImportModal() {
+      document.getElementById('importMode').value = 'merge';
+      document.getElementById('importFile').value = '';
+      document.getElementById('importPreview').style.display = 'none';
+      document.getElementById('importModal').classList.add('show');
+    }
+
+    function closeImportModal(event) {
+      if (!event || event.target.id === 'importModal') {
+        document.getElementById('importModal').classList.remove('show');
+      }
+    }
+
+    document.getElementById('importFile').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (!Array.isArray(data)) {
+          alert('正しいJSON形式ではありません（配列である必要があります）');
+          return;
+        }
+        
+        const preview = document.getElementById('importPreviewContent');
+        preview.innerHTML = `
+          <p><strong>件数:</strong> ${data.length}件</p>
+          <p><strong>先頭データ:</strong></p>
+          <pre style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px;overflow:auto;">${JSON.stringify(data[0], null, 2)}</pre>
+        `;
+        document.getElementById('importPreview').style.display = 'block';
+        
+        window.importData = data;
+      } catch (error) {
+        alert('ファイルの読み込みに失敗しました: ' + error.message);
+      }
+    });
+
+    async function executeImport() {
+      if (!window.importData) {
+        alert('インポートするファイルを選択してください');
+        return;
+      }
+      
+      const mode = document.getElementById('importMode').value;
+      
+      try {
+        const res = await fetch('/admin/api/videos/import', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            mode: mode,
+            data: window.importData
+          })
+        });
+        
+        if (!res.ok) throw new Error('インポートに失敗しました');
+        
+        const result = await res.json();
+        alert(`インポート完了\n追加: ${result.added}件\n更新: ${result.updated}件`);
+        closeImportModal();
+        loadVideos();
+      } catch (error) {
+        alert('インポートに失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
 
     function logout() {
       localStorage.removeItem('admin_auth');
       window.location.href = '/admin';
     }
+
+    // YouTube取込機能
+    let fetchedVideos = [];
+    let youtubeSelectedIds = new Set(); // YouTube取込用の選択ID
+
+    function selectAllYouTubeVideos() {
+      // 新規動画のみ全選択
+      const existingIds = new Set(allVideos.map(v => v.video_id));
+      const newVideos = fetchedVideos.filter(v => !existingIds.has(v.video_id));
+      
+      newVideos.forEach(v => youtubeSelectedIds.add(v.video_id));
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('videoListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
+      checkboxes.forEach(cb => cb.checked = true);
+      
+      alert(`${newVideos.length}件の動画を選択しました`);
+    }
+
+    function deselectAllYouTubeVideos() {
+      youtubeSelectedIds.clear();
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('videoListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      
+      alert('すべての選択を解除しました');
+    }
+
+    // YouTube同期機能
+    let syncData = null;
+    let syncAddIds = new Set();
+    let syncDeleteIds = new Set();
+
+    function selectAllSyncAdd() {
+      if (!syncData || !syncData.missing_in_data) return;
+      
+      syncData.missing_in_data.forEach(v => syncAddIds.add(v.video_id));
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('addListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = true);
+      
+      alert(`${syncAddIds.size}件の動画を選択しました`);
+    }
+
+    function deselectAllSyncAdd() {
+      syncAddIds.clear();
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('addListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      
+      alert('すべての選択を解除しました');
+    }
+
+    function selectAllSyncDelete() {
+      if (!syncData || !syncData.missing_in_youtube) return;
+      
+      syncData.missing_in_youtube.forEach(v => syncDeleteIds.add(v.video_id));
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('deleteListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = true);
+      
+      alert(`${syncDeleteIds.size}件の動画を選択しました`);
+    }
+
+    function deselectAllSyncDelete() {
+      syncDeleteIds.clear();
+      
+      // チェックボックスを更新
+      const tbody = document.getElementById('deleteListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      
+      alert('すべての選択を解除しました');
+    }
+
+    function openSyncModal() {
+      document.getElementById('syncChannelUrl').value = 'https://www.youtube.com/c/TorayACSSupportChannel';
+      document.getElementById('syncProgress').style.display = 'none';
+      document.getElementById('syncResults').style.display = 'none';
+      document.getElementById('addSection').style.display = 'none';
+      document.getElementById('deleteSection').style.display = 'none';
+      document.getElementById('syncComplete').style.display = 'none';
+      document.getElementById('syncAnalyzeBtn').style.display = 'inline-block';
+      document.getElementById('syncAddBtn').style.display = 'none';
+      document.getElementById('syncDeleteBtn').style.display = 'none';
+      document.getElementById('selectAllAddBtn').style.display = 'none';
+      document.getElementById('deselectAllAddBtn').style.display = 'none';
+      document.getElementById('selectAllDeleteBtn').style.display = 'none';
+      document.getElementById('deselectAllDeleteBtn').style.display = 'none';
+      syncData = null;
+      syncAddIds.clear();
+      syncDeleteIds.clear();
+      document.getElementById('syncModal').classList.add('show');
+    }
+
+    function closeSyncModal(event) {
+      if (!event || event.target.id === 'syncModal') {
+        document.getElementById('syncModal').classList.remove('show');
+      }
+    }
+
+    async function analyzeSyncDiff() {
+      const channelUrl = document.getElementById('syncChannelUrl').value.trim();
+
+      if (!channelUrl) {
+        alert('チャンネルURLを入力してください');
+        return;
+      }
+
+      document.getElementById('syncProgress').style.display = 'block';
+      document.getElementById('syncProgressContent').textContent = 'YouTubeチャンネルを解析しています...';
+      document.getElementById('syncAnalyzeBtn').disabled = true;
+
+      try {
+        const res = await fetch('/admin/api/youtube/sync', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel_url: channelUrl
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '同期に失敗しました');
+        }
+
+        syncData = await res.json();
+
+        document.getElementById('syncProgress').style.display = 'none';
+        document.getElementById('syncResults').style.display = 'block';
+
+        const missingInData = syncData.missing_in_data || [];
+        const missingInYoutube = syncData.missing_in_youtube || [];
+
+        if (missingInData.length === 0 && missingInYoutube.length === 0) {
+          // 完全に同期している
+          document.getElementById('syncComplete').style.display = 'block';
+          document.getElementById('addSection').style.display = 'none';
+          document.getElementById('deleteSection').style.display = 'none';
+        } else {
+          // 追加候補
+          if (missingInData.length > 0) {
+            document.getElementById('addSection').style.display = 'block';
+            document.getElementById('addSummary').innerHTML = `
+              <p><strong>${missingInData.length}件</strong>の動画がYouTubeに存在しますが、data.jsonに未登録です。</p>
+            `;
+
+            const addBody = document.getElementById('addListBody');
+            addBody.innerHTML = missingInData.map(video => {
+              syncAddIds.add(video.video_id); // デフォルトで全選択
+              return `
+                <tr>
+                  <td style="padding: 8px;">
+                    <input 
+                      type="checkbox" 
+                      checked
+                      onchange="toggleSyncAdd('${video.video_id}')"
+                    />
+                  </td>
+                  <td style="padding: 8px; font-size: 13px;">
+                    ${escapeHtml(video.title)}
+                  </td>
+                  <td style="padding: 8px;">
+                    <code>${escapeHtml(video.video_id)}</code>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            document.getElementById('syncAddBtn').style.display = 'inline-block';
+            document.getElementById('selectAllAddBtn').style.display = 'inline-block';
+            document.getElementById('deselectAllAddBtn').style.display = 'inline-block';
+          } else {
+            document.getElementById('addSection').style.display = 'none';
+            document.getElementById('selectAllAddBtn').style.display = 'none';
+            document.getElementById('deselectAllAddBtn').style.display = 'none';
+          }
+
+          // 削除候補
+          if (missingInYoutube.length > 0) {
+            document.getElementById('deleteSection').style.display = 'block';
+            document.getElementById('deleteSummary').innerHTML = `
+              <p><strong>${missingInYoutube.length}件</strong>の動画がdata.jsonに存在しますが、YouTubeチャンネルにありません。</p>
+              <p style="margin-top: 8px; color: #d46b08;">
+                ⚠️ チャンネルから削除された動画、または非公開になった動画です。
+              </p>
+            `;
+
+            const deleteBody = document.getElementById('deleteListBody');
+            deleteBody.innerHTML = missingInYoutube.map(video => {
+              syncDeleteIds.add(video.video_id); // デフォルトで全選択
+              return `
+                <tr style="background: #fff1f0;">
+                  <td style="padding: 8px;">
+                    <input 
+                      type="checkbox" 
+                      checked
+                      onchange="toggleSyncDelete('${video.video_id}')"
+                    />
+                  </td>
+                  <td style="padding: 8px; font-size: 13px;">
+                    ${escapeHtml(video.title || '(タイトルなし)')}
+                  </td>
+                  <td style="padding: 8px;">
+                    <code>${escapeHtml(video.video_id || '')}</code>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+
+            document.getElementById('syncDeleteBtn').style.display = 'inline-block';
+            document.getElementById('selectAllDeleteBtn').style.display = 'inline-block';
+            document.getElementById('deselectAllDeleteBtn').style.display = 'inline-block';
+          } else {
+            document.getElementById('deleteSection').style.display = 'none';
+            document.getElementById('selectAllDeleteBtn').style.display = 'none';
+            document.getElementById('deselectAllDeleteBtn').style.display = 'none';
+          }
+        }
+
+        document.getElementById('syncAnalyzeBtn').disabled = false;
+
+      } catch (error) {
+        document.getElementById('syncProgress').style.display = 'none';
+        document.getElementById('syncAnalyzeBtn').disabled = false;
+        alert('差分解析に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function toggleSyncAdd(videoId) {
+      if (syncAddIds.has(videoId)) {
+        syncAddIds.delete(videoId);
+      } else {
+        syncAddIds.add(videoId);
+      }
+    }
+
+    function toggleSyncDelete(videoId) {
+      if (syncDeleteIds.has(videoId)) {
+        syncDeleteIds.delete(videoId);
+      } else {
+        syncDeleteIds.add(videoId);
+      }
+    }
+
+    function toggleSyncAddSelectAll() {
+      const checked = document.getElementById('syncAddSelectAll').checked;
+      const tbody = document.getElementById('addListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      
+      if (!syncData || !syncData.missing_in_data) return;
+      
+      syncData.missing_in_data.forEach(video => {
+        if (checked) {
+          syncAddIds.add(video.video_id);
+        } else {
+          syncAddIds.delete(video.video_id);
+        }
+      });
+      
+      checkboxes.forEach(cb => cb.checked = checked);
+    }
+
+    function toggleSyncDeleteSelectAll() {
+      const checked = document.getElementById('syncDeleteSelectAll').checked;
+      const tbody = document.getElementById('deleteListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]');
+      
+      if (!syncData || !syncData.missing_in_youtube) return;
+      
+      syncData.missing_in_youtube.forEach(video => {
+        if (checked) {
+          syncDeleteIds.add(video.video_id);
+        } else {
+          syncDeleteIds.delete(video.video_id);
+        }
+      });
+      
+      checkboxes.forEach(cb => cb.checked = checked);
+    }
+
+    async function executeSyncAdd() {
+      if (syncAddIds.size === 0) {
+        alert('追加する動画を選択してください');
+        return;
+      }
+
+      if (!confirm(`選択した${syncAddIds.size}件の動画を文字起こしして追加しますか？\n\n処理には時間がかかります。`)) {
+        return;
+      }
+
+      document.getElementById('syncAddBtn').disabled = true;
+      document.getElementById('syncProgress').style.display = 'block';
+      document.getElementById('syncProgressContent').textContent = '文字起こし処理を開始しています...';
+
+      const videosToAdd = syncData.missing_in_data.filter(v => syncAddIds.has(v.video_id));
+      
+      let completed = 0;
+      let failed = 0;
+
+      for (const video of videosToAdd) {
+        try {
+          document.getElementById('syncProgressContent').innerHTML = `
+            <p>処理中: ${completed + failed + 1} / ${videosToAdd.length}</p>
+            <p>現在: ${escapeHtml(video.title)}</p>
+          `;
+
+          const res = await fetch('/admin/api/youtube/transcribe', {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(video)
+          });
+
+          if (res.ok) {
+            completed++;
+          } else {
+            failed++;
+          }
+        } catch (error) {
+          console.error('Transcription error:', error);
+          failed++;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      document.getElementById('syncProgressContent').innerHTML = `
+        <p><strong>完了:</strong> ${completed}件</p>
+        <p><strong>失敗:</strong> ${failed}件</p>
+        <p style="margin-top: 12px; color: #666;">
+          ※ 文字起こし処理はバックグラウンドで続行中です。
+        </p>
+      `;
+
+      document.getElementById('syncAddBtn').disabled = false;
+      syncAddIds.clear();
+
+      setTimeout(() => {
+        closeSyncModal();
+        loadVideos();
+      }, 5000);
+    }
+
+    async function executeSyncDelete() {
+      if (syncDeleteIds.size === 0) {
+        alert('削除する動画を選択してください');
+        return;
+      }
+
+      if (!confirm(`選択した${syncDeleteIds.size}件の動画をdata.jsonから削除しますか？\n\n⚠️ この操作は取り消せません。`)) {
+        return;
+      }
+
+      document.getElementById('syncDeleteBtn').disabled = true;
+      document.getElementById('syncProgress').style.display = 'block';
+      document.getElementById('syncProgressContent').textContent = '削除処理中...';
+
+      try {
+        const res = await fetch('/admin/api/youtube/cleanup', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            video_ids: Array.from(syncDeleteIds)
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '削除に失敗しました');
+        }
+
+        const result = await res.json();
+
+        document.getElementById('syncProgressContent').innerHTML = `
+          <p><strong>削除完了:</strong> ${result.deleted_count}件</p>
+          <p><strong>残り:</strong> ${result.remaining_count}件</p>
+        `;
+
+        document.getElementById('syncDeleteBtn').disabled = false;
+        syncDeleteIds.clear();
+
+        setTimeout(() => {
+          closeSyncModal();
+          loadVideos();
+        }, 3000);
+
+      } catch (error) {
+        document.getElementById('syncProgress').style.display = 'none';
+        document.getElementById('syncDeleteBtn').disabled = false;
+        alert('削除に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function openYouTubeModal() {
+      document.getElementById('youtubeChannelUrl').value = 'https://www.youtube.com/c/TorayACSSupportChannel';
+      document.getElementById('youtubeMaxResults').value = '50';
+      document.getElementById('youtubeProgress').style.display = 'none';
+      document.getElementById('youtubeResults').style.display = 'none';
+      document.getElementById('fetchVideosBtn').style.display = 'inline-block';
+      document.getElementById('transcribeBtn').style.display = 'none';
+      document.getElementById('selectAllYoutubeBtn').style.display = 'none';
+      document.getElementById('deselectAllYoutubeBtn').style.display = 'none';
+      fetchedVideos = [];
+      youtubeSelectedIds.clear();
+      document.getElementById('youtubeModal').classList.add('show');
+    }
+
+    function closeYouTubeModal(event) {
+      if (!event || event.target.id === 'youtubeModal') {
+        document.getElementById('youtubeModal').classList.remove('show');
+      }
+    }
+
+    async function fetchYouTubeVideos() {
+      const channelUrl = document.getElementById('youtubeChannelUrl').value.trim();
+      const maxResults = parseInt(document.getElementById('youtubeMaxResults').value);
+
+      if (!channelUrl) {
+        alert('チャンネルURLを入力してください');
+        return;
+      }
+
+      document.getElementById('youtubeProgress').style.display = 'block';
+      document.getElementById('progressTitle').textContent = '動画リストを取得中...';
+      document.getElementById('progressContent').innerHTML = '<p>YouTubeチャンネルにアクセスしています...</p>';
+      document.getElementById('fetchVideosBtn').disabled = true;
+
+      try {
+        const res = await fetch('/admin/api/youtube/fetch', {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            channel_url: channelUrl,
+            max_results: maxResults
+          })
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.detail || '取得に失敗しました');
+        }
+
+        const result = await res.json();
+        fetchedVideos = result.videos || [];
+
+        // 既存動画IDを取得
+        const existingIds = new Set(allVideos.map(v => v.video_id));
+
+        // 新規動画のみフィルター
+        const newVideos = fetchedVideos.filter(v => !existingIds.has(v.video_id));
+
+        document.getElementById('youtubeProgress').style.display = 'none';
+        document.getElementById('youtubeResults').style.display = 'block';
+        document.getElementById('resultsContent').innerHTML = `
+          <p><strong>取得件数:</strong> ${fetchedVideos.length}件</p>
+          <p><strong>既存:</strong> ${fetchedVideos.length - newVideos.length}件</p>
+          <p><strong>新規:</strong> ${newVideos.length}件</p>
+        `;
+
+        // 動画リスト表示
+        const tbody = document.getElementById('videoListBody');
+        tbody.innerHTML = fetchedVideos.map(video => {
+          const isExisting = existingIds.has(video.video_id);
+          const statusBadge = isExisting 
+            ? '<span class="status-badge status-completed">登録済み</span>'
+            : '<span class="status-badge status-pending">未登録</span>';
+
+          return `
+            <tr style="background: ${isExisting ? '#f9f9f9' : 'white'};">
+              <td style="padding: 8px;">
+                <input 
+                  type="checkbox" 
+                  data-video-id="${video.video_id}"
+                  ${isExisting ? 'disabled' : ''}
+                  ${youtubeSelectedIds.has(video.video_id) ? 'checked' : ''}
+                  onchange="toggleVideoSelection('${video.video_id}')"
+                />
+              </td>
+              <td style="padding: 8px; font-size: 13px;">
+                ${escapeHtml(video.title)}
+              </td>
+              <td style="padding: 8px;">
+                ${statusBadge}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        // 新規動画がある場合は文字起こしボタンを表示
+        if (newVideos.length > 0) {
+          // デフォルトで新規動画を全選択
+          newVideos.forEach(v => youtubeSelectedIds.add(v.video_id));
+          document.getElementById('transcribeBtn').style.display = 'inline-block';
+          document.getElementById('selectAllYoutubeBtn').style.display = 'inline-block';
+          document.getElementById('deselectAllYoutubeBtn').style.display = 'inline-block';
+          
+          // チェックボックスを更新
+          const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
+          checkboxes.forEach(cb => cb.checked = true);
+        }
+
+        document.getElementById('fetchVideosBtn').disabled = false;
+
+      } catch (error) {
+        document.getElementById('youtubeProgress').style.display = 'none';
+        document.getElementById('fetchVideosBtn').disabled = false;
+        alert('動画リストの取得に失敗しました: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    function toggleVideoSelection(videoId) {
+      if (youtubeSelectedIds.has(videoId)) {
+        youtubeSelectedIds.delete(videoId);
+      } else {
+        youtubeSelectedIds.add(videoId);
+      }
+    }
+
+    function toggleYouTubeSelectAll() {
+      const checked = document.getElementById('ytSelectAll').checked;
+      const tbody = document.getElementById('videoListBody');
+      const checkboxes = tbody.querySelectorAll('input[type="checkbox"]:not([disabled])');
+      
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = checked;
+        const videoId = checkbox.getAttribute('data-video-id');
+        if (videoId) {
+          if (checked) {
+            youtubeSelectedIds.add(videoId);
+          } else {
+            youtubeSelectedIds.delete(videoId);
+          }
+        }
+      });
+    }
+
+    async function startTranscription() {
+      if (youtubeSelectedIds.size === 0) {
+        alert('文字起こしする動画を選択してください');
+        return;
+      }
+
+      if (!confirm(`選択した${youtubeSelectedIds.size}件の動画を文字起こししますか？\n\n処理には時間がかかります（1動画あたり数分）。\nバックグラウンドで処理されます。`)) {
+        return;
+      }
+
+      document.getElementById('transcribeBtn').disabled = true;
+      document.getElementById('youtubeProgress').style.display = 'block';
+      document.getElementById('progressTitle').textContent = '文字起こし処理中...';
+
+      let completed = 0;
+      let failed = 0;
+
+      for (const videoId of youtubeSelectedIds) {
+        const video = fetchedVideos.find(v => v.video_id === videoId);
+        if (!video) continue;
+
+        try {
+          document.getElementById('progressContent').innerHTML = `
+            <p>処理中: ${completed + failed + 1} / ${youtubeSelectedIds.size}</p>
+            <p>現在: ${escapeHtml(video.title)}</p>
+          `;
+
+          const res = await fetch('/admin/api/youtube/transcribe', {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(video)
+          });
+
+          if (res.ok) {
+            completed++;
+          } else {
+            failed++;
+          }
+
+        } catch (error) {
+          console.error('Transcription error:', error);
+          failed++;
+        }
+
+        // UI更新のため少し待機
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      document.getElementById('progressTitle').textContent = '完了！';
+      document.getElementById('progressContent').innerHTML = `
+        <p><strong>処理完了:</strong> ${completed}件</p>
+        <p><strong>失敗:</strong> ${failed}件</p>
+        <p style="margin-top: 12px; color: #666;">
+          ※ 文字起こし処理はバックグラウンドで続行中です。<br>
+          完了までしばらくお待ちください。
+        </p>
+      `;
+
+      document.getElementById('transcribeBtn').disabled = false;
+      youtubeSelectedIds.clear();
+
+      // 5秒後にモーダルを閉じてデータをリロード
+      setTimeout(() => {
+        closeYouTubeModal();
+        loadVideos();
+      }, 5000);
+    }
+
+    // イベントリスナー
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+
+    // 初期読み込み
+    loadVideos();
   </script>
 </body>
 </html>

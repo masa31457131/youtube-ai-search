@@ -698,7 +698,7 @@ async def update_faq_item(item_id: str, item: dict, background_tasks: Background
 
 @app.delete("/admin/api/faq/item/{item_id}", dependencies=[Depends(verify_admin)])
 async def delete_faq_item(item_id: str, background_tasks: BackgroundTasks):
-    """FAQå‰Šé™¤"""
+    """FAQ削除"""
     await state.ensure_faq_loaded()
     
     found = False
@@ -729,6 +729,141 @@ async def delete_faq_item(item_id: str, background_tasks: BackgroundTasks):
     
     background_tasks.add_task(reload_faq_data)
     return {"status": "deleted", "id": item_id}
+
+@app.delete("/admin/api/faq/all", dependencies=[Depends(verify_admin)])
+async def delete_all_faqs(background_tasks: BackgroundTasks):
+    """FAQ一括削除"""
+    await state.ensure_faq_loaded()
+    
+    # faqs配列形式
+    if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        count = len(state.faq_data["faqs"])
+        state.faq_data["faqs"] = []
+    else:
+        # カテゴリ辞書形式
+        count = sum(len(items) for items in state.faq_data.values() if isinstance(items, list))
+        for key in list(state.faq_data.keys()):
+            if isinstance(state.faq_data[key], list):
+                state.faq_data[key] = []
+    
+    with open(FAQ_PATH, "w", encoding="utf-8") as f:
+        json.dump(state.faq_data, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_faq_data)
+    return {"status": "deleted", "count": count}
+
+@app.post("/admin/api/faq/import", dependencies=[Depends(verify_admin)])
+async def import_faqs(data: dict, background_tasks: BackgroundTasks):
+    """FAQインポート（新規追加・更新のみ）"""
+    await state.ensure_faq_loaded()
+    
+    imported_faqs = data.get("faqs", [])
+    if not isinstance(imported_faqs, list):
+        raise HTTPException(400, "Invalid format: 'faqs' must be an array")
+    
+    added_count = 0
+    updated_count = 0
+    
+    # faqs配列形式
+    if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        existing_ids = {item.get("id") for item in state.faq_data["faqs"] if isinstance(item, dict)}
+        
+        for imported_item in imported_faqs:
+            if not isinstance(imported_item, dict):
+                continue
+            
+            item_id = imported_item.get("id") or imported_item.get("faq_id")
+            if not item_id:
+                continue
+            
+            # フィールド正規化
+            normalized_item = imported_item.copy()
+            if "faq_id" in normalized_item and "id" not in normalized_item:
+                normalized_item["id"] = normalized_item.pop("faq_id")
+            if "answer_steps" in normalized_item and "steps" not in normalized_item:
+                normalized_item["steps"] = normalized_item.pop("answer_steps")
+            
+            if item_id in existing_ids:
+                # 更新
+                for i, existing in enumerate(state.faq_data["faqs"]):
+                    if existing.get("id") == item_id:
+                        state.faq_data["faqs"][i] = normalized_item
+                        updated_count += 1
+                        break
+            else:
+                # 新規追加
+                state.faq_data["faqs"].append(normalized_item)
+                added_count += 1
+    else:
+        # カテゴリ辞書形式への対応
+        for imported_item in imported_faqs:
+            if not isinstance(imported_item, dict):
+                continue
+            
+            item_id = imported_item.get("id")
+            if not item_id:
+                continue
+            
+            category = imported_item.get("category", "その他")
+            
+            # カテゴリが存在しない場合は作成
+            if category not in state.faq_data:
+                state.faq_data[category] = []
+            
+            # 既存チェック
+            found = False
+            if isinstance(state.faq_data[category], list):
+                for i, existing in enumerate(state.faq_data[category]):
+                    if existing.get("id") == item_id:
+                        state.faq_data[category][i] = imported_item
+                        updated_count += 1
+                        found = True
+                        break
+            
+            if not found:
+                state.faq_data[category].append(imported_item)
+                added_count += 1
+    
+    with open(FAQ_PATH, "w", encoding="utf-8") as f:
+        json.dump(state.faq_data, f, ensure_ascii=False, indent=2)
+    
+    background_tasks.add_task(reload_faq_data)
+    return {
+        "status": "imported",
+        "added": added_count,
+        "updated": updated_count,
+        "total": added_count + updated_count
+    }
+
+@app.get("/admin/api/faq/export", dependencies=[Depends(verify_admin)])
+async def export_faqs():
+    """FAQエクスポート"""
+    await state.ensure_faq_loaded()
+    
+    # faqs配列形式で返す
+    if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        export_data = {
+            "meta": state.faq_data.get("meta", {}),
+            "faqs": state.faq_data["faqs"]
+        }
+    else:
+        # カテゴリ辞書形式をfaqs配列形式に変換
+        all_faqs = []
+        for category, items in state.faq_data.items():
+            if isinstance(items, list):
+                all_faqs.extend(items)
+        
+        import time
+        export_data = {
+            "meta": {
+                "exported_at": time.time(),
+                "count": len(all_faqs)
+            },
+            "faqs": all_faqs
+        }
+    
+    return export_data
+
 
 # ============================================
 # ç®¡ç†API - å‹•ç”»ãƒ‡ãƒ¼ã‚¿

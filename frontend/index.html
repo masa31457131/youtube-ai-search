@@ -1,631 +1,1113 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>サポート検索 | 東レACS</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>東レACS サポート検索</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand: #0066cc;
+      --brand-dark: #004fa3;
+      --brand-light: #e8f0fb;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #f7f9fc;
+      --white: #ffffff;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+      --shadow-lg: 0 8px 40px rgba(0,0,0,0.18);
+      --radius: 10px;
+      --radius-sm: 6px;
+      --transition: all 0.22s ease;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
-      background: #f4f6f9; color: #333; line-height: 1.6;
-      min-height: 100vh; display: flex; flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", "Yu Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ─── ヘッダー ─── */
+    /* ========== HEADER ========== */
     header {
-      background: #fff; border-bottom: 3px solid #0066cc;
-      padding: 1.2rem 2rem; box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-    }
-    header h1 { font-size: 1.55rem; font-weight: 700; color: #0066cc; }
-    header p  { font-size: 0.87rem; color: #666; margin-top: 0.15rem; }
-
-    /* ─── メイン ─── */
-    main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 2rem 1.5rem; }
-
-    /* ─── 検索 ─── */
-    .search-wrap { max-width: 680px; margin: 0 auto 2.5rem; }
-    #searchInput {
-      width: 100%; padding: 0.9rem 1.2rem; font-size: 1.05rem;
-      border: 2px solid #ddd; border-radius: 8px;
-      background: #fff; outline: none;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      transition: border-color 0.2s;
-    }
-    #searchInput:focus { border-color: #0066cc; }
-
-    /* ─── セクションヘッダー ─── */
-    .sec-head {
-      display: flex; align-items: center; justify-content: space-between;
-      margin: 2.2rem 0 1rem; padding-bottom: 0.6rem;
-      border-bottom: 2px solid #0066cc;
-    }
-    .sec-title { font-size: 1.05rem; font-weight: 700; color: #0066cc; }
-    .badge {
-      font-size: 0.78rem; font-weight: 600; padding: 0.18rem 0.7rem;
-      border-radius: 999px; background: #e3f2fd; color: #0066cc;
-      border: 1px solid #90caf9;
+      background: var(--white);
+      border-bottom: 3px solid var(--brand);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-sm);
     }
 
-    /* ─── FAQ グリッド（3列 × 3行 = 9件） ─── */
-    .faq-grid {
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .header-logo img {
+      height: 32px;
+      width: auto;
+    }
+
+    .header-logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--brand);
+      white-space: nowrap;
+    }
+
+    .header-logo-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: block;
+      font-weight: 400;
+    }
+
+    /* ========== HERO SEARCH ========== */
+    .hero {
+      background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
+      padding: 32px 24px 28px;
+      text-align: center;
+    }
+
+    .hero-title {
+      color: var(--white);
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      letter-spacing: 0.01em;
+    }
+
+    .hero-sub {
+      color: rgba(255,255,255,0.78);
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+
+    .search-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 14px 52px 14px 18px;
+      font-size: 16px;
+      border: none;
+      border-radius: 28px;
+      outline: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      font-family: inherit;
+      transition: var(--transition);
+      -webkit-appearance: none;
+    }
+
+    .search-input:focus {
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.3);
+    }
+
+    .search-icon {
+      position: absolute;
+      right: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+      font-size: 18px;
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 46px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 18px;
+      padding: 4px;
+      display: none;
+      line-height: 1;
+    }
+
+    /* ========== MAIN CONTENT ========== */
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 24px 16px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 24px;
+      color: var(--text-muted);
+    }
+
+    .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+    .empty-state-desc { font-size: 14px; line-height: 1.7; }
+
+    .results-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.75rem; margin-bottom: 0.5rem;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
     }
-    @media (max-width: 600px)  { .faq-grid { grid-template-columns: 1fr; } }
-    @media (min-width: 601px) and (max-width: 900px) { .faq-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--brand);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-count {
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--brand-light);
+      color: var(--brand);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    /* ========== FAQ CARDS ========== */
+    .faq-list { display: flex; flex-direction: column; gap: 8px; }
 
     .faq-card {
-      background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
-      padding: 0.85rem 1rem; cursor: pointer;
-      display: flex; align-items: flex-start; gap: 0.55rem;
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
     }
-    .faq-card:hover {
-      border-color: #0066cc; transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(0,102,204,0.15);
-    }
-    .faq-q { color: #0066cc; font-weight: 700; font-size: 0.95rem; flex-shrink: 0; }
-    .faq-text { font-size: 0.91rem; font-weight: 600; color: #1a1a1a; line-height: 1.45; }
 
-    /* ─── 動画グリッド（3列 × 3行 = 9件） ─── */
-    .vid-grid {
+    .faq-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: var(--brand);
+      transform: scaleY(0);
+      transition: transform 0.2s ease;
+    }
+
+    .faq-card:hover {
+      border-color: var(--brand);
+      box-shadow: var(--shadow-md);
+      transform: translateX(2px);
+    }
+
+    .faq-card:hover::before { transform: scaleY(1); }
+
+    .faq-card:active { transform: scale(0.98); }
+
+    .faq-category {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--brand);
+      background: var(--brand-light);
+      padding: 2px 8px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .faq-question {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    /* ========== VIDEO CARDS ========== */
+    .video-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 0.75rem; margin-bottom: 0.5rem;
+      gap: 10px;
     }
-    @media (max-width: 600px)  { .vid-grid { grid-template-columns: 1fr; } }
-    @media (min-width: 601px) and (max-width: 900px) { .vid-grid { grid-template-columns: repeat(2, 1fr); } }
 
-    .vid-card {
-      border-radius: 8px; overflow: hidden;
-      cursor: pointer; position: relative;
-      aspect-ratio: 16 / 9;
-      border: 1px solid #e0e0e0; background: #111;
-      transition: transform 0.15s, box-shadow 0.2s;
+    .video-card {
+      background: var(--white);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      cursor: pointer;
+      transition: var(--transition);
     }
-    .vid-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.22); }
-    .vid-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .vid-no-thumb {
-      width: 100%; height: 100%; background: #ccc;
-      display: flex; align-items: center; justify-content: center;
-      color: #777; font-size: 0.85rem;
+
+    .video-card:hover {
+      border-color: var(--brand);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
     }
-    .vid-overlay {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0); transition: background 0.2s;
+
+    .video-card:active { transform: scale(0.97); }
+
+    .video-thumb-wrap {
+      position: relative;
+      padding-top: 56.25%;
+      background: #000;
+      overflow: hidden;
     }
-    .vid-card:hover .vid-overlay { background: rgba(0,0,0,0.38); }
-    .play-btn {
-      width: 48px; height: 48px; border-radius: 50%;
+
+    .video-thumb {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .video-card:hover .video-thumb { transform: scale(1.04); }
+
+    .video-play-btn {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px; height: 40px;
       background: rgba(255,255,255,0.92);
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.2s;
-    }
-    .vid-card:hover .play-btn { opacity: 1; }
-    .play-btn::after {
-      content: ""; margin-left: 4px;
-      border-style: solid; border-width: 10px 0 10px 17px;
-      border-color: transparent transparent transparent #0066cc;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
     }
 
-    /* ─── ページャー ─── */
-    .pager { display: flex; gap: 0.75rem; align-items: center; justify-content: center; margin: 1rem 0 1.5rem; }
-    .pager button {
-      padding: 0.45rem 1.1rem; border: 1px solid #ccc;
-      background: #fff; border-radius: 6px; cursor: pointer;
-      font-size: 0.88rem; color: #333; transition: background 0.15s, color 0.15s;
-    }
-    .pager button:hover:not([disabled]) { background: #0066cc; color: #fff; border-color: #0066cc; }
-    .pager button[disabled] { opacity: 0.38; cursor: not-allowed; }
-    .pager-info { color: #999; font-size: 0.88rem; min-width: 5rem; text-align: center; }
+    .video-card:hover .video-play-btn { opacity: 1; }
 
-    /* ─── 状態表示 ─── */
-    .empty-wrap { text-align: center; padding: 4rem 2rem; }
-    .empty-icon  { font-size: 3rem; margin-bottom: 0.75rem; }
-    .empty-title { color: #555; font-size: 1.05rem; margin-bottom: 0.4rem; }
-    .empty-sub   { color: #999; font-size: 0.9rem; }
-    .loading     { text-align: center; padding: 4rem 2rem; }
+    .video-info { padding: 8px 10px; }
+
+    .video-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ========== PAGINATION ========== */
+    .pagination {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 12px;
+      gap: 8px;
+    }
+
+    .btn-page {
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--brand);
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .btn-page:hover:not(:disabled) {
+      background: var(--brand);
+      color: var(--white);
+      border-color: var(--brand);
+    }
+
+    .btn-page:disabled {
+      color: var(--text-muted);
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .page-info {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ========== LOADING ========== */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-muted);
+    }
+
     .spinner {
-      width: 44px; height: 44px; margin: 0 auto 1rem;
-      border: 4px solid #eee; border-top-color: #0066cc;
-      border-radius: 50%; animation: spin 0.75s linear infinite;
+      display: inline-block;
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 12px;
     }
+
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ─── ライトボックス ─── */
-    .lb-mask {
-      display: none; position: fixed; inset: 0; z-index: 9000;
-      background: rgba(0,0,0,0.76);
-      align-items: center; justify-content: center;
-    }
-    .lb-mask.open { display: flex; }
-    .lb-box {
-      background: #fff; border-radius: 12px;
-      width: 92%; max-width: 820px; max-height: 88vh;
-      overflow-y: auto; position: relative; padding: 2rem;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
-    }
-    .lb-close {
-      position: absolute; top: 1rem; right: 1.25rem;
-      font-size: 2rem; line-height: 1; cursor: pointer;
-      color: #bbb; background: none; border: none;
-      transition: color 0.2s;
-    }
-    .lb-close:hover { color: #333; }
-    .lb-title {
-      font-size: 1.2rem; font-weight: 700; color: #0066cc;
-      border-bottom: 2px solid #e3f2fd;
-      padding-bottom: 0.85rem; margin-bottom: 1.25rem;
-      padding-right: 2.5rem; line-height: 1.5;
+    /* ========== LIGHTBOX ========== */
+    .lightbox-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 30, 0.7);
+      z-index: 1000;
+      display: none;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px 16px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      backdrop-filter: blur(4px);
     }
 
-    /* FAQ ライトボックス */
+    .lightbox-overlay.active { display: flex; }
+
+    .lightbox-box {
+      background: var(--white);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 700px;
+      margin: auto;
+      position: relative;
+      box-shadow: var(--shadow-lg);
+      animation: modalIn 0.25s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: translateY(16px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 14px; right: 14px;
+      width: 32px; height: 32px;
+      border: none;
+      background: var(--bg);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      transition: var(--transition);
+      z-index: 2;
+    }
+
+    .lightbox-close:hover { background: var(--border); color: var(--text); }
+
+    /* FAQ Lightbox */
+    .lb-faq-header {
+      padding: 24px 24px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
     .lb-category {
-      display: inline-block; background: #e3f2fd; color: #0066cc;
-      padding: 0.18rem 0.75rem; border-radius: 999px;
-      font-size: 0.82rem; font-weight: 600; margin-bottom: 1.1rem;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brand);
+      background: var(--brand-light);
+      padding: 3px 10px;
+      border-radius: 12px;
+      display: inline-block;
+      margin-bottom: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
-    .lb-steps-title {
-      font-size: 0.9rem; font-weight: 700; color: #444;
-      margin-bottom: 0.6rem;
+
+    .lb-question {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.5;
+      padding-right: 32px;
     }
-    .lb-steps { list-style: none; padding: 0; }
+
+    .lb-faq-body { padding: 20px 24px 24px; }
+
+    .lb-steps-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+
+    .lb-steps {
+      list-style: none;
+      counter-reset: step;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
     .lb-steps li {
-      display: flex; gap: 0.75rem; align-items: flex-start;
-      padding: 0.65rem 0.85rem; margin-bottom: 0.5rem;
-      background: #f8faff; border-left: 3px solid #0066cc;
-      border-radius: 0 6px 6px 0; font-size: 0.95rem; line-height: 1.6;
-    }
-    .lb-step-num {
-      background: #0066cc; color: #fff;
-      min-width: 22px; height: 22px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 2px;
-    }
-    .lb-keywords { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #eee; }
-    .lb-kw-label { font-size: 0.82rem; color: #888; margin-bottom: 0.5rem; }
-    .kw-tag {
-      display: inline-block; background: #f5f5f5; color: #555;
-      padding: 0.18rem 0.65rem; border-radius: 4px;
-      font-size: 0.82rem; margin: 0.15rem 0.2rem;
-      border: 1px solid #ddd;
-    }
-    .lb-no-steps {
-      background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
-      padding: 1rem 1.25rem; color: #795548; font-size: 0.92rem;
+      counter-increment: step;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
     }
 
-    /* 動画 ライトボックス */
-    .lb-video-wrap {
-      position: relative; padding-top: 56.25%;
-      margin-bottom: 1.25rem; border-radius: 8px; overflow: hidden;
+    .lb-steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 26px; height: 26px;
+      background: var(--brand);
+      color: var(--white);
+      border-radius: 50%;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .lb-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
-    .lb-no-video { color: #c00; margin-bottom: 1rem; font-size: 0.92rem; }
-    .lb-yt-link { color: #0066cc; font-size: 0.95rem; }
-    .lb-desc { color: #555; font-size: 0.9rem; white-space: pre-wrap; padding-top: 1rem; border-top: 1px solid #eee; }
 
-    /* ─── フッター ─── */
+    .lb-steps li span {
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      padding-top: 3px;
+    }
+
+    .lb-keywords {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .lb-keyword {
+      font-size: 11px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      border-radius: 12px;
+    }
+
+    /* Video Lightbox */
+    .lb-video-header {
+      padding: 18px 24px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .lb-video-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.4;
+      padding-right: 32px;
+    }
+
+    .lb-video-body { padding: 0 0 0; }
+
+    .lb-video-iframe-wrap {
+      position: relative;
+      padding-top: 56.25%;
+      background: #000;
+    }
+
+    .lb-video-iframe-wrap iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none;
+    }
+
+    .lb-video-desc {
+      padding: 16px 24px 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    /* ========== FOOTER ========== */
     footer {
-      background: #1a1a2e; color: #9ca3c0;
-      text-align: center; padding: 1.1rem 1rem;
-      font-size: 0.85rem;
+      background: #1a1a2e;
+      color: rgba(255,255,255,0.6);
+      text-align: center;
+      padding: 16px 24px;
+      font-size: 12px;
+    }
+
+    /* ========== MOBILE ========== */
+    @media (max-width: 768px) {
+      header { padding: 0 14px; height: 52px; }
+      .header-logo-text { font-size: 13px; }
+      .header-logo-sub { display: none; }
+
+      .hero { padding: 22px 16px 18px; }
+      .hero-title { font-size: 17px; }
+      .hero-sub { font-size: 12px; margin-bottom: 14px; }
+      .search-input { font-size: 15px; padding: 12px 46px 12px 16px; }
+
+      main { padding: 16px 12px; }
+
+      .results-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .video-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .section-title { font-size: 14px; }
+
+      .lightbox-overlay { padding: 10px 8px; align-items: flex-start; }
+      .lightbox-box { border-radius: 12px; }
+      .lb-faq-header { padding: 18px 18px 14px; }
+      .lb-question { font-size: 15px; }
+      .lb-faq-body { padding: 16px 18px 20px; }
+      .lb-video-header { padding: 14px 18px 12px; }
+      .lb-video-title { font-size: 14px; }
+      .lb-video-desc { padding: 12px 18px 18px; font-size: 12px; }
+    }
+
+    @media (max-width: 400px) {
+      .video-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ========== NO RESULT ========== */
+    .no-result {
+      text-align: center;
+      padding: 30px 16px;
+      color: var(--text-muted);
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>🏢 東レACS サポート検索</h1>
-  <p>FAQ・マニュアル・動画から、お探しの情報を検索できます</p>
-</header>
+  <!-- HEADER -->
+  <header>
+    <div class="header-logo">
+      <span style="font-size:26px;">🏢</span>
+      <div>
+        <span class="header-logo-text">東レACS</span>
+        <span class="header-logo-sub">サポート検索システム</span>
+      </div>
+    </div>
+  </header>
 
-<main>
-  <div class="search-wrap">
-    <input type="text" id="searchInput" placeholder="🔍 キーワードを入力してください" autocomplete="off" />
+  <!-- HERO + SEARCH -->
+  <div class="hero">
+    <h1 class="hero-title">サポート検索</h1>
+    <p class="hero-sub">FAQ・サポート動画をまとめて検索できます</p>
+    <div class="search-wrap">
+      <input
+        type="search"
+        id="searchInput"
+        class="search-input"
+        placeholder="キーワードを入力... (例: パスワード, 起動, 印刷)"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+      />
+      <button id="searchClear" class="search-clear" aria-label="クリア">×</button>
+      <span class="search-icon">🔍</span>
+    </div>
   </div>
-  <div id="resultsContainer"></div>
-</main>
 
-<!-- ライトボックス -->
-<div id="lb" class="lb-mask">
-  <div class="lb-box">
-    <button class="lb-close" onclick="closeLb()" aria-label="閉じる">&times;</button>
-    <div id="lbTitle" class="lb-title"></div>
-    <div id="lbBody"></div>
+  <!-- MAIN -->
+  <main id="mainContent">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-state-icon">💡</div>
+      <div class="empty-state-title">キーワードを入力してください</div>
+      <div class="empty-state-desc">
+        FAQ（よくある質問）とサポート動画を同時に検索します。<br>
+        操作方法・トラブル対応など、気になるキーワードを入れてみましょう。
+      </div>
+    </div>
+
+    <div id="loadingState" class="loading" style="display:none;">
+      <div class="spinner"></div>
+      <div>検索中...</div>
+    </div>
+
+    <div id="resultsArea" style="display:none;">
+      <div class="results-grid">
+
+        <!-- FAQ 結果 -->
+        <div>
+          <div class="section-title">
+            📋 FAQ
+            <span class="section-count" id="faqCount">0件</span>
+          </div>
+          <div class="faq-list" id="faqList"></div>
+          <div class="pagination" id="faqPagination" style="display:none;">
+            <button class="btn-page" id="faqPrev" onclick="changePage('faq', -1)">◀ 前へ</button>
+            <span class="page-info" id="faqPageInfo"></span>
+            <button class="btn-page" id="faqNext" onclick="changePage('faq', 1)">次へ ▶</button>
+          </div>
+        </div>
+
+        <!-- 動画 結果 -->
+        <div>
+          <div class="section-title">
+            🎬 サポート動画
+            <span class="section-count" id="vidCount">0件</span>
+          </div>
+          <div class="video-grid" id="videoGrid"></div>
+          <div class="pagination" id="vidPagination" style="display:none;">
+            <button class="btn-page" id="vidPrev" onclick="changePage('vid', -1)">◀ 前へ</button>
+            <span class="page-info" id="vidPageInfo"></span>
+            <button class="btn-page" id="vidNext" onclick="changePage('vid', 1)">次へ ▶</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- FAQ Lightbox -->
+  <div class="lightbox-overlay" id="faqLightbox">
+    <div class="lightbox-box" id="faqLightboxBox">
+      <button class="lightbox-close" id="faqLbClose">✕</button>
+      <div class="lb-faq-header">
+        <div class="lb-category" id="lbCategory"></div>
+        <div class="lb-question" id="lbQuestion"></div>
+      </div>
+      <div class="lb-faq-body">
+        <div class="lb-steps-label">✅ 手順</div>
+        <ol class="lb-steps" id="lbSteps"></ol>
+        <div class="lb-keywords" id="lbKeywords"></div>
+      </div>
+    </div>
   </div>
-</div>
 
-<footer>
-  <p>Copyright &copy; 2026 Toray Advanced Computer Solution, Inc.</p>
-</footer>
+  <!-- Video Lightbox -->
+  <div class="lightbox-overlay" id="vidLightbox">
+    <div class="lightbox-box" id="vidLightboxBox">
+      <button class="lightbox-close" id="vidLbClose">✕</button>
+      <div class="lb-video-header">
+        <div class="lb-video-title" id="lbVideoTitle"></div>
+      </div>
+      <div class="lb-video-body">
+        <div class="lb-video-iframe-wrap" id="lbIframeWrap"></div>
+        <div class="lb-video-desc" id="lbVideoDesc"></div>
+      </div>
+    </div>
+  </div>
 
-<script>
-/* ======================================================
-   設定
-====================================================== */
-var PAGE_SIZE = 9;    /* 初期表示9件 */
-var DEBOUNCE  = 300;
+  <!-- FOOTER -->
+  <footer>
+    Copyright © 2026 Toray Advanced Computer Solution, Inc.
+  </footer>
 
-/* ======================================================
-   状態
-====================================================== */
-var lastQuery  = "";
-var faqOffset  = 0;
-var vidOffset  = 0;
-var faqHasMore = false;
-var vidHasMore = false;
-var faqItems   = [];
-var vidItems   = [];
-var synonyms   = {};
-var timer      = null;
+  <script>
+  // ================================================================
+  // 状態管理
+  // ================================================================
+  var PAGE_SIZE = 9;
+  var lastQuery = '';
+  var debounceTimer = null;
+  var synonyms = {};
 
-/* ======================================================
-   ユーティリティ
-====================================================== */
-function $(id){ return document.getElementById(id); }
+  var faqState = { offset: 0, items: [], total: 0 };
+  var vidState = { offset: 0, items: [], total: 0 };
 
-function esc(s){
-  var d = document.createElement("div");
-  d.textContent = (s == null ? "" : String(s));
-  return d.innerHTML;
-}
+  // ================================================================
+  // 初期化
+  // ================================================================
+  (function init() {
+    // 同義語辞書を取得
+    fetch('/api/synonyms')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { synonyms = data || {}; })
+      .catch(function() { synonyms = {}; });
 
-/* URLから YouTube video_id を抽出 */
-function getVideoId(item){
-  var vid = String(item.video_id || "").trim();
-  if(vid) return vid;
-  var url = String(item.url || "");
-  var m = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
-  if(m) return m[1];
-  m = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
-  if(m) return m[1];
-  return "";
-}
+    // 検索入力のイベント
+    var input = document.getElementById('searchInput');
+    var clearBtn = document.getElementById('searchClear');
 
-/* ======================================================
-   Synonyms（同義語展開）
-====================================================== */
-function loadSynonyms(){
-  fetch("/api/synonyms")
-    .then(function(r){ return r.ok ? r.json() : {}; })
-    .then(function(d){ synonyms = d || {}; })
-    .catch(function(){});
-}
+    input.addEventListener('input', function() {
+      var val = input.value.trim();
+      clearBtn.style.display = val ? 'block' : 'none';
 
-function expandQuery(q){
-  var words = q.toLowerCase().split(/\s+/);
-  var set = {};
-  for(var i = 0; i < words.length; i++) set[words[i]] = 1;
-  for(var i = 0; i < words.length; i++){
-    var w = words[i];
-    for(var key in synonyms){
-      var vars = synonyms[key];
-      if(!Array.isArray(vars)) continue;
-      var hit = false;
-      for(var j = 0; j < vars.length; j++){
-        if(String(vars[j] || "").toLowerCase() === w){ hit = true; break; }
-      }
-      if(hit){
-        set[key] = 1;
-        for(var j = 0; j < vars.length; j++) set[vars[j]] = 1;
-      } else if(key.toLowerCase() === w){
-        for(var j = 0; j < vars.length; j++) set[vars[j]] = 1;
-      }
-    }
-  }
-  var arr = [];
-  for(var k in set) arr.push(k);
-  return arr.join(" ");
-}
-
-/* ======================================================
-   クリックログ
-====================================================== */
-function sendLog(type, id){
-  fetch("/api/log_search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      query: lastQuery, result_type: type,
-      result_id: String(id || ""), timestamp: new Date().toISOString()
-    })
-  }).catch(function(){});
-}
-
-/* ======================================================
-   API フェッチ
-====================================================== */
-function apiFetch(path){
-  return fetch(path).then(function(r){
-    if(!r.ok) throw new Error("HTTP " + r.status + " / " + path);
-    return r.json();
-  });
-}
-
-function loadFAQ(){
-  var q = expandQuery(lastQuery);
-  var p = new URLSearchParams({ query: q, offset: faqOffset, limit: PAGE_SIZE, paged: 1 });
-  return apiFetch("/faq/search?" + p.toString());
-}
-
-function loadVideos(){
-  var q = expandQuery(lastQuery);
-  var p = new URLSearchParams({ query: q, offset: vidOffset, limit: PAGE_SIZE, paged: 1 });
-  return apiFetch("/search?" + p.toString());
-}
-
-/* ======================================================
-   カード描画
-====================================================== */
-function renderFAQ(items){
-  if(!items || !items.length)
-    return '<p style="color:#999;padding:0.75rem 0;">FAQが見つかりませんでした</p>';
-  var html = '<div class="faq-grid">';
-  for(var i = 0; i < items.length; i++){
-    var q = items[i].question || (items[i].utterances && items[i].utterances[0]) || "（質問なし）";
-    html += '<div class="faq-card" data-type="faq" data-index="' + i + '">'
-          + '<span class="faq-q">Q</span>'
-          + '<span class="faq-text">' + esc(q) + '</span>'
-          + '</div>';
-  }
-  return html + '</div>';
-}
-
-function renderVideos(items){
-  if(!items || !items.length)
-    return '<p style="color:#999;padding:0.75rem 0;">動画が見つかりませんでした</p>';
-  var html = '<div class="vid-grid">';
-  for(var i = 0; i < items.length; i++){
-    var v     = items[i];
-    var thumb = v.thumbnail || "";
-    var title = esc(v.title || "");
-    html += '<div class="vid-card" data-type="video" data-index="' + i + '" title="' + title + '">';
-    if(thumb){
-      html += '<img src="' + esc(thumb) + '" alt="' + title + '" loading="lazy">';
-    } else {
-      html += '<div class="vid-no-thumb">動画</div>';
-    }
-    html += '<div class="vid-overlay"><div class="play-btn"></div></div>';
-    html += '</div>';
-  }
-  return html + '</div>';
-}
-
-function renderPager(type, hasMore, offset, count){
-  var pid = type === "faq" ? "faqPrev" : "vidPrev";
-  var nid = type === "faq" ? "faqNext" : "vidNext";
-  var pd  = (offset <= 0) ? "disabled" : "";
-  var nd  = !hasMore      ? "disabled" : "";
-  var info = count > 0 ? (offset + 1) + "–" + (offset + count) + "件" : "0件";
-  return '<div class="pager">'
-       + '<button id="' + pid + '" ' + pd + '>← 前の ' + PAGE_SIZE + ' 件</button>'
-       + '<span class="pager-info">' + info + '</span>'
-       + '<button id="' + nid + '" ' + nd + '>次の ' + PAGE_SIZE + ' 件 →</button>'
-       + '</div>';
-}
-
-/* ======================================================
-   検索実行
-====================================================== */
-function renderResults(){
-  var c = $("resultsContainer");
-  if(!lastQuery.trim()){
-    c.innerHTML = '<div class="empty-wrap">'
-                + '<div class="empty-icon">🔍</div>'
-                + '<div class="empty-title">キーワードを入力して検索</div>'
-                + '<div class="empty-sub">動画とFAQから最適な情報を見つけます</div>'
-                + '</div>';
-    return;
-  }
-  c.innerHTML = '<div class="loading"><div class="spinner"></div><p style="color:#888;">検索中...</p></div>';
-
-  Promise.all([loadFAQ(), loadVideos()])
-    .then(function(res){
-      var fd = res[0];
-      var vd = res[1];
-      faqHasMore = fd.has_more || false;
-      vidHasMore = vd.has_more || false;
-      faqItems   = fd.items    || [];
-      vidItems   = vd.items    || [];
-
-      var html = "";
-
-      /* FAQ セクション */
-      html += '<div class="sec-head">'
-            + '<span class="sec-title">FAQ候補</span>'
-            + '<span class="badge">' + (fd.total_visible || 0) + '件</span>'
-            + '</div>';
-      html += renderFAQ(faqItems);
-      html += renderPager("faq", faqHasMore, faqOffset, faqItems.length);
-
-      /* 動画セクション */
-      html += '<div class="sec-head">'
-            + '<span class="sec-title">関連動画</span>'
-            + '<span class="badge">' + (vd.total_visible || 0) + '件</span>'
-            + '</div>';
-      html += renderVideos(vidItems);
-      html += renderPager("video", vidHasMore, vidOffset, vidItems.length);
-
-      c.innerHTML = html;
-      bindCards();
-      bindPager();
-    })
-    .catch(function(e){
-      c.innerHTML = '<div class="empty-wrap"><div class="empty-sub">エラー: ' + esc(e.message) + '</div></div>';
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        doSearch(val);
+      }, 300);
     });
-}
 
-/* ======================================================
-   カードイベント
-====================================================== */
-function bindCards(){
-  var cards = document.querySelectorAll("[data-type]");
-  for(var i = 0; i < cards.length; i++){
-    (function(card){
-      card.addEventListener("click", function(){
-        var type  = card.getAttribute("data-type");
-        var index = parseInt(card.getAttribute("data-index"), 10);
-        if(type === "faq"   && faqItems[index]) openFaqLb(faqItems[index]);
-        if(type === "video" && vidItems[index]) openVideoLb(vidItems[index]);
+    clearBtn.addEventListener('click', function() {
+      input.value = '';
+      clearBtn.style.display = 'none';
+      showEmpty();
+      input.focus();
+    });
+
+    // Lightbox閉じる
+    document.getElementById('faqLbClose').addEventListener('click', closeFaqLb);
+    document.getElementById('vidLbClose').addEventListener('click', closeVidLb);
+
+    document.getElementById('faqLightbox').addEventListener('click', function(e) {
+      if (e.target === this) closeFaqLb();
+    });
+    document.getElementById('vidLightbox').addEventListener('click', function(e) {
+      if (e.target === this) closeVidLb();
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { closeFaqLb(); closeVidLb(); }
+    });
+  })();
+
+  // ================================================================
+  // 同義語展開（検索精度向上）
+  // ================================================================
+  function expandQuery(q) {
+    if (!q || !synonyms) return q;
+    var terms = [q];
+    var qLower = q.toLowerCase();
+    Object.keys(synonyms).forEach(function(term) {
+      var syns = synonyms[term];
+      if (!Array.isArray(syns)) return;
+      if (qLower.indexOf(term.toLowerCase()) !== -1) {
+        syns.forEach(function(s) {
+          if (terms.indexOf(s) === -1) terms.push(s);
+        });
+      }
+      syns.forEach(function(s) {
+        if (qLower.indexOf(s.toLowerCase()) !== -1) {
+          if (terms.indexOf(term) === -1) terms.push(term);
+        }
       });
-    })(cards[i]);
-  }
-}
-
-/* ======================================================
-   FAQ ライトボックス
-   フィールド: question / utterances / steps / keywords / category / intent
-====================================================== */
-function openFaqLb(item){
-  var question = item.question
-              || (item.utterances && item.utterances[0])
-              || "(質問なし)";
-  var category = item.category || "";
-  var steps    = item.steps    || [];
-  var keywords = item.keywords || [];
-
-  sendLog("faq", item.id || item.intent || "");
-
-  /* タイトル */
-  $("lbTitle").textContent = question;
-
-  var body = "";
-
-  /* カテゴリバッジ */
-  if(category){
-    body += '<div class="lb-category">📂 ' + esc(category) + '</div>';
+    });
+    return terms.join(' ');
   }
 
-  /* 手順（steps）が回答本体 */
-  if(steps.length){
-    body += '<div class="lb-steps-title">✅ 手順・回答</div>';
-    body += '<ol class="lb-steps">';
-    for(var i = 0; i < steps.length; i++){
-      body += '<li>'
-            + '<span class="lb-step-num">' + (i + 1) + '</span>'
-            + '<span>' + esc(steps[i]) + '</span>'
-            + '</li>';
+  // ================================================================
+  // 検索実行
+  // ================================================================
+  function doSearch(q) {
+    if (!q) { showEmpty(); return; }
+    if (q === lastQuery) return;
+    lastQuery = q;
+
+    faqState = { offset: 0, items: [], total: 0 };
+    vidState = { offset: 0, items: [], total: 0 };
+
+    showLoading();
+
+    var expanded = expandQuery(q);
+
+    var faqPromise = fetch('/faq/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
+      .then(function(r) { return r.json(); })
+      .catch(function() { return { items: [], total_visible: 0 }; });
+
+    var vidPromise = fetch('/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
+      .then(function(r) { return r.json(); })
+      .catch(function() { return { items: [], total_visible: 0 }; });
+
+    Promise.all([faqPromise, vidPromise]).then(function(results) {
+      var faqRes = results[0];
+      var vidRes = results[1];
+
+      faqState.items = faqRes.items || [];
+      faqState.total = faqRes.total_visible || faqState.items.length;
+
+      vidState.items = vidRes.items || [];
+      vidState.total = vidRes.total_visible || vidState.items.length;
+
+      renderResults();
+    });
+  }
+
+  // ================================================================
+  // 描画
+  // ================================================================
+  function renderResults() {
+    showResults();
+    renderFaq();
+    renderVideos();
+  }
+
+  function renderFaq() {
+    var list = document.getElementById('faqList');
+    var countEl = document.getElementById('faqCount');
+    var pagination = document.getElementById('faqPagination');
+    var total = faqState.total;
+
+    countEl.textContent = total + '件';
+
+    var start = faqState.offset;
+    var end = Math.min(start + PAGE_SIZE, faqState.items.length);
+    var pageItems = faqState.items.slice(start, end);
+
+    if (pageItems.length === 0) {
+      list.innerHTML = '<div class="no-result">該当するFAQが見つかりませんでした。</div>';
+      pagination.style.display = 'none';
+      return;
     }
-    body += '</ol>';
-  } else {
-    body += '<div class="lb-no-steps">回答手順が登録されていません。</div>';
-  }
 
-  /* キーワード */
-  if(keywords.length){
-    body += '<div class="lb-keywords">'
-          + '<div class="lb-kw-label">🔑 関連キーワード</div>';
-    for(var i = 0; i < keywords.length; i++){
-      body += '<span class="kw-tag">' + esc(keywords[i]) + '</span>';
-    }
-    body += '</div>';
-  }
+    list.innerHTML = '';
+    pageItems.forEach(function(item, i) {
+      var card = document.createElement('div');
+      card.className = 'faq-card';
+      card.innerHTML =
+        '<div class="faq-category">' + esc(item.category || 'その他') + '</div>' +
+        '<div class="faq-question">' + esc(item.question || '') + '</div>';
+      card.addEventListener('click', function() { openFaqLb(item); logClick(lastQuery, 'faq', item.id); });
+      list.appendChild(card);
+    });
 
-  $("lbBody").innerHTML = body;
-  openLb();
-}
+    // ページネーション
+    var totalPages = Math.ceil(faqState.items.length / PAGE_SIZE);
+    var currentPage = Math.floor(faqState.offset / PAGE_SIZE) + 1;
 
-/* ======================================================
-   動画 ライトボックス
-====================================================== */
-function openVideoLb(item){
-  var vid   = getVideoId(item);
-  var title = item.title       || "";
-  var desc  = item.description || "";
-
-  sendLog("video", vid || "");
-
-  $("lbTitle").textContent = title;
-
-  var body = "";
-
-  if(vid){
-    var src = "https://www.youtube.com/embed/" + vid
-            + "?autoplay=1&rel=0&modestbranding=1";
-    body += '<div class="lb-video-wrap">'
-          + '<iframe src="' + src + '"'
-          + ' allow="autoplay; encrypted-media; fullscreen; picture-in-picture"'
-          + ' allowfullscreen loading="lazy"></iframe>'
-          + '</div>';
-  } else {
-    body += '<p class="lb-no-video">⚠️ 動画IDが取得できませんでした。</p>';
-    if(item.url){
-      body += '<p><a class="lb-yt-link" href="' + esc(item.url) + '"'
-            + ' target="_blank" rel="noopener">▶ YouTubeで開く</a></p>';
+    if (totalPages > 1) {
+      pagination.style.display = 'flex';
+      document.getElementById('faqPrev').disabled = faqState.offset === 0;
+      document.getElementById('faqNext').disabled = end >= faqState.items.length;
+      document.getElementById('faqPageInfo').textContent = currentPage + ' / ' + totalPages + ' ページ';
+    } else {
+      pagination.style.display = 'none';
     }
   }
 
-  if(desc.trim()){
-    body += '<div class="lb-desc">' + esc(desc) + '</div>';
+  function renderVideos() {
+    var grid = document.getElementById('videoGrid');
+    var countEl = document.getElementById('vidCount');
+    var pagination = document.getElementById('vidPagination');
+    var total = vidState.total;
+
+    countEl.textContent = total + '件';
+
+    var start = vidState.offset;
+    var end = Math.min(start + PAGE_SIZE, vidState.items.length);
+    var pageItems = vidState.items.slice(start, end);
+
+    if (pageItems.length === 0) {
+      grid.innerHTML = '<div class="no-result" style="grid-column:1/-1;">該当する動画が見つかりませんでした。</div>';
+      pagination.style.display = 'none';
+      return;
+    }
+
+    grid.innerHTML = '';
+    pageItems.forEach(function(item) {
+      var vid = getVideoId(item);
+      var thumb = item.thumbnail || (vid ? 'https://i.ytimg.com/vi/' + vid + '/mqdefault.jpg' : '');
+
+      var card = document.createElement('div');
+      card.className = 'video-card';
+      card.innerHTML =
+        '<div class="video-thumb-wrap">' +
+          (thumb ? '<img class="video-thumb" src="' + esc(thumb) + '" alt="' + esc(item.title || '') + '" loading="lazy" />' : '<div class="video-thumb" style="background:#333;position:absolute;inset:0;"></div>') +
+          '<div class="video-play-btn">▶</div>' +
+        '</div>' +
+        '<div class="video-info"><div class="video-title">' + esc(item.title || '') + '</div></div>';
+
+      card.addEventListener('click', function() { openVidLb(item, vid); logClick(lastQuery, 'video', item.video_id || ''); });
+      grid.appendChild(card);
+    });
+
+    // ページネーション
+    var totalPages = Math.ceil(vidState.items.length / PAGE_SIZE);
+    var currentPage = Math.floor(vidState.offset / PAGE_SIZE) + 1;
+
+    if (totalPages > 1) {
+      pagination.style.display = 'flex';
+      document.getElementById('vidPrev').disabled = vidState.offset === 0;
+      document.getElementById('vidNext').disabled = end >= vidState.items.length;
+      document.getElementById('vidPageInfo').textContent = currentPage + ' / ' + totalPages + ' ページ';
+    } else {
+      pagination.style.display = 'none';
+    }
   }
 
-  $("lbBody").innerHTML = body;
-  openLb();
-}
+  // ================================================================
+  // ページング
+  // ================================================================
+  function changePage(type, dir) {
+    if (type === 'faq') {
+      faqState.offset = Math.max(0, faqState.offset + dir * PAGE_SIZE);
+      renderFaq();
+      document.getElementById('faqList').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      vidState.offset = Math.max(0, vidState.offset + dir * PAGE_SIZE);
+      renderVideos();
+      document.getElementById('videoGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
-/* ======================================================
-   ライトボックス 開閉
-====================================================== */
-function openLb(){
-  $("lb").classList.add("open");
-  document.body.style.overflow = "hidden";
-}
+  // ================================================================
+  // Lightbox - FAQ（Bug#2修正: stepsを番号付きリストで表示）
+  // ================================================================
+  function openFaqLb(item) {
+    document.getElementById('lbCategory').textContent = item.category || 'その他';
+    document.getElementById('lbQuestion').textContent = item.question || '';
 
-function closeLb(){
-  var iframe = $("lb").querySelector("iframe");
-  if(iframe) iframe.src = "";          /* 動画停止 */
-  $("lb").classList.remove("open");
-  document.body.style.overflow = "";
-  $("lbBody").innerHTML = "";
-}
+    // Bug#2修正: answer ではなく steps[] を使用
+    var steps = item.steps || [];
+    var stepsEl = document.getElementById('lbSteps');
+    stepsEl.innerHTML = '';
+    if (steps.length === 0) {
+      stepsEl.innerHTML = '<li><span>詳細情報がありません。</span></li>';
+    } else {
+      steps.forEach(function(s) {
+        var li = document.createElement('li');
+        li.innerHTML = '<span>' + esc(s) + '</span>';
+        stepsEl.appendChild(li);
+      });
+    }
 
-$("lb").addEventListener("click", function(e){
-  if(e.target === $("lb")) closeLb();
-});
+    var kwEl = document.getElementById('lbKeywords');
+    var keywords = item.keywords || [];
+    kwEl.innerHTML = '';
+    if (keywords.length > 0) {
+      keywords.forEach(function(kw) {
+        if (!kw) return;
+        var span = document.createElement('span');
+        span.className = 'lb-keyword';
+        span.textContent = kw;
+        kwEl.appendChild(span);
+      });
+    }
 
-document.addEventListener("keydown", function(e){
-  if(e.key === "Escape") closeLb();
-});
+    document.getElementById('faqLightbox').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
 
-/* ======================================================
-   ページャー
-====================================================== */
-function bindPager(){
-  function on(id, fn){ var el = $(id); if(el) el.addEventListener("click", fn); }
-  on("faqPrev", function(){ faqOffset = Math.max(0, faqOffset - PAGE_SIZE); renderResults(); });
-  on("faqNext", function(){ faqOffset += PAGE_SIZE; renderResults(); });
-  on("vidPrev", function(){ vidOffset = Math.max(0, vidOffset - PAGE_SIZE); renderResults(); });
-  on("vidNext", function(){ vidOffset += PAGE_SIZE; renderResults(); });
-}
+  function closeFaqLb() {
+    document.getElementById('faqLightbox').classList.remove('active');
+    document.body.style.overflow = '';
+  }
 
-/* ======================================================
-   入力
-====================================================== */
-function doSearch(q){
-  lastQuery = q; faqOffset = 0; vidOffset = 0;
-  renderResults();
-}
+  // ================================================================
+  // Lightbox - 動画（Bug#3修正: allow属性追加、Bug#6: video_id取得）
+  // ================================================================
+  function openVidLb(item, vid) {
+    document.getElementById('lbVideoTitle').textContent = item.title || '';
+    document.getElementById('lbVideoDesc').textContent = item.description || '';
 
-$("searchInput").addEventListener("input", function(e){
-  clearTimeout(timer);
-  var q = e.target.value;
-  timer = setTimeout(function(){ doSearch(q); }, DEBOUNCE);
-});
+    var wrapEl = document.getElementById('lbIframeWrap');
+    wrapEl.innerHTML = '';
 
-$("searchInput").addEventListener("keydown", function(e){
-  if(e.key === "Enter"){ clearTimeout(timer); doSearch(e.target.value); }
-});
+    if (vid) {
+      var iframe = document.createElement('iframe');
+      iframe.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1&rel=0';
+      // Bug#3修正: allow属性を正しく設定
+      iframe.setAttribute('allow', 'autoplay; encrypted-media; fullscreen; picture-in-picture');
+      iframe.setAttribute('allowfullscreen', '');
+      iframe.setAttribute('frameborder', '0');
+      iframe.title = item.title || '';
+      wrapEl.appendChild(iframe);
+    } else {
+      wrapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#fff;background:#222;padding:40px;text-align:center;">動画IDが取得できませんでした。</div>';
+    }
 
-/* ======================================================
-   初期化
-====================================================== */
-loadSynonyms();
-renderResults();
-</script>
+    document.getElementById('vidLightbox').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeVidLb() {
+    // Bug#3修正: 閉じたときにiframeをクリアして動画停止
+    document.getElementById('lbIframeWrap').innerHTML = '';
+    document.getElementById('vidLightbox').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  // ================================================================
+  // Bug#6修正: video_id取得（フォールバック付き）
+  // ================================================================
+  function getVideoId(item) {
+    var vid = String(item.video_id || '').trim();
+    if (vid) return vid;
+    var url = String(item.url || '');
+    var m = url.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+    if (m) return m[1];
+    var m2 = url.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+    if (m2) return m2[1];
+    return '';
+  }
+
+  // ================================================================
+  // ログ記録
+  // ================================================================
+  function logClick(query, resultType, resultId) {
+    fetch('/api/log_search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query,
+        result_type: resultType,
+        result_id: resultId,
+        timestamp: new Date().toISOString()
+      })
+    }).catch(function() {});
+  }
+
+  // ================================================================
+  // UI状態切り替え
+  // ================================================================
+  function showEmpty() {
+    lastQuery = '';
+    document.getElementById('emptyState').style.display = '';
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('resultsArea').style.display = 'none';
+  }
+
+  function showLoading() {
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('loadingState').style.display = '';
+    document.getElementById('resultsArea').style.display = 'none';
+  }
+
+  function showResults() {
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('resultsArea').style.display = '';
+  }
+
+  // ================================================================
+  // エスケープ
+  // ================================================================
+  function esc(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+  </script>
+
 </body>
 </html>

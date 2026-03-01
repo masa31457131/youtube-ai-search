@@ -130,9 +130,24 @@ class AppState:
             
             if FAQ_PATH.exists():
                 print(f"✅ FAQ file found: {FAQ_PATH}")
-                with open(FAQ_PATH, "r", encoding="utf-8") as f:
-                    self.faq_data = json.load(f)
-                print(f"✅ FAQ file loaded, keys: {list(self.faq_data.keys())}")
+                try:
+                    # UTF-8で読み込み試行
+                    with open(FAQ_PATH, "r", encoding="utf-8") as f:
+                        self.faq_data = json.load(f)
+                    print(f"✅ FAQ file loaded (UTF-8), keys: {list(self.faq_data.keys())}")
+                except UnicodeDecodeError:
+                    # UTF-8で失敗した場合、Shift-JIS (cp932) を試行
+                    print(f"⚠️ UTF-8 decode failed, trying cp932...")
+                    try:
+                        with open(FAQ_PATH, "r", encoding="cp932") as f:
+                            self.faq_data = json.load(f)
+                        print(f"✅ FAQ file loaded (cp932), keys: {list(self.faq_data.keys())}")
+                    except Exception as e:
+                        print(f"❌ Failed to load FAQ file with cp932: {e}")
+                        self.faq_data = {}
+                except Exception as e:
+                    print(f"❌ Failed to load FAQ file: {e}")
+                    self.faq_data = {}
             else:
                 print(f"❌ FAQ file not found: {FAQ_PATH}")
                 print(f"   BASE_DIR: {BASE_DIR}")

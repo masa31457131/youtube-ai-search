@@ -343,7 +343,30 @@
     }
 
     // 読み込み
-    function loadFaq() {
+    function getAuth() {
+      try {
+        var authData = localStorage.getItem('admin_auth');
+        if (!authData) {
+          console.warn('No auth data in localStorage');
+          return null;
+        }
+        return JSON.parse(authData);
+      } catch (e) {
+        console.error('Failed to parse auth data:', e);
+        return null;
+      }
+    }
+
+    function getHeaders() {
+      var auth = getAuth();
+      if (!auth) return {};
+      return {
+        'Authorization': 'Basic ' + btoa(auth.username + ':' + auth.password),
+        'Content-Type': 'application/json'
+      };
+    }
+
+        function loadFaq() {
       fetch('/admin/api/faq/items?limit=1000', { headers: { 'Authorization': authHeader } })
         .then(function(r) { return r.json(); })
         .then(function(data) {

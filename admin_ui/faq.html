@@ -413,12 +413,20 @@
   // ============================================
   function exportFAQs() {
     var auth = getAuth();
-    if (!auth) return;
+    if (!auth) {
+      showToast('認証情報が見つかりません', 'error');
+      return;
+    }
 
     fetch('/admin/api/faq/export', {
       headers: { 'Authorization': 'Basic ' + btoa(auth.username + ':' + auth.password) }
     })
-    .then(function(res) { return res.json(); })
+    .then(function(res) {
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status);
+      }
+      return res.json();
+    })
     .then(function(data) {
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
@@ -431,7 +439,10 @@
       URL.revokeObjectURL(url);
       showToast('FAQをエクスポートしました', 'success');
     })
-    .catch(function() { showToast('エクスポートに失敗しました', 'error'); });
+    .catch(function(err) {
+      console.error('Export error:', err);
+      showToast('エクスポートに失敗しました: ' + err.message, 'error');
+    });
   }
 
   // ============================================
@@ -473,7 +484,10 @@
 
   function importFAQs(data) {
     var auth = getAuth();
-    if (!auth) return;
+    if (!auth) {
+      showToast('認証情報が見つかりません', 'error');
+      return;
+    }
 
     fetch('/admin/api/faq/import', {
       method: 'POST',
@@ -483,12 +497,20 @@
       },
       body: JSON.stringify(data)
     })
-    .then(function(res) { return res.json(); })
+    .then(function(res) {
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status);
+      }
+      return res.json();
+    })
     .then(function(result) {
       showToast('インポート完了: 新規' + result.added + '件, 更新' + result.updated + '件', 'success');
       loadFaqs();
     })
-    .catch(function() { showToast('インポートに失敗しました', 'error'); });
+    .catch(function(err) {
+      console.error('Import error:', err);
+      showToast('インポートに失敗しました: ' + err.message, 'error');
+    });
   }
 
   // ============================================
@@ -504,18 +526,29 @@
 
   function deleteAllFAQs() {
     var auth = getAuth();
-    if (!auth) return;
+    if (!auth) {
+      showToast('認証情報が見つかりません', 'error');
+      return;
+    }
 
     fetch('/admin/api/faq/all', {
       method: 'DELETE',
       headers: { 'Authorization': 'Basic ' + btoa(auth.username + ':' + auth.password) }
     })
-    .then(function(res) { return res.json(); })
+    .then(function(res) {
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status);
+      }
+      return res.json();
+    })
     .then(function(result) {
       showToast(result.count + '件のFAQを削除しました', 'success');
       loadFaqs();
     })
-    .catch(function() { showToast('一括削除に失敗しました', 'error'); });
+    .catch(function(err) {
+      console.error('Delete all error:', err);
+      showToast('一括削除に失敗しました: ' + err.message, 'error');
+    });
   }
 
 </script>

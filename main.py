@@ -733,18 +733,21 @@ async def delete_faq_item(item_id: str, background_tasks: BackgroundTasks):
 @app.delete("/admin/api/faq/all", dependencies=[Depends(verify_admin)])
 async def delete_all_faqs(background_tasks: BackgroundTasks):
     """FAQ一括削除"""
+    print("🗑️ FAQ bulk delete requested")
     await state.ensure_faq_loaded()
     
     # faqs配列形式
     if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
         count = len(state.faq_data["faqs"])
         state.faq_data["faqs"] = []
+        print(f"✅ Deleted {count} FAQs (faqs array format)")
     else:
         # カテゴリ辞書形式
         count = sum(len(items) for items in state.faq_data.values() if isinstance(items, list))
         for key in list(state.faq_data.keys()):
             if isinstance(state.faq_data[key], list):
                 state.faq_data[key] = []
+        print(f"✅ Deleted {count} FAQs (category dict format)")
     
     with open(FAQ_PATH, "w", encoding="utf-8") as f:
         json.dump(state.faq_data, f, ensure_ascii=False, indent=2)
@@ -755,18 +758,22 @@ async def delete_all_faqs(background_tasks: BackgroundTasks):
 @app.post("/admin/api/faq/import", dependencies=[Depends(verify_admin)])
 async def import_faqs(data: dict, background_tasks: BackgroundTasks):
     """FAQインポート（新規追加・更新のみ）"""
+    print("📤 FAQ import requested")
     await state.ensure_faq_loaded()
     
     imported_faqs = data.get("faqs", [])
     if not isinstance(imported_faqs, list):
+        print(f"❌ Invalid format: faqs is {type(imported_faqs)}")
         raise HTTPException(400, "Invalid format: 'faqs' must be an array")
     
+    print(f"📋 Importing {len(imported_faqs)} FAQs")
     added_count = 0
     updated_count = 0
     
     # faqs配列形式
     if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
         existing_ids = {item.get("id") for item in state.faq_data["faqs"] if isinstance(item, dict)}
+        print(f"   Existing FAQ IDs: {len(existing_ids)}")
         
         for imported_item in imported_faqs:
             if not isinstance(imported_item, dict):
@@ -774,6 +781,7 @@ async def import_faqs(data: dict, background_tasks: BackgroundTasks):
             
             item_id = imported_item.get("id") or imported_item.get("faq_id")
             if not item_id:
+                print(f"   ⚠️ Skipping item without ID")
                 continue
             
             # フィールド正規化
@@ -789,11 +797,13 @@ async def import_faqs(data: dict, background_tasks: BackgroundTasks):
                     if existing.get("id") == item_id:
                         state.faq_data["faqs"][i] = normalized_item
                         updated_count += 1
+                        print(f"   ✏️ Updated: {item_id}")
                         break
             else:
                 # 新規追加
                 state.faq_data["faqs"].append(normalized_item)
                 added_count += 1
+                print(f"   ➕ Added: {item_id}")
     else:
         # カテゴリ辞書形式への対応
         for imported_item in imported_faqs:
@@ -838,6 +848,7 @@ async def import_faqs(data: dict, background_tasks: BackgroundTasks):
 @app.get("/admin/api/faq/export", dependencies=[Depends(verify_admin)])
 async def export_faqs():
     """FAQエクスポート"""
+    print("📥 FAQ export requested")
     await state.ensure_faq_loaded()
     
     # faqs配列形式で返す
@@ -846,6 +857,7 @@ async def export_faqs():
             "meta": state.faq_data.get("meta", {}),
             "faqs": state.faq_data["faqs"]
         }
+        print(f"✅ Exporting {len(state.faq_data['faqs'])} FAQs (faqs array format)")
     else:
         # カテゴリ辞書形式をfaqs配列形式に変換
         all_faqs = []
@@ -861,6 +873,7 @@ async def export_faqs():
             },
             "faqs": all_faqs
         }
+        print(f"✅ Exporting {len(all_faqs)} FAQs (category dict format)")
     
     return export_data
 

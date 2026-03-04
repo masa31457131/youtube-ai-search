@@ -523,12 +523,13 @@ async def get_synonyms():
     return {}
 
 @app.put("/admin/api/synonyms", dependencies=[Depends(verify_admin)])
-async def update_synonyms(data: dict, background_tasks: BackgroundTasks):
-    """åŒç¾©èªžè¾žæ›¸æ›´æ–°"""
+async def update_synonyms(data: dict):
+    """同義語辞書更新"""
+    print(f"💾 Saving synonyms: {len(data)} terms")
     with open(SYNONYMS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     
-    background_tasks.add_task(reload_video_data)
+    print(f"✅ Synonyms saved successfully")
     return {"status": "ok", "count": len(data)}
 
 async def reload_video_data():
@@ -576,8 +577,9 @@ async def update_synonym_term(term: str, values: List[str], background_tasks: Ba
     return {"status": "ok", "term": term}
 
 @app.delete("/admin/api/synonyms/{term}", dependencies=[Depends(verify_admin)])
-async def delete_synonym_term(term: str, background_tasks: BackgroundTasks):
-    """åŒç¾©èªžã®å€‹åˆ¥å‰Šé™¤"""
+async def delete_synonym_term(term: str):
+    """同義語の個別削除"""
+    print(f"🗑️ Deleting synonym: {term}")
     synonyms = {}
     if SYNONYMS_PATH.exists():
         with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
@@ -589,7 +591,7 @@ async def delete_synonym_term(term: str, background_tasks: BackgroundTasks):
     with open(SYNONYMS_PATH, "w", encoding="utf-8") as f:
         json.dump(synonyms, f, ensure_ascii=False, indent=2)
     
-    background_tasks.add_task(reload_video_data)
+    print(f"✅ Synonym deleted successfully")
     return {"status": "ok", "term": term}
 
 @app.get("/admin/api/faq", dependencies=[Depends(verify_admin)])

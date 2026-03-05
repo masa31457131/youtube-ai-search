@@ -455,7 +455,59 @@
 
     .lb-faq-body { padding: 20px 24px 24px; }
 
-    .lb-steps-label {
+    /* Answer section */
+    .lb-answer-section {
+      margin-bottom: 20px;
+      padding: 16px;
+      background: #f0f9ff;
+      border-left: 4px solid var(--brand);
+      border-radius: var(--radius-sm);
+    }
+
+    .lb-answer-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--brand);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .lb-answer-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+    /* Note section */
+    .lb-note-section {
+      margin-top: 20px;
+      padding: 16px;
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      border-radius: var(--radius-sm);
+    }
+
+    .lb-note-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f59e0b;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .lb-note-text {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      white-space: pre-wrap;
+    }
+
+        .lb-steps-label {
       font-size: 12px;
       font-weight: 700;
       color: var(--text-muted);
@@ -704,8 +756,16 @@
         <div class="lb-question" id="lbQuestion"></div>
       </div>
       <div class="lb-faq-body">
+        <div class="lb-answer-section" id="lbAnswerSection" style="display:none;">
+          <div class="lb-answer-label">💡 回答</div>
+          <div class="lb-answer-text" id="lbAnswerText"></div>
+        </div>
         <div class="lb-steps-label">✅ 手順</div>
         <ol class="lb-steps" id="lbSteps"></ol>
+        <div class="lb-note-section" id="lbNoteSection" style="display:none;">
+          <div class="lb-note-label">📌 ワンポイントアドバイス</div>
+          <div class="lb-note-text" id="lbNoteText"></div>
+        </div>
         <div class="lb-keywords" id="lbKeywords"></div>
       </div>
     </div>
@@ -974,7 +1034,17 @@
     document.getElementById('lbCategory').textContent = item.category || 'その他';
     document.getElementById('lbQuestion').textContent = item.question || '';
 
-    // Bug#2修正: answer ではなく steps[] を使用
+    // 回答の表示
+    var answerSection = document.getElementById('lbAnswerSection');
+    var answerText = document.getElementById('lbAnswerText');
+    if (item.answer && item.answer.trim()) {
+      answerText.textContent = item.answer;
+      answerSection.style.display = 'block';
+    } else {
+      answerSection.style.display = 'none';
+    }
+
+    // 手順の表示
     var steps = item.steps || [];
     var stepsEl = document.getElementById('lbSteps');
     stepsEl.innerHTML = '';
@@ -988,6 +1058,17 @@
       });
     }
 
+    // ワンポイントアドバイスの表示
+    var noteSection = document.getElementById('lbNoteSection');
+    var noteText = document.getElementById('lbNoteText');
+    if (item.note && item.note.trim()) {
+      noteText.textContent = item.note;
+      noteSection.style.display = 'block';
+    } else {
+      noteSection.style.display = 'none';
+    }
+
+    // キーワードの表示
     var kwEl = document.getElementById('lbKeywords');
     var keywords = item.keywords || [];
     kwEl.innerHTML = '';
@@ -1005,6 +1086,7 @@
     document.body.style.overflow = 'hidden';
   }
 
+  
   function closeFaqLb() {
     document.getElementById('faqLightbox').classList.remove('active');
     document.body.style.overflow = '';

@@ -170,6 +170,12 @@ class AppState:
                             normalized_item["id"] = normalized_item.pop("faq_id")
                         if "answer_steps" in normalized_item and "steps" not in normalized_item:
                             normalized_item["steps"] = normalized_item.pop("answer_steps")
+                        
+                        # 不要なフィールドを削除
+                        for field in ["manual_ref", "confidence", "support_based"]:
+                            if field in normalized_item:
+                                del normalized_item[field]
+                        
                         # utterances がない場合は question で代用
                         if "utterances" not in normalized_item and "question" in normalized_item:
                             normalized_item["utterances"] = [normalized_item["question"]]

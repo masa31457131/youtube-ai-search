@@ -262,8 +262,18 @@
           <input type="text" id="fieldQuestion" class="form-input" placeholder="質問内容を入力" />
         </div>
         <div class="form-group">
+          <label class="form-label">回答（概要）</label>
+          <textarea id="fieldAnswer" class="form-textarea" placeholder="回答の概要を入力してください" style="min-height: 80px;"></textarea>
+          <div class="form-hint">手順の上部に表示されます</div>
+        </div>
+        <div class="form-group">
           <label class="form-label">手順（1行1ステップ）</label>
           <textarea id="fieldSteps" class="form-textarea" placeholder="手順1&#10;手順2&#10;手順3"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ワンポイントアドバイス</label>
+          <textarea id="fieldNote" class="form-textarea" placeholder="補足情報やアドバイスを入力" style="min-height: 80px;"></textarea>
+          <div class="form-hint">手順の下部に表示されます</div>
         </div>
         <div class="form-group">
           <label class="form-label">キーワード（カンマ区切り）</label>
@@ -420,7 +430,9 @@
       document.getElementById('fieldId').disabled = false;
       document.getElementById('fieldCategory').value = '';
       document.getElementById('fieldQuestion').value = '';
+      document.getElementById('fieldAnswer').value = '';
       document.getElementById('fieldSteps').value = '';
+      document.getElementById('fieldNote').value = '';
       document.getElementById('fieldKeywords').value = '';
       document.getElementById('editModal').classList.add('active');
       document.body.style.overflow = 'hidden';
@@ -435,7 +447,9 @@
       document.getElementById('fieldId').disabled = true;
       document.getElementById('fieldCategory').value = item.category || '';
       document.getElementById('fieldQuestion').value = item.question || '';
+      document.getElementById('fieldAnswer').value = item.answer || '';
       document.getElementById('fieldSteps').value = (item.steps || []).join('\n');
+      document.getElementById('fieldNote').value = item.note || '';
       document.getElementById('fieldKeywords').value = (item.keywords || []).join(', ');
       document.getElementById('editModal').classList.add('active');
       document.body.style.overflow = 'hidden';
@@ -450,14 +464,25 @@
       var id = document.getElementById('fieldId').value.trim();
       var category = document.getElementById('fieldCategory').value.trim();
       var question = document.getElementById('fieldQuestion').value.trim();
+      var answer = document.getElementById('fieldAnswer').value.trim();
       var stepsRaw = document.getElementById('fieldSteps').value;
       var steps = stepsRaw.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+      var note = document.getElementById('fieldNote').value.trim();
       var kwRaw = document.getElementById('fieldKeywords').value;
       var keywords = kwRaw.split(',').map(function(k) { return k.trim(); }).filter(Boolean);
 
       if (!id || !question) { showToast('IDと質問は必須です', 'error'); return; }
 
-      var itemData = { id: id, category: category, question: question, steps: steps, keywords: keywords, utterances: [question] };
+      var itemData = { 
+        id: id, 
+        category: category, 
+        question: question, 
+        answer: answer,
+        steps: steps, 
+        note: note,
+        keywords: keywords, 
+        utterances: [question] 
+      };
 
       var url, method;
       if (editingId) {

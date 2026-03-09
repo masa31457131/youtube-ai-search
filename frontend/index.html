@@ -763,10 +763,9 @@
         <div class="lb-steps-label">✅ 手順</div>
         <ol class="lb-steps" id="lbSteps"></ol>
         <div class="lb-note-section" id="lbNoteSection" style="display:none;">
-          <div class="lb-note-label">📌 ワンポイントアドバイス</div>
+          <div class="lb-note-label">💡 ヒント</div>
           <div class="lb-note-text" id="lbNoteText"></div>
         </div>
-        <div class="lb-keywords" id="lbKeywords"></div>
       </div>
     </div>
   </div>
@@ -798,6 +797,7 @@
   var lastQuery = '';
   var debounceTimer = null;
   var synonyms = {};
+  var searchLoggedForQuery = false; // 検索ごとに最初のクリックのみログ記録
 
   var faqState = { offset: 0, items: [], total: 0 };
   var vidState = { offset: 0, items: [], total: 0 };
@@ -880,6 +880,7 @@
     if (!q) { showEmpty(); return; }
     if (q === lastQuery) return;
     lastQuery = q;
+    searchLoggedForQuery = false; // 新しい検索のためフラグリセット
 
     faqState = { offset: 0, items: [], total: 0 };
     vidState = { offset: 0, items: [], total: 0 };
@@ -944,7 +945,13 @@
       card.innerHTML =
         '<div class="faq-category">' + esc(item.category || 'その他') + '</div>' +
         '<div class="faq-question">' + esc(item.question || '') + '</div>';
-      card.addEventListener('click', function() { openFaqLb(item); logClick(lastQuery, 'faq', item.id); });
+      card.addEventListener('click', function() { 
+        openFaqLb(item); 
+        if (!searchLoggedForQuery && lastQuery) {
+          logClick(lastQuery, 'faq', item.id);
+          searchLoggedForQuery = true;
+        }
+      });
       list.appendChild(card);
     });
 
@@ -994,7 +1001,13 @@
         '</div>' +
         '<div class="video-info"><div class="video-title">' + esc(item.title || '') + '</div></div>';
 
-      card.addEventListener('click', function() { openVidLb(item, vid); logClick(lastQuery, 'video', item.video_id || ''); });
+      card.addEventListener('click', function() { 
+        openVidLb(item, vid); 
+        if (!searchLoggedForQuery && lastQuery) {
+          logClick(lastQuery, 'video', item.video_id || '');
+          searchLoggedForQuery = true;
+        }
+      });
       grid.appendChild(card);
     });
 
@@ -1066,20 +1079,6 @@
       noteSection.style.display = 'block';
     } else {
       noteSection.style.display = 'none';
-    }
-
-    // キーワードの表示
-    var kwEl = document.getElementById('lbKeywords');
-    var keywords = item.keywords || [];
-    kwEl.innerHTML = '';
-    if (keywords.length > 0) {
-      keywords.forEach(function(kw) {
-        if (!kw) return;
-        var span = document.createElement('span');
-        span.className = 'lb-keyword';
-        span.textContent = kw;
-        kwEl.appendChild(span);
-      });
     }
 
     document.getElementById('faqLightbox').classList.add('active');

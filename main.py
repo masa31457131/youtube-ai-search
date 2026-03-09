@@ -859,13 +859,31 @@ async def export_faqs():
     print("📥 FAQ export requested")
     await state.ensure_faq_loaded()
     
+    # フィールド名を元に戻す関数
+    def normalize_for_export(faq):
+        """エクスポート用にフィールド名を元に戻す"""
+        exported_faq = faq.copy()
+        
+        # id → faq_id
+        if "id" in exported_faq:
+            exported_faq["faq_id"] = exported_faq.pop("id")
+        
+        # steps → answer_steps
+        if "steps" in exported_faq:
+            exported_faq["answer_steps"] = exported_faq.pop("steps")
+        
+        return exported_faq
+    
     # faqs配列形式で返す
     if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        # 各FAQのフィールド名を元に戻す
+        exported_faqs = [normalize_for_export(faq) for faq in state.faq_data["faqs"]]
+        
         export_data = {
             "meta": state.faq_data.get("meta", {}),
-            "faqs": state.faq_data["faqs"]
+            "faqs": exported_faqs
         }
-        print(f"✅ Exporting {len(state.faq_data['faqs'])} FAQs (faqs array format)")
+        print(f"✅ Exporting {len(exported_faqs)} FAQs (faqs array format)")
     else:
         # カテゴリ辞書形式をfaqs配列形式に変換
         all_faqs = []
@@ -873,15 +891,18 @@ async def export_faqs():
             if isinstance(items, list):
                 all_faqs.extend(items)
         
+        # 各FAQのフィールド名を元に戻す
+        exported_faqs = [normalize_for_export(faq) for faq in all_faqs]
+        
         import time
         export_data = {
             "meta": {
                 "exported_at": time.time(),
-                "count": len(all_faqs)
+                "count": len(exported_faqs)
             },
-            "faqs": all_faqs
+            "faqs": exported_faqs
         }
-        print(f"✅ Exporting {len(all_faqs)} FAQs (category dict format)")
+        print(f"✅ Exporting {len(exported_faqs)} FAQs (category dict format)")
     
     return export_data
 
@@ -1668,6 +1689,80 @@ async def log_search_api(log_data: dict):
         json.dump(logs[-1000:], f, ensure_ascii=False, indent=2)
     
     return {'status': 'logged'}
+
+@app.get("/api/ranking/faq")
+async def get_faq_ranking(limit: int = 10):
+    """FAQクリックランキング"""
+    from pathlib import Path
+    from collections import Counter
+    
+    log_file = Path("search_logs.json")
+    if not log_file.exists():
+        return {"ranking": []}
+    
+    try:
+        with open(log_file, 'r', encoding='utf-8') as f:
+            logs = json.load(f)
+    except:
+        return {"ranking": []}
+    
+    # FAQのクリックを集計
+    faq_clicks = [log['result_id'] for log in logs if log.get('result_type') == 'faq' and log.get('result_id')]
+    counter = Counter(faq_clicks)
+    
+    # FAQの詳細情報を取得
+    await state.ensure_faq_loaded()
+    
+    ranking = []
+    for faq_id, count in counter.most_common(limit):
+        # FAQ情報を検索
+        faq_item = next((item for item in state.faq_items_flat if item.get('id') == faq_id), None)
+        if faq_item:
+            ranking.append({
+                'id': faq_id,
+                'question': faq_item.get('question', ''),
+                'category': faq_item.get('category', ''),
+                'click_count': count
+            })
+    
+    return {"ranking": ranking}
+
+@app.get("/api/ranking/video")
+async def get_video_ranking(limit: int = 10):
+    """動画クリックランキング"""
+    from pathlib import Path
+    from collections import Counter
+    
+    log_file = Path("search_logs.json")
+    if not log_file.exists():
+        return {"ranking": []}
+    
+    try:
+        with open(log_file, 'r', encoding='utf-8') as f:
+            logs = json.load(f)
+    except:
+        return {"ranking": []}
+    
+    # 動画のクリックを集計
+    video_clicks = [log['result_id'] for log in logs if log.get('result_type') == 'video' and log.get('result_id')]
+    counter = Counter(video_clicks)
+    
+    # 動画の詳細情報を取得
+    await state.ensure_video_loaded()
+    
+    ranking = []
+    for video_id, count in counter.most_common(limit):
+        # 動画情報を検索
+        video_item = next((item for item in state.videos if item.get('video_id') == video_id), None)
+        if video_item:
+            ranking.append({
+                'video_id': video_id,
+                'title': video_item.get('title', ''),
+                'thumbnail': video_item.get('thumbnail', ''),
+                'click_count': count
+            })
+    
+    return {"ranking": ranking}
 
 @app.get("/api/synonyms")
 async def get_synonyms():

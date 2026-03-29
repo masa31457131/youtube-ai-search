@@ -171,7 +171,25 @@
       gap: 24px;
     }
 
-    .section-title {
+
+    /* FAQ無効時は動画のみ表示 */
+    .results-grid.video-only {
+      grid-template-columns: 1fr;
+    }
+
+    /* 準備中表示 */
+    .faq-preparing {
+      text-align: center;
+      padding: 80px 20px;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--white);
+      border-radius: var(--radius);
+      border: 2px dashed var(--border);
+    }
+
+        .section-title {
       font-size: 16px;
       font-weight: 700;
       color: var(--text);
@@ -716,7 +734,7 @@
       <div class="results-grid">
 
         <!-- FAQ 結果 -->
-        <div>
+        <div id="faqSection">
           <div class="section-title">
             📋 FAQ
             <span class="section-count" id="faqCount">0件</span>
@@ -730,7 +748,7 @@
         </div>
 
         <!-- 動画 結果 -->
-        <div>
+        <div id="videoSection">
           <div class="section-title">
             🎬 サポート動画
             <span class="section-count" id="vidCount">0件</span>
@@ -798,6 +816,7 @@
   var debounceTimer = null;
   var synonyms = {};
   var searchLoggedForQuery = false; // 検索ごとに最初のクリックのみログ記録
+  var faqSearchEnabled = true; // FAQ検索の有効/無効
 
   var faqState = { offset: 0, items: [], total: 0 };
   var vidState = { offset: 0, items: [], total: 0 };
@@ -806,6 +825,18 @@
   // 初期化
   // ================================================================
   (function init() {
+    // 設定を取得
+    fetch('/api/config')
+      .then(function(r) { return r.json(); })
+      .then(function(config) {
+        faqSearchEnabled = config.faq_search_enabled !== false;
+        updateFaqSectionVisibility();
+      })
+      .catch(function() {
+        faqSearchEnabled = true;
+        updateFaqSectionVisibility();
+      });
+
     // 同義語辞書を取得
     fetch('/api/synonyms')
       .then(function(r) { return r.json(); })
@@ -889,9 +920,15 @@
 
     var expanded = expandQuery(q);
 
-    var faqPromise = fetch('/faq/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
-      .then(function(r) { return r.json(); })
-      .catch(function() { return { items: [], total_visible: 0 }; });
+    // FAQ検索がOFFの場合はスキップ
+    var faqPromise;
+    if (faqSearchEnabled) {
+      faqPromise = fetch('/faq/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
+        .then(function(r) { return r.json(); })
+        .catch(function() { return { items: [], total_visible: 0 }; });
+    } else {
+      faqPromise = Promise.resolve({ items: [], total_visible: 0 });
+    }
 
     var vidPromise = fetch('/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
       .then(function(r) { return r.json(); })
@@ -933,7 +970,12 @@
     var pageItems = faqState.items.slice(start, end);
 
     if (pageItems.length === 0) {
-      list.innerHTML = '<div class="no-result">該当するFAQが見つかりませんでした。</div>';
+      // FAQ検索がONでかつ全件数が0の場合は「準備中」を表示
+      if (faqSearchEnabled && faqState.total === 0) {
+        list.innerHTML = '<div class="faq-preparing">準備中</div>';
+      } else {
+        list.innerHTML = '<div class="no-result">該当するFAQが見つかりませんでした。</div>';
+      }
       pagination.style.display = 'none';
       return;
     }
@@ -1158,7 +1200,24 @@
   // ================================================================
   // UI状態切り替え
   // ================================================================
-  function showEmpty() {
+  // FAQ検索の有効/無効に応じて表示を切り替え
+  function updateFaqSectionVisibility() {
+    var faqSection = document.getElementById('faqSection');
+    var videoSection = document.getElementById('videoSection');
+    var resultsGrid = document.querySelector('.results-grid');
+    
+    if (faqSearchEnabled) {
+      // FAQ検索ON: 通常の2カラム表示
+      faqSection.style.display = '';
+      resultsGrid.classList.remove('video-only');
+    } else {
+      // FAQ検索OFF: FAQセクションを非表示、動画のみ1カラム表示
+      faqSection.style.display = 'none';
+      resultsGrid.classList.add('video-only');
+    }
+  }
+
+    function showEmpty() {
     lastQuery = '';
     document.getElementById('emptyState').style.display = '';
     document.getElementById('loadingState').style.display = 'none';

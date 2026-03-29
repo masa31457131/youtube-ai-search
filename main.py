@@ -1774,6 +1774,58 @@ async def get_synonyms():
         print(f"Synonymsèª­ã¿è¾¼ã¿ã‚¨ãƒ©ãƒ¼: {e}")
         return {}
 
+
+# ============================================
+# 設定API
+# ============================================
+
+CONFIG_PATH = Path("config.json")
+
+@app.get("/api/config")
+async def get_config():
+    """設定を取得"""
+    print("📋 Config read requested")
+    
+    if not CONFIG_PATH.exists():
+        # デフォルト設定を作成
+        default_config = {"faq_search_enabled": True}
+        try:
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, ensure_ascii=False, indent=2)
+            print(f"✅ Created default config.json")
+        except Exception as e:
+            print(f"❌ Failed to create config.json: {e}")
+        return default_config
+    
+    try:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        print(f"✅ Config loaded: {config}")
+        return config
+    except Exception as e:
+        print(f"❌ Config read error: {e}")
+        return {"faq_search_enabled": True}
+
+@app.put("/admin/api/config", dependencies=[Depends(verify_admin)])
+async def update_config(config_data: dict):
+    """設定を更新"""
+    print(f"⚙️ Updating config: {config_data}")
+    
+    try:
+        # config.jsonに書き込み
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=2)
+        
+        # 書き込み確認
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+            saved_config = json.load(f)
+        
+        print(f"✅ Config saved successfully: {saved_config}")
+        return {"status": "ok", "config": saved_config}
+    except Exception as e:
+        print(f"❌ Config update error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))

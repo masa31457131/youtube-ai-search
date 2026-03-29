@@ -47,6 +47,7 @@ BASE_DIR = pathlib.Path(__file__).parent
 DATA_PATH = BASE_DIR / "data.json"
 SYNONYMS_PATH = BASE_DIR / "synonyms.json"
 FAQ_PATH = BASE_DIR / "faq.json"
+CONFIG_PATH = BASE_DIR / "config.json"
 SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
 
 # é™çš„ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
@@ -312,6 +313,56 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
 # ============================================
 # Lifespanç®¡ç†
 # ============================================
+
+# ============================================
+# 起動時の初期化処理
+# ============================================
+
+def initialize_files():
+    """必要なファイルを初期化"""
+    try:
+        # config.json の初期化
+        if not CONFIG_PATH.exists():
+            print("📁 Creating config.json...")
+            default_config = {"faq_search_enabled": True}
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+                json.dump(default_config, f, ensure_ascii=False, indent=2)
+            print("✅ config.json created")
+        
+        # data.json の初期化
+        if not DATA_PATH.exists():
+            print("📁 Creating data.json...")
+            with open(DATA_PATH, 'w', encoding='utf-8') as f:
+                json.dump([], f)
+            print("✅ data.json created")
+        
+        # synonyms.json の初期化
+        if not SYNONYMS_PATH.exists():
+            print("📁 Creating synonyms.json...")
+            with open(SYNONYMS_PATH, 'w', encoding='utf-8') as f:
+                json.dump({}, f)
+            print("✅ synonyms.json created")
+        
+        # faq.json の初期化
+        if not FAQ_PATH.exists():
+            print("📁 Creating faq.json...")
+            default_faq = {
+                "meta": {"version": "1.0", "count": 0},
+                "faqs": []
+            }
+            with open(FAQ_PATH, 'w', encoding='utf-8') as f:
+                json.dump(default_faq, f, ensure_ascii=False, indent=2)
+            print("✅ faq.json created")
+        
+        print("✅ File initialization completed")
+        
+    except Exception as e:
+        print(f"❌ File initialization error: {e}")
+        import traceback
+        traceback.print_exc()
+
+# 起動時に初期化を実行
+initialize_files()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -1779,8 +1830,6 @@ async def get_synonyms():
 # 設定API
 # ============================================
 
-CONFIG_PATH = Path("config.json")
-
 @app.get("/api/config")
 async def get_config():
     """設定を取得"""
@@ -1828,5 +1877,12 @@ async def update_config(config_data: dict):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    try:
+        port = int(os.getenv("PORT", 8000))
+        print(f"🚀 Starting server on port {port}")
+        uvicorn.run(app, host="0.0.0.0", port=port)
+    except Exception as e:
+        print(f"❌ Failed to start server: {e}")
+        import traceback
+        traceback.print_exc()
+        raise

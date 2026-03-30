@@ -48,6 +48,7 @@ DATA_PATH = BASE_DIR / "data.json"
 SYNONYMS_PATH = BASE_DIR / "synonyms.json"
 FAQ_PATH = BASE_DIR / "faq.json"
 CONFIG_PATH = BASE_DIR / "config.json"
+USERS_PATH = BASE_DIR / "users.json"
 SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
 
 # é™çš„ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
@@ -353,6 +354,23 @@ def initialize_files():
             with open(FAQ_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_faq, f, ensure_ascii=False, indent=2)
             print("✅ faq.json created")
+        
+        # users.json の初期化
+        if not USERS_PATH.exists():
+            print("📁 Creating users.json...")
+            default_users = {
+                "users": [
+                    {
+                        "username": "admin",
+                        "password": "admin",
+                        "secret_question": "",
+                        "secret_answer": ""
+                    }
+                ]
+            }
+            with open(USERS_PATH, 'w', encoding='utf-8') as f:
+                json.dump(default_users, f, ensure_ascii=False, indent=2)
+            print("✅ users.json created")
         
         print("✅ File initialization completed")
         
@@ -1665,6 +1683,23 @@ def serve_admin_logs():
     f = admin_path / "logs.html"
     if not f.exists():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
+
+@app.get("/admin/password", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_password():
+    """管理画面 - パスワード変更"""
+    f = admin_path / "password.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin password.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
+@app.get("/admin/reset", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_reset():
+    """管理画面 - パスワード再設定"""
+    f = admin_path / "reset.html"
+    if not f.exists():
+        return HTMLResponse("<h1>admin reset.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
     return f.read_text(encoding="utf-8")
 
 # .htmlæ‹¡å¼µå­ä»˜ãã®ãƒ«ãƒ¼ãƒˆã‚‚è¿½åŠ 
@@ -1814,6 +1849,185 @@ async def get_video_ranking(limit: int = 10):
             })
     
     return {"ranking": ranking}
+
+
+# ============================================
+# ユーザー管理API
+# ============================================
+
+@app.get("/admin/api/user", dependencies=[Depends(verify_admin)])
+async def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
+    """現在のユーザー情報を取得"""
+    try:
+        with open(USERS_PATH, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+        
+        username = credentials.username
+        user = next((u for u in users_data["users"] if u["username"] == username), None)
+        
+        if user:
+            return {
+                "username": user["username"],
+                "has_secret_question": bool(user.get("secret_question"))
+            }
+        
+        raise HTTPException(status_code=404, detail="User not found")
+    except Exception as e:
+        print(f"❌ Get user error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/admin/api/user/password", dependencies=[Depends(verify_admin)])
+async def change_password(request: dict, credentials: HTTPBasicCredentials = Depends(security)):
+    """パスワード変更"""
+    print(f"🔐 Password change requested for user: {credentials.username}")
+    
+    try:
+        old_password = request.get("old_password")
+        new_password = request.get("new_password")
+        secret_question = request.get("secret_question", "")
+        secret_answer = request.get("secret_answer", "")
+        
+        if not old_password or not new_password:
+            raise HTTPException(status_code=400, detail="Old and new passwords are required")
+        
+        # ユーザー情報を読み込み
+        with open(USERS_PATH, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+        
+        # ユーザーを検索
+        user = next((u for u in users_data["users"] if u["username"] == credentials.username), None)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # 現在のパスワードを確認
+        if user["password"] != old_password:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+        
+        # パスワードと秘密の質問を更新
+        user["password"] = new_password
+        if secret_question:
+            user["secret_question"] = secret_question
+            user["secret_answer"] = secret_answer
+        
+        # 保存
+        with open(USERS_PATH, 'w', encoding='utf-8') as f:
+            json.dump(users_data, f, ensure_ascii=False, indent=2)
+        
+        print(f"✅ Password changed successfully for user: {credentials.username}")
+        return {"status": "ok", "message": "Password changed successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Password change error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/user/verify-answer")
+async def verify_secret_answer(request: dict):
+    """秘密の質問の回答を確認"""
+    try:
+        username = request.get("username")
+        secret_answer = request.get("secret_answer")
+        
+        if not username or not secret_answer:
+            raise HTTPException(status_code=400, detail="Username and answer are required")
+        
+        # ユーザー情報を読み込み
+        with open(USERS_PATH, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+        
+        # ユーザーを検索
+        user = next((u for u in users_data["users"] if u["username"] == username), None)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # 秘密の質問が設定されているか確認
+        if not user.get("secret_question"):
+            raise HTTPException(status_code=400, detail="Secret question not set")
+        
+        # 回答を確認
+        if user["secret_answer"] == secret_answer:
+            return {
+                "status": "ok",
+                "message": "Answer verified",
+                "secret_question": user["secret_question"]
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Incorrect answer")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Verify answer error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/user/reset-password")
+async def reset_password(request: dict):
+    """パスワード再設定"""
+    print(f"🔐 Password reset requested")
+    
+    try:
+        username = request.get("username")
+        secret_answer = request.get("secret_answer")
+        new_password = request.get("new_password")
+        
+        if not username or not secret_answer or not new_password:
+            raise HTTPException(status_code=400, detail="All fields are required")
+        
+        # ユーザー情報を読み込み
+        with open(USERS_PATH, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+        
+        # ユーザーを検索
+        user = next((u for u in users_data["users"] if u["username"] == username), None)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # 秘密の質問が設定されているか確認
+        if not user.get("secret_question"):
+            raise HTTPException(status_code=400, detail="Secret question not set")
+        
+        # 回答を確認
+        if user["secret_answer"] != secret_answer:
+            raise HTTPException(status_code=400, detail="Incorrect answer")
+        
+        # パスワードを更新
+        user["password"] = new_password
+        
+        # 保存
+        with open(USERS_PATH, 'w', encoding='utf-8') as f:
+            json.dump(users_data, f, ensure_ascii=False, indent=2)
+        
+        print(f"✅ Password reset successfully for user: {username}")
+        return {"status": "ok", "message": "Password reset successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Password reset error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/user/secret-question")
+async def get_secret_question(username: str):
+    """秘密の質問を取得"""
+    try:
+        with open(USERS_PATH, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+        
+        user = next((u for u in users_data["users"] if u["username"] == username), None)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        if not user.get("secret_question"):
+            raise HTTPException(status_code=400, detail="Secret question not set")
+        
+        return {"secret_question": user["secret_question"]}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Get secret question error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/synonyms")
 async def get_synonyms():

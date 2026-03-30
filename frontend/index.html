@@ -696,8 +696,8 @@
 
   <!-- HERO + SEARCH -->
   <div class="hero">
-    <h1 class="hero-title">サポート検索</h1>
-    <p class="hero-sub">FAQ・サポート動画をまとめて検索できます</p>
+    <h1 class="hero-title" id="heroTitle">サポート検索</h1>
+    <p class="hero-sub" id="heroSub">FAQ・サポート動画をまとめて検索できます</p>
     <div class="search-wrap">
       <input
         type="search"
@@ -719,7 +719,7 @@
     <div class="empty-state" id="emptyState">
       <div class="empty-state-icon">💡</div>
       <div class="empty-state-title">キーワードを入力してください</div>
-      <div class="empty-state-desc">
+      <div class="empty-state-desc" id="emptyStateDesc">
         FAQ（よくある質問）とサポート動画を同時に検索します。<br>
         操作方法・トラブル対応など、気になるキーワードを入れてみましょう。
       </div>
@@ -815,7 +815,6 @@
   var lastQuery = '';
   var debounceTimer = null;
   var synonyms = {};
-  var searchLoggedForQuery = false; // 検索ごとに最初のクリックのみログ記録
   var faqSearchEnabled = true; // FAQ検索の有効/無効
 
   var faqState = { offset: 0, items: [], total: 0 };
@@ -911,7 +910,6 @@
     if (!q) { showEmpty(); return; }
     if (q === lastQuery) return;
     lastQuery = q;
-    searchLoggedForQuery = false; // 新しい検索のためフラグリセット
 
     faqState = { offset: 0, items: [], total: 0 };
     vidState = { offset: 0, items: [], total: 0 };
@@ -989,9 +987,8 @@
         '<div class="faq-question">' + esc(item.question || '') + '</div>';
       card.addEventListener('click', function() { 
         openFaqLb(item); 
-        if (!searchLoggedForQuery && lastQuery) {
+        if (lastQuery) {
           logClick(lastQuery, 'faq', item.id);
-          searchLoggedForQuery = true;
         }
       });
       list.appendChild(card);
@@ -1045,9 +1042,8 @@
 
       card.addEventListener('click', function() { 
         openVidLb(item, vid); 
-        if (!searchLoggedForQuery && lastQuery) {
+        if (lastQuery) {
           logClick(lastQuery, 'video', item.video_id || '');
-          searchLoggedForQuery = true;
         }
       });
       grid.appendChild(card);
@@ -1205,15 +1201,25 @@
     var faqSection = document.getElementById('faqSection');
     var videoSection = document.getElementById('videoSection');
     var resultsGrid = document.querySelector('.results-grid');
+    var heroSub = document.getElementById('heroSub');
+    var emptyStateDesc = document.getElementById('emptyStateDesc');
     
     if (faqSearchEnabled) {
       // FAQ検索ON: 通常の2カラム表示
       faqSection.style.display = '';
       resultsGrid.classList.remove('video-only');
+      
+      // 文言を変更
+      heroSub.textContent = 'FAQ・サポート動画をまとめて検索できます';
+      emptyStateDesc.innerHTML = 'FAQ（よくある質問）とサポート動画を同時に検索します。<br>操作方法・トラブル対応など、気になるキーワードを入れてみましょう。';
     } else {
       // FAQ検索OFF: FAQセクションを非表示、動画のみ1カラム表示
       faqSection.style.display = 'none';
       resultsGrid.classList.add('video-only');
+      
+      // 文言を変更
+      heroSub.textContent = 'サポート動画を検索します';
+      emptyStateDesc.innerHTML = 'サポート動画を検索します<br>操作方法・トラブル対応など、気になるキーワードを入れてみましょう。';
     }
   }
 

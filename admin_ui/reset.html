@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>パスワード再設定 - ACS FAQ Manager</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Meiryo", "Yu Gothic", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .reset-card {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    }
+    
+    .logo {
+      text-align: center;
+      font-size: 64px;
+      margin-bottom: 16px;
+    }
+    
+    .title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    
+    .alert-success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 1px solid #10b981;
+    }
+    
+    .alert-error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #ef4444;
+    }
+    
+    .back-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    .back-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    
+    .back-link a:hover {
+      text-decoration: underline;
+    }
+    
+    .step-indicator {
+      text-align: center;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #6b7280;
+    }
+    
+    .step {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      background: #f3f4f6;
+    }
+    
+    .step.active {
+      background: #667eea;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="reset-card">
+    <div class="logo">🔐</div>
+    <h1 class="title">パスワード再設定</h1>
+    <p class="subtitle">秘密の質問に回答してパスワードをリセット</p>
+
+    <div class="step-indicator">
+      <span class="step active" id="step1">ステップ1</span>
+      <span style="margin: 0 8px;">→</span>
+      <span class="step" id="step2">ステップ2</span>
+    </div>
+
+    <div id="alertContainer"></div>
+
+    <!-- ステップ1: ユーザー名入力 -->
+    <div id="step1Container">
+      <form id="step1Form" onsubmit="checkUsername(event)">
+        <div class="form-group">
+          <label class="form-label">ユーザー名</label>
+          <input type="text" id="username" class="form-input" required autocomplete="username" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="step1Btn">次へ</button>
+      </form>
+    </div>
+
+    <!-- ステップ2: 秘密の質問 -->
+    <div id="step2Container" style="display: none;">
+      <form id="step2Form" onsubmit="resetPassword(event)">
+        <div class="form-group">
+          <label class="form-label">秘密の質問</label>
+          <div id="secretQuestion" style="padding: 12px; background: #f3f4f6; border-radius: 6px; font-size: 14px;"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">回答</label>
+          <input type="text" id="secretAnswer" class="form-input" required />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">新しいパスワード</label>
+          <input type="password" id="newPassword" class="form-input" required autocomplete="new-password" />
+          <div class="form-hint">8文字以上を推奨します</div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">新しいパスワード（確認）</label>
+          <input type="password" id="confirmPassword" class="form-input" required autocomplete="new-password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="step2Btn">パスワードをリセット</button>
+        <button type="button" class="btn" onclick="backToStep1()" style="margin-top: 10px; background: #f3f4f6;">戻る</button>
+      </form>
+    </div>
+
+    <div class="back-link">
+      <a href="/admin">ログイン画面に戻る</a>
+    </div>
+  </div>
+
+  <script>
+    var currentUsername = '';
+
+    function showAlert(message, type) {
+      var alertContainer = document.getElementById('alertContainer');
+      var alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+      alertContainer.innerHTML = '<div class="alert ' + alertClass + '">' + message + '</div>';
+      
+      setTimeout(function() {
+        alertContainer.innerHTML = '';
+      }, 5000);
+    }
+
+    function checkUsername(event) {
+      event.preventDefault();
+
+      var username = document.getElementById('username').value.trim();
+      if (!username) {
+        showAlert('ユーザー名を入力してください', 'error');
+        return;
+      }
+
+      var step1Btn = document.getElementById('step1Btn');
+      step1Btn.disabled = true;
+      step1Btn.textContent = '確認中...';
+
+      fetch('/api/user/secret-question?username=' + encodeURIComponent(username))
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(err) {
+            throw new Error(err.detail || '秘密の質問が設定されていません');
+          });
+        }
+        return response.json();
+      })
+      .then(function(result) {
+        currentUsername = username;
+        document.getElementById('secretQuestion').textContent = result.secret_question;
+        
+        // ステップ2へ
+        document.getElementById('step1Container').style.display = 'none';
+        document.getElementById('step2Container').style.display = 'block';
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+      })
+      .catch(function(error) {
+        showAlert(error.message, 'error');
+      })
+      .finally(function() {
+        step1Btn.disabled = false;
+        step1Btn.textContent = '次へ';
+      });
+    }
+
+    function backToStep1() {
+      document.getElementById('step2Container').style.display = 'none';
+      document.getElementById('step1Container').style.display = 'block';
+      document.getElementById('step2').classList.remove('active');
+      document.getElementById('step1').classList.add('active');
+      document.getElementById('step2Form').reset();
+    }
+
+    function resetPassword(event) {
+      event.preventDefault();
+
+      var secretAnswer = document.getElementById('secretAnswer').value.trim();
+      var newPassword = document.getElementById('newPassword').value;
+      var confirmPassword = document.getElementById('confirmPassword').value;
+
+      // バリデーション
+      if (newPassword !== confirmPassword) {
+        showAlert('新しいパスワードが一致しません', 'error');
+        return;
+      }
+
+      var step2Btn = document.getElementById('step2Btn');
+      step2Btn.disabled = true;
+      step2Btn.textContent = 'リセット中...';
+
+      fetch('/api/user/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: currentUsername,
+          secret_answer: secretAnswer,
+          new_password: newPassword
+        })
+      })
+      .then(function(response) {
+        if (!response.ok) {
+          return response.json().then(function(err) {
+            throw new Error(err.detail || 'パスワードリセットに失敗しました');
+          });
+        }
+        return response.json();
+      })
+      .then(function(result) {
+        showAlert('パスワードをリセットしました。ログイン画面に移動します...', 'success');
+        
+        setTimeout(function() {
+          window.location.href = '/admin';
+        }, 2000);
+      })
+      .catch(function(error) {
+        showAlert(error.message, 'error');
+      })
+      .finally(function() {
+        step2Btn.disabled = false;
+        step2Btn.textContent = 'パスワードをリセット';
+      });
+    }
+  </script>
+</body>
+</html>

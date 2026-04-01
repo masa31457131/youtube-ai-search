@@ -111,6 +111,9 @@
       <div class="toolbar-title">📚 同義語編集</div>
       <button class="btn btn-primary" onclick="openCreateModal()">＋ 追加</button>
       <button class="btn btn-success" onclick="saveAll()">💾 一括保存</button>
+      <button class="btn btn-outline" onclick="exportSynonyms()">📥 エクスポート</button>
+      <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">📤 インポート</button>
+      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importSynonyms(event)">
     </div>
 
     <div class="card">
@@ -301,7 +304,58 @@
       setTimeout(function() { el.className = 'toast'; }, 3000);
     }
 
-    function esc(str) {
+    // エクスポート機能
+    function exportSynonyms() {
+      var dataStr = JSON.stringify(synonymData, null, 2);
+      var blob = new Blob([dataStr], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'synonyms_' + new Date().toISOString().split('T')[0] + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('同義語をエクスポートしました', 'success');
+    }
+
+    // インポート機能
+    function importSynonyms(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var imported = JSON.parse(e.target.result);
+          
+          // 確認ダイアログ
+          var count = Object.keys(imported).length;
+          if (!confirm('同義語 ' + count + ' 件をインポートしますか？\n現在のデータは上書きされます。')) {
+            return;
+          }
+
+          // データを置き換え
+          synonymData = imported;
+          renderList();
+          showToast('同義語 ' + count + ' 件をインポートしました', 'success');
+          
+          // 保存を促す
+          setTimeout(function() {
+            if (confirm('インポートしたデータを保存しますか？')) {
+              saveAll();
+            }
+          }, 1000);
+        } catch (err) {
+          console.error('Import error:', err);
+          showToast('インポートに失敗しました: ' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+      
+      // ファイル選択をリセット
+      event.target.value = '';
+    }
+
+        function esc(str) {
       return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 

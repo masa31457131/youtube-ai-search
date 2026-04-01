@@ -275,21 +275,37 @@ def log_search(query: str):
         print(f"âš ï¸ Log write failed: {e}")
 
 def parse_logs() -> List[Dict[str, Any]]:
-    """ãƒ­ã‚°ãƒ‘ãƒ¼ã‚¹ï¼ˆç®¡ç†ç”»é¢ç”¨ï¼‰"""
-    if not SEARCH_LOG_PATH.exists():
+    """ログパース（管理画面用）- search_logs.jsonを読み込む"""
+    log_file = BASE_DIR / "search_logs.json"
+    
+    if not log_file.exists():
         return []
     
     rows = []
-    with open(SEARCH_LOG_PATH, "r", encoding="utf-8") as f:
-        reader = csv.reader(f)
-        next(reader, None)
-        for row in reader:
-            if len(row) >= 2:
-                try:
-                    dt = datetime.fromisoformat(row[0].replace("Z", "+00:00"))
-                    rows.append({"dt": dt, "query": row[1]})
-                except:
-                    pass
+    try:
+        with open(log_file, "r", encoding="utf-8") as f:
+            logs = json.load(f)
+        
+        for log in logs:
+            try:
+                # timestampをdatetimeに変換
+                timestamp = log.get("timestamp", "")
+                if timestamp:
+                    # ISO形式のタイムスタンプをパース
+                    dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    rows.append({
+                        "dt": dt,
+                        "query": log.get("query", ""),
+                        "result_type": log.get("result_type", ""),
+                        "result_id": log.get("result_id", "")
+                    })
+            except Exception as e:
+                # パースエラーは無視
+                pass
+    except Exception as e:
+        print(f"❌ Failed to parse logs: {e}")
+        return []
+    
     return rows
 
 # ============================================

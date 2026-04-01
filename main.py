@@ -299,17 +299,52 @@ def parse_logs() -> List[Dict[str, Any]]:
 security = HTTPBasic()
 
 def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
-    """ç®¡ç†è€…èªè¨¼"""
-    correct_username = secrets.compare_digest(credentials.username, ADMIN_USER)
-    correct_password = secrets.compare_digest(credentials.password, ADMIN_PASS)
-    
-    if not (correct_username and correct_password):
+    """管理者認証 - users.jsonを参照"""
+    try:
+        # users.jsonを読み込み
+        if not USERS_PATH.exists():
+            print("❌ users.json not found")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        
+        with open(USERS_PATH, 'r', encoding='utf-8') as f:
+            users_data = json.load(f)
+        
+        # ユーザーを検索
+        user = next((u for u in users_data["users"] if u["username"] == credentials.username), None)
+        
+        if not user:
+            print(f"❌ User not found: {credentials.username}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        
+        # パスワードを確認
+        if user["password"] != credentials.password:
+            print(f"❌ Invalid password for user: {credentials.username}")
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid credentials",
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        
+        print(f"✅ Authentication successful: {credentials.username}")
+        return credentials.username
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Authentication error: {e}")
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Basic"},
         )
-    return credentials.username
 
 # ============================================
 # Lifespanç®¡ç†

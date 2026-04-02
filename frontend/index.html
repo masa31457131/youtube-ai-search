@@ -133,17 +133,24 @@
 
     .search-clear {
       position: absolute;
-      right: 46px;
+      right: 50px;
       top: 50%;
       transform: translateY(-50%);
       background: none;
       border: none;
       cursor: pointer;
       color: var(--text-muted);
-      font-size: 18px;
-      padding: 4px;
+      font-size: 20px;
+      padding: 6px 8px;
       display: none;
       line-height: 1;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+    
+    .search-clear:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: var(--text);
     }
 
     /* ========== MAIN CONTENT ========== */

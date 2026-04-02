@@ -38,7 +38,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 DEFAULT_TOP_K = 10
 DEFAULT_PAGE_LIMIT = 10
 MAX_PAGE_LIMIT = 50
-SIMILARITY_THRESHOLD = 0.5  # 類似度スコアのしきい値（0.0-1.0）
+SIMILARITY_THRESHOLD = 0.0  # 類似度スコアのしきい値（0.0-1.0）※一旦無効化
 
 # ç®¡ç†è€…èªè¨¼
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -506,6 +506,10 @@ async def search_videos(
     normalized_query = normalize_text(query)
     expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
     
+    # 設定から閾値を取得
+    config = await get_config()
+    threshold = config.get("similarity_threshold", DEFAULT_SIMILARITY_THRESHOLD)
+    
     query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
     
@@ -516,7 +520,7 @@ async def search_videos(
     results = []
     for idx, score in zip(indices[0], distances[0]):
         # スコアしきい値でフィルタリング（質問1の対応）
-        if 0 <= idx < len(state.videos) and float(score) >= SIMILARITY_THRESHOLD:
+        if 0 <= idx < len(state.videos) and float(score) >= threshold:
             video = state.videos[idx].copy()
             video["score"] = float(score)
             results.append(video)
@@ -525,7 +529,13 @@ async def search_videos(
     items = results[offset:offset + limit]
     has_more = (offset + limit) < total
     
-    print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={SIMILARITY_THRESHOLD}")
+    # デバッグ: スコアの範囲を確認
+    if results:
+        scores = [r["score"] for r in results[:10]]  # 上位10件のスコア
+        print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={threshold}")
+        print(f"   Top 10 scores: {scores}")
+    else:
+        print(f"🎬 Video search results: query='{query}', total=0, items=0, threshold={SIMILARITY_THRESHOLD}")
     
     if paged:
         return {
@@ -610,6 +620,10 @@ async def search_faq(
     
     log_search(f"faq:{query}")
     
+    # 設定から閾値を取得
+    config = await get_config()
+    threshold = config.get("similarity_threshold", DEFAULT_SIMILARITY_THRESHOLD)
+    
     normalized_query = normalize_text(query)
     # 同義語展開で検索精度向上（Bug#5対応）
     expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
@@ -623,7 +637,7 @@ async def search_faq(
     results = []
     for idx, score in zip(indices[0], distances[0]):
         # スコアしきい値でフィルタリング
-        if 0 <= idx < len(state.faq_items_flat) and float(score) >= SIMILARITY_THRESHOLD:
+        if 0 <= idx < len(state.faq_items_flat) and float(score) >= threshold:
             item = state.faq_items_flat[idx].copy()
             item["score"] = float(score)
             results.append(item)
@@ -632,7 +646,13 @@ async def search_faq(
     items = results[offset:offset + limit]
     has_more = (offset + limit) < total
     
-    print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={SIMILARITY_THRESHOLD}")
+    # デバッグ: スコアの範囲を確認
+    if results:
+        scores = [r["score"] for r in results[:10]]  # 上位10件のスコア
+        print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={threshold}")
+        print(f"   Top 10 scores: {scores}")
+    else:
+        print(f"🎬 Video search results: query='{query}', total=0, items=0, threshold={SIMILARITY_THRESHOLD}")
     
     if paged:
         return {
@@ -2111,7 +2131,10 @@ async def get_config():
     
     if not CONFIG_PATH.exists():
         # デフォルト設定を作成
-        default_config = {"faq_search_enabled": True}
+        default_config = {
+            "faq_search_enabled": True,
+            "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD
+        }
         try:
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
@@ -2127,7 +2150,10 @@ async def get_config():
         return config
     except Exception as e:
         print(f"❌ Config read error: {e}")
-        return {"faq_search_enabled": True}
+        return {
+            "faq_search_enabled": True,
+            "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD
+        }
 
 @app.put("/admin/api/config", dependencies=[Depends(verify_admin)])
 async def update_config(config_data: dict):

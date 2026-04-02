@@ -304,6 +304,23 @@
         </div>
         <div class="toggle-switch" id="faqSearchToggle" onclick="toggleFaqSearch()"></div>
       </div>
+      
+      <div class="settings-row">
+        <div style="flex: 1;">
+          <div class="settings-label">検索精度の閾値</div>
+          <div class="settings-desc">値が高いほど検索結果が厳密になります（0.0 - 1.0）</div>
+          <div style="margin-top: 12px;">
+            <input type="range" id="thresholdSlider" min="0" max="100" step="5" value="30" 
+                   style="width: 100%; max-width: 300px;" oninput="updateThresholdDisplay(this.value)">
+            <div style="display: flex; justify-content: space-between; max-width: 300px; margin-top: 4px;">
+              <span style="font-size: 11px; color: var(--text-muted);">緩い (0.0)</span>
+              <span id="thresholdValue" style="font-size: 13px; font-weight: 600; color: var(--brand);">0.30</span>
+              <span style="font-size: 11px; color: var(--text-muted);">厳密 (1.0)</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveThreshold()" style="align-self: flex-start; margin-top: 32px;">保存</button>
+      </div>
     </div>
 
         <!-- ランキングセクション -->
@@ -431,12 +448,19 @@
       })
       .then(function(r) { return r.json(); })
       .then(function(config) {
+        // FAQ検索トグル
         var toggle = document.getElementById('faqSearchToggle');
         if (config.faq_search_enabled !== false) {
           toggle.classList.add('active');
         } else {
           toggle.classList.remove('active');
         }
+        
+        // 閾値スライダー
+        var threshold = config.similarity_threshold !== undefined ? config.similarity_threshold : 0.3;
+        var sliderValue = Math.round(threshold * 100);
+        document.getElementById('thresholdSlider').value = sliderValue;
+        document.getElementById('thresholdValue').textContent = threshold.toFixed(2);
       })
       .catch(function() {
         console.error('Failed to load settings');
@@ -476,7 +500,39 @@
 
         // ページ読み込み時にランキング取得
     loadRankings();
-    loadSettings();
+
+    function updateThresholdDisplay(value) {
+      var threshold = (value / 100).toFixed(2);
+      document.getElementById('thresholdValue').textContent = threshold;
+    }
+
+    function saveThreshold() {
+      var sliderValue = document.getElementById('thresholdSlider').value;
+      var threshold = parseFloat((sliderValue / 100).toFixed(2));
+      
+      var auth = JSON.parse(localStorage.getItem('admin_auth'));
+      var authHeader = 'Basic ' + btoa(auth.username + ':' + auth.password);
+
+      fetch('/admin/api/config', {
+        method: 'PUT',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          similarity_threshold: threshold
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        alert('検索精度の閾値を ' + threshold + ' に設定しました。');
+      })
+      .catch(function() {
+        alert('設定の保存に失敗しました');
+      });
+    }
+
+        loadSettings();
   </script>
 </body>
 </html>

@@ -377,7 +377,10 @@ def initialize_files():
         # config.json の初期化
         if not CONFIG_PATH.exists():
             print("📁 Creating config.json...")
-            default_config = {"faq_search_enabled": True}
+            default_config = {
+                "faq_search_enabled": True,
+                "similarity_threshold": 0.3
+            }
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
             print("✅ config.json created")
@@ -509,6 +512,7 @@ async def search_videos(
     # 設定から閾値を取得
     config = await get_config()
     threshold = config.get("similarity_threshold", DEFAULT_SIMILARITY_THRESHOLD)
+    print(f"🔍 Video search: query='{query}', threshold={threshold}, config={config}")
     
     query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
@@ -518,12 +522,18 @@ async def search_videos(
     distances, indices = state.video_index.search(query_embedding, k)
     
     results = []
+    filtered_count = 0
     for idx, score in zip(indices[0], distances[0]):
-        # スコアしきい値でフィルタリング（質問1の対応）
-        if 0 <= idx < len(state.videos) and float(score) >= threshold:
+        if 0 <= idx < len(state.videos):
             video = state.videos[idx].copy()
             video["score"] = float(score)
-            results.append(video)
+            # デバッグ: スコアをログ出力
+            if filtered_count < 5:  # 最初の5件のみ
+                print(f"  Video candidate: score={score:.3f}, threshold={threshold}, pass={float(score) >= threshold}")
+            # 閾値チェック
+            if float(score) >= threshold:
+                results.append(video)
+                filtered_count += 1
     
     total = len(results)
     items = results[offset:offset + limit]
@@ -623,6 +633,7 @@ async def search_faq(
     # 設定から閾値を取得
     config = await get_config()
     threshold = config.get("similarity_threshold", DEFAULT_SIMILARITY_THRESHOLD)
+    print(f"🔍 FAQ search: query='{query}', threshold={threshold}, config={config}")
     
     normalized_query = normalize_text(query)
     # 同義語展開で検索精度向上（Bug#5対応）
@@ -635,12 +646,18 @@ async def search_faq(
     distances, indices = state.faq_index.search(query_embedding, k)
     
     results = []
+    filtered_count = 0
     for idx, score in zip(indices[0], distances[0]):
-        # スコアしきい値でフィルタリング
-        if 0 <= idx < len(state.faq_items_flat) and float(score) >= threshold:
+        if 0 <= idx < len(state.faq_items_flat):
             item = state.faq_items_flat[idx].copy()
             item["score"] = float(score)
-            results.append(item)
+            # デバッグ: スコアをログ出力
+            if filtered_count < 5:  # 最初の5件のみ
+                print(f"  FAQ candidate: score={score:.3f}, threshold={threshold}, pass={float(score) >= threshold}")
+            # 閾値チェック
+            if float(score) >= threshold:
+                results.append(item)
+                filtered_count += 1
     
     total = len(results)
     items = results[offset:offset + limit]

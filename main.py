@@ -38,6 +38,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 DEFAULT_TOP_K = 10
 DEFAULT_PAGE_LIMIT = 10
 MAX_PAGE_LIMIT = 50
+SIMILARITY_THRESHOLD = 0.5  # 類似度スコアのしきい値（0.0-1.0）
 
 # ç®¡ç†è€…èªè¨¼
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -508,12 +509,14 @@ async def search_videos(
     query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
     
-    k = min(offset + limit + 50, len(state.videos))
+    # 最大取得件数を100件に拡大（質問2の対応）
+    k = min(offset + limit + 100, len(state.videos))
     distances, indices = state.video_index.search(query_embedding, k)
     
     results = []
     for idx, score in zip(indices[0], distances[0]):
-        if 0 <= idx < len(state.videos):
+        # スコアしきい値でフィルタリング（質問1の対応）
+        if 0 <= idx < len(state.videos) and float(score) >= SIMILARITY_THRESHOLD:
             video = state.videos[idx].copy()
             video["score"] = float(score)
             results.append(video)
@@ -521,6 +524,8 @@ async def search_videos(
     total = len(results)
     items = results[offset:offset + limit]
     has_more = (offset + limit) < total
+    
+    print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={SIMILARITY_THRESHOLD}")
     
     if paged:
         return {
@@ -611,12 +616,14 @@ async def search_faq(
     query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
     
-    k = min(offset + limit + 50, len(state.faq_items_flat))
+    # 最大取得件数を100件に拡大
+    k = min(offset + limit + 100, len(state.faq_items_flat))
     distances, indices = state.faq_index.search(query_embedding, k)
     
     results = []
     for idx, score in zip(indices[0], distances[0]):
-        if 0 <= idx < len(state.faq_items_flat):
+        # スコアしきい値でフィルタリング
+        if 0 <= idx < len(state.faq_items_flat) and float(score) >= SIMILARITY_THRESHOLD:
             item = state.faq_items_flat[idx].copy()
             item["score"] = float(score)
             results.append(item)
@@ -624,6 +631,8 @@ async def search_faq(
     total = len(results)
     items = results[offset:offset + limit]
     has_more = (offset + limit) < total
+    
+    print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={SIMILARITY_THRESHOLD}")
     
     if paged:
         return {

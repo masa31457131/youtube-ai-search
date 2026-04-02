@@ -38,7 +38,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", DEFAULT_MODEL_NAME)
 DEFAULT_TOP_K = 10
 DEFAULT_PAGE_LIMIT = 10
 MAX_PAGE_LIMIT = 50
-SIMILARITY_THRESHOLD = 0.0  # 類似度スコアのしきい値（0.0-1.0）※一旦無効化
+DEFAULT_SIMILARITY_THRESHOLD = 0.3  # 類似度スコアのしきい値（0.0-1.0）
 
 # ç®¡ç†è€…èªè¨¼
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -522,18 +522,22 @@ async def search_videos(
     distances, indices = state.video_index.search(query_embedding, k)
     
     results = []
-    filtered_count = 0
+    all_scores = []  # 全スコアを記録
     for idx, score in zip(indices[0], distances[0]):
         if 0 <= idx < len(state.videos):
+            all_scores.append(float(score))
             video = state.videos[idx].copy()
             video["score"] = float(score)
-            # デバッグ: スコアをログ出力
-            if filtered_count < 5:  # 最初の5件のみ
-                print(f"  Video candidate: score={score:.3f}, threshold={threshold}, pass={float(score) >= threshold}")
             # 閾値チェック
             if float(score) >= threshold:
                 results.append(video)
-                filtered_count += 1
+    
+    # デバッグ: 全体のスコア分布を表示
+    if all_scores:
+        print(f"  Total candidates: {len(all_scores)}")
+        print(f"  Score range: {min(all_scores):.3f} - {max(all_scores):.3f}")
+        print(f"  Top 5 scores: {[f'{s:.3f}' for s in sorted(all_scores, reverse=True)[:5]]}")
+        print(f"  Passed threshold ({threshold}): {len(results)} items")
     
     total = len(results)
     items = results[offset:offset + limit]
@@ -646,18 +650,22 @@ async def search_faq(
     distances, indices = state.faq_index.search(query_embedding, k)
     
     results = []
-    filtered_count = 0
+    all_scores = []  # 全スコアを記録
     for idx, score in zip(indices[0], distances[0]):
         if 0 <= idx < len(state.faq_items_flat):
+            all_scores.append(float(score))
             item = state.faq_items_flat[idx].copy()
             item["score"] = float(score)
-            # デバッグ: スコアをログ出力
-            if filtered_count < 5:  # 最初の5件のみ
-                print(f"  FAQ candidate: score={score:.3f}, threshold={threshold}, pass={float(score) >= threshold}")
             # 閾値チェック
             if float(score) >= threshold:
                 results.append(item)
-                filtered_count += 1
+    
+    # デバッグ: 全体のスコア分布を表示
+    if all_scores:
+        print(f"  Total candidates: {len(all_scores)}")
+        print(f"  Score range: {min(all_scores):.3f} - {max(all_scores):.3f}")
+        print(f"  Top 5 scores: {[f'{s:.3f}' for s in sorted(all_scores, reverse=True)[:5]]}")
+        print(f"  Passed threshold ({threshold}): {len(results)} items")
     
     total = len(results)
     items = results[offset:offset + limit]

@@ -1,4 +1,6 @@
 {
   "faq_search_enabled": true,
-  "similarity_threshold": 0.3
+  "similarity_threshold": 0.3,
+  "semantic_weight": 0.6,
+  "title_weight": 0.4
 }

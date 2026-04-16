@@ -379,7 +379,9 @@ def initialize_files():
             print("📁 Creating config.json...")
             default_config = {
                 "faq_search_enabled": True,
-                "similarity_threshold": 0.3
+                "similarity_threshold": 0.3,
+                "semantic_weight": 0.6,
+                "title_weight": 0.4
             }
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)
@@ -496,7 +498,8 @@ async def search_videos(
     query: str = Query(..., min_length=1),
     offset: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
-    paged: int = Query(0)
+    paged: int = Query(0),
+    language: str = Query(None)
 ):
     """å‹•ç”»æ¤œç´¢ï¼ˆãƒšãƒ¼ã‚¸ãƒ³ã‚°å¯¾å¿œï¼‰"""
     await state.ensure_video_loaded()
@@ -528,6 +531,12 @@ async def search_videos(
             all_scores.append(float(score))
             video = state.videos[idx].copy()
             video["score"] = float(score)
+            
+            # 言語フィルタリング
+            video_lang = video.get("language", "ja")  # デフォルトは日本語
+            if language != "all" and video_lang != language:
+                continue
+            
             # 閾値チェック
             if float(score) >= threshold:
                 results.append(video)
@@ -538,6 +547,13 @@ async def search_videos(
         print(f"  Score range: {min(all_scores):.3f} - {max(all_scores):.3f}")
         print(f"  Top 5 scores: {[f'{s:.3f}' for s in sorted(all_scores, reverse=True)[:5]]}")
         print(f"  Passed threshold ({threshold}): {len(results)} items")
+    
+    # タイトル完全一致を最優先、次点でハイブリッドスコアでソート
+    query_norm = normalize_text(query)
+    results.sort(key=lambda v: (
+        -int(query_norm in normalize_text(v.get("title", ""))),  # タイトル一致を最優先
+        -v["score"]  # 次点でハイブリッドスコア
+    ))
     
     total = len(results)
     items = results[offset:offset + limit]
@@ -571,7 +587,8 @@ async def search_faq(
     query: str = Query(..., min_length=1),
     offset: int = Query(0, ge=0),
     limit: int = Query(DEFAULT_PAGE_LIMIT, ge=1, le=MAX_PAGE_LIMIT),
-    paged: int = Query(0)
+    paged: int = Query(0),
+    language: str = Query(None)
 ):
     """FAQæ¤œç´¢ï¼ˆãƒšãƒ¼ã‚¸ãƒ³ã‚°å¯¾å¿œï¼‰"""
     await state.ensure_faq_loaded()
@@ -656,6 +673,12 @@ async def search_faq(
             all_scores.append(float(score))
             item = state.faq_items_flat[idx].copy()
             item["score"] = float(score)
+            
+            # 言語フィルタリング
+            item_lang = item.get("language", "ja")  # デフォルトは日本語
+            if language != "all" and item_lang != language:
+                continue
+            
             # 閾値チェック
             if float(score) >= threshold:
                 results.append(item)
@@ -666,6 +689,13 @@ async def search_faq(
         print(f"  Score range: {min(all_scores):.3f} - {max(all_scores):.3f}")
         print(f"  Top 5 scores: {[f'{s:.3f}' for s in sorted(all_scores, reverse=True)[:5]]}")
         print(f"  Passed threshold ({threshold}): {len(results)} items")
+    
+    # 質問文完全一致を最優先、次点でハイブリッドスコアでソート
+    query_norm = normalize_text(query)
+    results.sort(key=lambda v: (
+        -int(query_norm in normalize_text(v.get("question", ""))),  # 質問文一致を最優先
+        -v["score"]  # 次点でハイブリッドスコア
+    ))
     
     total = len(results)
     items = results[offset:offset + limit]
@@ -2158,7 +2188,9 @@ async def get_config():
         # デフォルト設定を作成
         default_config = {
             "faq_search_enabled": True,
-            "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD
+            "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD,
+            "semantic_weight": SEMANTIC_WEIGHT,
+            "title_weight": TITLE_WEIGHT
         }
         try:
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
@@ -2177,7 +2209,9 @@ async def get_config():
         print(f"❌ Config read error: {e}")
         return {
             "faq_search_enabled": True,
-            "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD
+            "similarity_threshold": DEFAULT_SIMILARITY_THRESHOLD,
+            "semantic_weight": SEMANTIC_WEIGHT,
+            "title_weight": TITLE_WEIGHT
         }
 
 @app.put("/admin/api/config", dependencies=[Depends(verify_admin)])

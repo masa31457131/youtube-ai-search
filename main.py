@@ -1866,6 +1866,15 @@ def serve_index():
         return HTMLResponse("<h1>index.html not found</h1>", status_code=404)
     return index_file.read_text(encoding="utf-8")
 
+
+@app.get("/debug", response_class=HTMLResponse, include_in_schema=False)
+def serve_debug():
+    """診断ページ"""
+    debug_file = frontend_path / "debug.html"
+    if not debug_file.exists():
+        return HTMLResponse("<h1>debug.html not found</h1>", status_code=404)
+    return debug_file.read_text(encoding="utf-8")
+
 @app.get("/admin", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_home():
     """ç®¡ç†ç”»é¢ãƒˆãƒƒãƒ—"""

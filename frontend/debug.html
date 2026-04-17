@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>診断ページ - サポート検索システム</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 { color: #1a4fa0; margin-bottom: 20px; }
+    .section { 
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h2 { 
+      color: #333;
+      margin-bottom: 15px;
+      font-size: 18px;
+      border-bottom: 2px solid #1a4fa0;
+      padding-bottom: 8px;
+    }
+    .status { 
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+    .status.ok { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .status.warning { background: #fff3cd; color: #856404; }
+    pre { 
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    button {
+      background: #1a4fa0;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+    button:hover { background: #153d7f; }
+    .test-input {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 診断ページ</h1>
+    
+    <div class="section">
+      <h2>1. API接続テスト</h2>
+      <button onclick="testConfig()">Config API テスト</button>
+      <button onclick="testSynonyms()">Synonyms API テスト</button>
+      <button onclick="testSearch()">Search API テスト</button>
+      <div id="apiResults"></div>
+    </div>
+
+    <div class="section">
+      <h2>2. 検索機能テスト</h2>
+      <input type="text" class="test-input" id="testQuery" placeholder="検索キーワードを入力（例: プロッタ）" value="プロッタ">
+      <button onclick="testSearchFunction()">検索実行テスト</button>
+      <div id="searchResults"></div>
+    </div>
+
+    <div class="section">
+      <h2>3. JavaScript変数の状態</h2>
+      <button onclick="checkVariables()">変数を確認</button>
+      <div id="variableResults"></div>
+    </div>
+
+    <div class="section">
+      <h2>4. ブラウザ情報</h2>
+      <div id="browserInfo"></div>
+    </div>
+  </div>
+
+  <script>
+    // ブラウザ情報を表示
+    document.getElementById('browserInfo').innerHTML = `
+      <div class="status ok">
+        <strong>User Agent:</strong><br>
+        <pre>${navigator.userAgent}</pre>
+      </div>
+      <div class="status ok">
+        <strong>URL:</strong> ${window.location.href}<br>
+        <strong>Protocol:</strong> ${window.location.protocol}<br>
+        <strong>Host:</strong> ${window.location.host}
+      </div>
+    `;
+
+    // Config API テスト
+    async function testConfig() {
+      const results = document.getElementById('apiResults');
+      results.innerHTML = '<div class="status warning">テスト中...</div>';
+      
+      try {
+        const response = await fetch('/api/config');
+        const data = await response.json();
+        
+        results.innerHTML = `
+          <div class="status ok">
+            <strong>✅ Config API 成功</strong><br>
+            <strong>ステータス:</strong> ${response.status} ${response.statusText}<br>
+            <strong>レスポンス:</strong>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        results.innerHTML = `
+          <div class="status error">
+            <strong>❌ Config API エラー</strong><br>
+            <strong>エラー:</strong> ${error.message}<br>
+            <pre>${error.stack}</pre>
+          </div>
+        `;
+      }
+    }
+
+    // Synonyms API テスト
+    async function testSynonyms() {
+      const results = document.getElementById('apiResults');
+      results.innerHTML = '<div class="status warning">テスト中...</div>';
+      
+      try {
+        const response = await fetch('/api/synonyms');
+        const data = await response.json();
+        
+        results.innerHTML = `
+          <div class="status ok">
+            <strong>✅ Synonyms API 成功</strong><br>
+            <strong>ステータス:</strong> ${response.status} ${response.statusText}<br>
+            <strong>レスポンス:</strong>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        results.innerHTML = `
+          <div class="status error">
+            <strong>❌ Synonyms API エラー</strong><br>
+            <strong>エラー:</strong> ${error.message}<br>
+            <pre>${error.stack}</pre>
+          </div>
+        `;
+      }
+    }
+
+    // Search API テスト
+    async function testSearch() {
+      const results = document.getElementById('apiResults');
+      results.innerHTML = '<div class="status warning">テスト中...</div>';
+      
+      const query = 'プロッタ';
+      const url = `/search?query=${encodeURIComponent(query)}&offset=0&limit=10&paged=1&language=ja`;
+      
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        results.innerHTML = `
+          <div class="status ok">
+            <strong>✅ Search API 成功</strong><br>
+            <strong>URL:</strong> ${url}<br>
+            <strong>ステータス:</strong> ${response.status} ${response.statusText}<br>
+            <strong>結果件数:</strong> ${data.items ? data.items.length : 0}<br>
+            <strong>レスポンス:</strong>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        results.innerHTML = `
+          <div class="status error">
+            <strong>❌ Search API エラー</strong><br>
+            <strong>URL:</strong> ${url}<br>
+            <strong>エラー:</strong> ${error.message}<br>
+            <pre>${error.stack}</pre>
+          </div>
+        `;
+      }
+    }
+
+    // 検索関数テスト
+    async function testSearchFunction() {
+      const results = document.getElementById('searchResults');
+      const query = document.getElementById('testQuery').value;
+      
+      results.innerHTML = '<div class="status warning">検索中...</div>';
+      
+      try {
+        // 1. Config取得
+        const configRes = await fetch('/api/config');
+        const config = await configRes.json();
+        
+        // 2. Synonyms取得
+        const synonymsRes = await fetch('/api/synonyms');
+        const synonyms = await synonymsRes.json();
+        
+        // 3. 同義語展開
+        const currentLanguage = 'ja';
+        const langSynonyms = synonyms[currentLanguage] || {};
+        let expanded = query;
+        let expandedTerms = [query];
+        
+        Object.keys(langSynonyms).forEach(term => {
+          const syns = langSynonyms[term];
+          if (!Array.isArray(syns)) return;
+          
+          if (query.toLowerCase().indexOf(term.toLowerCase()) !== -1) {
+            syns.forEach(s => {
+              if (expandedTerms.indexOf(s) === -1) expandedTerms.push(s);
+            });
+          }
+        });
+        expanded = expandedTerms.join(' ');
+        
+        // 4. 検索実行
+        const searchUrl = `/search?query=${encodeURIComponent(expanded)}&offset=0&limit=10&paged=1&language=${currentLanguage}`;
+        const searchRes = await fetch(searchUrl);
+        const searchData = await searchRes.json();
+        
+        results.innerHTML = `
+          <div class="status ok">
+            <strong>✅ 検索成功</strong><br>
+            <strong>元のクエリ:</strong> ${query}<br>
+            <strong>展開後クエリ:</strong> ${expanded}<br>
+            <strong>言語:</strong> ${currentLanguage}<br>
+            <strong>FAQ検索:</strong> ${config.faq_search_enabled ? '有効' : '無効'}<br>
+            <strong>検索結果:</strong> ${searchData.items ? searchData.items.length : 0} 件<br>
+            <strong>同義語辞書:</strong>
+            <pre>${JSON.stringify(synonyms, null, 2)}</pre>
+            <strong>検索結果:</strong>
+            <pre>${JSON.stringify(searchData, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        results.innerHTML = `
+          <div class="status error">
+            <strong>❌ 検索エラー</strong><br>
+            <strong>エラー:</strong> ${error.message}<br>
+            <pre>${error.stack}</pre>
+          </div>
+        `;
+      }
+    }
+
+    // 変数確認
+    function checkVariables() {
+      const results = document.getElementById('variableResults');
+      
+      const vars = {
+        'localStorage.language': localStorage.getItem('language'),
+        'localStorage.admin_auth': localStorage.getItem('admin_auth') ? '存在する（内容は非表示）' : 'なし',
+        'window.location.href': window.location.href,
+        'document.readyState': document.readyState,
+      };
+      
+      let html = '';
+      for (const [key, value] of Object.entries(vars)) {
+        html += `
+          <div class="status ok">
+            <strong>${key}:</strong> ${value || 'undefined'}
+          </div>
+        `;
+      }
+      
+      results.innerHTML = html;
+    }
+
+    // ページ読み込み時に自動実行
+    window.addEventListener('load', function() {
+      console.log('診断ページが読み込まれました');
+      checkVariables();
+    });
+  </script>
+</body>
+</html>

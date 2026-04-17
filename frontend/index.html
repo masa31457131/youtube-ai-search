@@ -939,19 +939,31 @@
     fetch('/api/config')
       .then(function(r) { return r.json(); })
       .then(function(config) {
+        console.log('📋 Config loaded:', config);
         faqSearchEnabled = config.faq_search_enabled !== false;
+        console.log('🔍 FAQ検索: ' + (faqSearchEnabled ? '有効' : '無効'));
         updateFaqSectionVisibility();
       })
-      .catch(function() {
+      .catch(function(error) {
+        console.error('❌ Config load error:', error);
         faqSearchEnabled = true;
         updateFaqSectionVisibility();
       });
 
-    // 同義語辞書を取得
+    // 同義語辞書を取得（言語別構造対応）
     fetch('/api/synonyms')
       .then(function(r) { return r.json(); })
-      .then(function(data) { synonyms = data || {}; })
-      .catch(function() { synonyms = {}; });
+      .then(function(data) {
+        // 新形式 {ja: {}, en: {}} から言語別に取得
+        if (data && typeof data === 'object') {
+          synonyms = data;
+        } else {
+          synonyms = { ja: {}, en: {} };
+        }
+      })
+      .catch(function() { 
+        synonyms = { ja: {}, en: {} };
+      });
 
     // 検索入力のイベント
     var input = document.getElementById('searchInput');
@@ -1007,22 +1019,32 @@
   // ================================================================
   function expandQuery(q) {
     if (!q || !synonyms) return q;
+    
+    // 言語別の同義語辞書を取得
+    var langSynonyms = synonyms[currentLanguage] || {};
+    
     var terms = [q];
     var qLower = q.toLowerCase();
-    Object.keys(synonyms).forEach(function(term) {
-      var syns = synonyms[term];
+    
+    Object.keys(langSynonyms).forEach(function(term) {
+      var syns = langSynonyms[term];
       if (!Array.isArray(syns)) return;
+      
+      // クエリに用語が含まれている場合、同義語を追加
       if (qLower.indexOf(term.toLowerCase()) !== -1) {
         syns.forEach(function(s) {
           if (terms.indexOf(s) === -1) terms.push(s);
         });
       }
+      
+      // クエリに同義語が含まれている場合、元の用語を追加
       syns.forEach(function(s) {
         if (qLower.indexOf(s.toLowerCase()) !== -1) {
           if (terms.indexOf(term) === -1) terms.push(term);
         }
       });
     });
+    
     return terms.join(' ');
   }
 
@@ -1030,6 +1052,7 @@
   // 検索実行
   // ================================================================
   function doSearch(q) {
+    console.log('🔍 Search started:', q);
     if (!q) { showEmpty(); return; }
     if (q === lastQuery) return;
     lastQuery = q;
@@ -1040,6 +1063,9 @@
     showLoading();
 
     var expanded = expandQuery(q);
+    console.log('📝 Expanded query:', expanded);
+    console.log('🌐 Language:', currentLanguage);
+    console.log('📚 FAQ enabled:', faqSearchEnabled);
 
     // FAQ検索がOFFの場合はスキップ
     var faqPromise;
@@ -1059,6 +1085,10 @@
       var faqRes = results[0];
       var vidRes = results[1];
 
+      console.log('✅ Search results received');
+      console.log('  FAQ:', faqRes.items ? faqRes.items.length : 0, 'items');
+      console.log('  Videos:', vidRes.items ? vidRes.items.length : 0, 'items');
+
       faqState.items = faqRes.items || [];
       faqState.total = faqRes.total_visible || faqState.items.length;
 
@@ -1066,6 +1096,9 @@
       vidState.total = vidRes.total_visible || vidState.items.length;
 
       renderResults();
+    }).catch(function(error) {
+      console.error('❌ Search error:', error);
+      showEmpty();
     });
   }
 

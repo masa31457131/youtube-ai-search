@@ -967,6 +967,18 @@
       }, 300);
     });
 
+    // Enterキーで即座に検索
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(debounceTimer);
+        var val = input.value.trim();
+        if (val) {
+          doSearch(val);
+        }
+      }
+    });
+
     clearBtn.addEventListener('click', function() {
       input.value = '';
       clearBtn.style.display = 'none';

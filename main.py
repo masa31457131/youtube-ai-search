@@ -1204,7 +1204,7 @@ async def update_video(video_id: str, video_data: dict, background_tasks: Backgr
     return {"status": "updated", "video_id": video_id}
 
 @app.put("/admin/api/videos", dependencies=[Depends(verify_admin)])
-async def update_videos(videos: list, background_tasks: BackgroundTasks):
+async def update_videos(videos: List[dict], background_tasks: BackgroundTasks):
     """動画データ一括更新（言語タグ編集用）"""
     print(f"💾 Updating videos: {len(videos)} items")
     

@@ -243,13 +243,56 @@ def normalize_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
-def expand_with_synonyms(query: str, synonyms: Dict[str, List[str]]) -> str:
-    """åŒç¾©èªžå±•é–‹ï¼ˆã‚·ãƒ³ãƒ—ãƒ«ç‰ˆï¼‰"""
+def expand_with_synonyms(query: str, synonyms: Dict[str, Any], language: str = "ja") -> str:
+    """
+    同義語展開（言語別対応）
+    
+    Args:
+        query: 検索クエリ
+        synonyms: 言語別同義語辞書 {"ja": {...}, "en": {...}}
+        language: 言語コード（"ja", "en"）
+    
+    Returns:
+        展開されたクエリ
+    """
     expanded_terms = [query]
-    for term, syns in synonyms.items():
+    
+    # 言語別の同義語辞書を取得
+    lang_synonyms = synonyms.get(language, {}) if isinstance(synonyms, dict) else {}
+    
+    # 同義語展開
+    for term, syns in lang_synonyms.items():
         if term.lower() in query.lower():
             expanded_terms.extend(syns)
+    
     return " ".join(expanded_terms)
+
+def title_match_score(query: str, title: str) -> float:
+    """
+    タイトルへのキーワード一致度を計算（0.0～1.0）
+    
+    Args:
+        query: 検索クエリ
+        title: 動画タイトル
+    
+    Returns:
+        一致度スコア（0.0～1.0）
+    """
+    if not query or not title:
+        return 0.0
+    
+    query_words = normalize_text(query).split()
+    title_norm = normalize_text(title)
+    
+    if not query_words:
+        return 0.0
+    
+    # クエリの各ワードがタイトルに含まれるかチェック
+    matched = sum(1 for word in query_words if word in title_norm)
+    
+    # 一致率を返す
+    return matched / len(query_words)
+
 
 def build_optimized_index(embeddings: np.ndarray) -> faiss.Index:
     """æœ€é©åŒ–ã•ã‚ŒãŸFAISSã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æ§‹ç¯‰"""
@@ -2264,6 +2307,12 @@ async def get_config():
             "semantic_weight": SEMANTIC_WEIGHT,
             "title_weight": TITLE_WEIGHT
         }
+
+@app.get("/admin/api/config", dependencies=[Depends(verify_admin)])
+async def get_admin_config():
+    """設定を取得（管理画面用）"""
+    return await get_config()
+
 
 @app.put("/admin/api/config", dependencies=[Depends(verify_admin)])
 async def update_config(config_data: dict):

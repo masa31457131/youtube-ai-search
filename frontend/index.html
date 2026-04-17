@@ -853,7 +853,7 @@
       heroTitle: 'Support Search',
       heroSub: 'Search FAQ and support videos',
       searchPlaceholder: 'Enter keywords... (e.g., password, startup, print)',
-      emptyTitle: 'Let's search',
+      emptyTitle: 'Let\'s search',
       emptyDesc: 'Search FAQ and support videos simultaneously.<br>Enter keywords about operations, troubleshooting, etc.',
       faqTitle: 'FAQ (Frequently Asked Questions)',
       videoTitle: 'Support Videos',
@@ -941,7 +941,7 @@
       .then(function(config) {
         console.log('📋 Config loaded:', config);
         faqSearchEnabled = config.faq_search_enabled !== false;
-        console.log('🔍 FAQ検索: ' + (faqSearchEnabled ? '有効' : '無効'));
+        console.log('🔍 FAQ検索: ' + (faqSearchEnabled ? 'enabled' : 'disabled'));
         updateFaqSectionVisibility();
       })
       .catch(function(error) {

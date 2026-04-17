@@ -39,6 +39,8 @@ DEFAULT_TOP_K = 10
 DEFAULT_PAGE_LIMIT = 10
 MAX_PAGE_LIMIT = 50
 DEFAULT_SIMILARITY_THRESHOLD = 0.3  # 類似度スコアのしきい値（0.0-1.0）
+SEMANTIC_WEIGHT = 0.6  # セマンティック検索の重み（デフォルト: 60%）
+TITLE_WEIGHT = 0.4     # タイトル一致の重み（デフォルト: 40%）
 
 # ç®¡ç†è€…èªè¨¼
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
@@ -394,11 +396,21 @@ def initialize_files():
                 json.dump([], f)
             print("✅ data.json created")
         
-        # synonyms.json の初期化
+        # synonyms.json の初期化（言語別構造）
         if not SYNONYMS_PATH.exists():
             print("📁 Creating synonyms.json...")
+            default_synonyms = {
+                "ja": {
+                    "プロッタ": ["プロッター", "大判プリンタ"],
+                    "パスワード": ["PW", "pass"]
+                },
+                "en": {
+                    "plotter": ["large format printer"],
+                    "password": ["pw", "pass"]
+                }
+            }
             with open(SYNONYMS_PATH, 'w', encoding='utf-8') as f:
-                json.dump({}, f)
+                json.dump(default_synonyms, f, ensure_ascii=False, indent=2)
             print("✅ synonyms.json created")
         
         # faq.json の初期化
@@ -510,7 +522,7 @@ async def search_videos(
     log_search(f"video:{query}")
     
     normalized_query = normalize_text(query)
-    expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
+    expanded_query = expand_with_synonyms(normalized_query, state.synonyms, language or "ja")
     
     # 設定から閾値を取得
     config = await get_config()
@@ -525,20 +537,32 @@ async def search_videos(
     distances, indices = state.video_index.search(query_embedding, k)
     
     results = []
+    # 設定から重み配分を取得
+    semantic_weight = config.get("semantic_weight", SEMANTIC_WEIGHT)
+    title_weight = config.get("title_weight", TITLE_WEIGHT)
+    
     all_scores = []  # 全スコアを記録
     for idx, score in zip(indices[0], distances[0]):
         if 0 <= idx < len(state.videos):
             all_scores.append(float(score))
             video = state.videos[idx].copy()
-            video["score"] = float(score)
             
             # 言語フィルタリング
             video_lang = video.get("language", "ja")  # デフォルトは日本語
             if language != "all" and video_lang != language:
                 continue
             
-            # 閾値チェック
-            if float(score) >= threshold:
+            # ハイブリッドスコアリング
+            semantic_score = float(score)
+            title_bonus = title_match_score(query, video.get("title", ""))
+            hybrid_score = semantic_score * semantic_weight + title_bonus * title_weight
+            
+            video["score"] = hybrid_score
+            video["semantic_score"] = semantic_score
+            video["title_score"] = title_bonus
+            
+            # 閾値チェック（セマンティックスコアで判定）
+            if semantic_score >= threshold:
                 results.append(video)
     
     # デバッグ: 全体のスコア分布を表示
@@ -600,7 +624,7 @@ async def search_faq(
         print(f"   Query: '{query}'")
         
         normalized_query = normalize_text(query)
-        expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
+        expanded_query = expand_with_synonyms(normalized_query, state.synonyms, language or "ja")
         print(f"   Normalized/expanded query: '{expanded_query}'")
         
         # クエリを単語に分割
@@ -658,7 +682,7 @@ async def search_faq(
     
     normalized_query = normalize_text(query)
     # 同義語展開で検索精度向上（Bug#5対応）
-    expanded_query = expand_with_synonyms(normalized_query, state.synonyms)
+    expanded_query = expand_with_synonyms(normalized_query, state.synonyms, language or "ja")
     query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
     
@@ -666,21 +690,33 @@ async def search_faq(
     k = min(offset + limit + 100, len(state.faq_items_flat))
     distances, indices = state.faq_index.search(query_embedding, k)
     
+    # 設定から重み配分を取得
+    semantic_weight = config.get("semantic_weight", SEMANTIC_WEIGHT)
+    title_weight = config.get("title_weight", TITLE_WEIGHT)
+    
     results = []
     all_scores = []  # 全スコアを記録
     for idx, score in zip(indices[0], distances[0]):
         if 0 <= idx < len(state.faq_items_flat):
             all_scores.append(float(score))
             item = state.faq_items_flat[idx].copy()
-            item["score"] = float(score)
             
             # 言語フィルタリング
             item_lang = item.get("language", "ja")  # デフォルトは日本語
             if language != "all" and item_lang != language:
                 continue
             
+            # ハイブリッドスコアリング（FAQは質問文をタイトル扱い）
+            semantic_score = float(score)
+            title_bonus = title_match_score(query, item.get("question", ""))
+            hybrid_score = semantic_score * semantic_weight + title_bonus * title_weight
+            
+            item["score"] = hybrid_score
+            item["semantic_score"] = semantic_score
+            item["title_score"] = title_bonus
+            
             # 閾値チェック
-            if float(score) >= threshold:
+            if semantic_score >= threshold:
                 results.append(item)
     
     # デバッグ: 全体のスコア分布を表示
@@ -1166,6 +1202,21 @@ async def update_video(video_id: str, video_data: dict, background_tasks: Backgr
     
     background_tasks.add_task(reload_video_data)
     return {"status": "updated", "video_id": video_id}
+
+@app.put("/admin/api/videos", dependencies=[Depends(verify_admin)])
+async def update_videos(videos: list, background_tasks: BackgroundTasks):
+    """動画データ一括更新（言語タグ編集用）"""
+    print(f"💾 Updating videos: {len(videos)} items")
+    
+    with open(DATA_PATH, "w", encoding="utf-8") as f:
+        json.dump(videos, f, ensure_ascii=False, indent=2)
+    
+    print(f"✅ Videos saved successfully")
+    
+    # FAISSインデックスを再構築
+    background_tasks.add_task(reload_video_data)
+    
+    return {"status": "ok", "count": len(videos)}
 
 @app.delete("/admin/api/videos/{video_id}", dependencies=[Depends(verify_admin)])
 async def delete_video(video_id: str, background_tasks: BackgroundTasks):

@@ -443,7 +443,7 @@
       var auth = JSON.parse(localStorage.getItem('admin_auth'));
       var authHeader = 'Basic ' + btoa(auth.username + ':' + auth.password);
 
-      fetch('/api/config', {
+      fetch('/admin/api/config', {
         headers: { 'Authorization': authHeader }
       })
       .then(function(r) { return r.json(); })
@@ -475,13 +475,22 @@
       var auth = JSON.parse(localStorage.getItem('admin_auth'));
       var authHeader = 'Basic ' + btoa(auth.username + ':' + auth.password);
 
+      // 現在の設定を取得してから更新
       fetch('/admin/api/config', {
-        method: 'PUT',
-        headers: {
-          'Authorization': authHeader,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ faq_search_enabled: newState })
+        headers: { 'Authorization': authHeader }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(config) {
+        config.faq_search_enabled = newState;
+        
+        return fetch('/admin/api/config', {
+          method: 'PUT',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(config)
+        });
       })
       .then(function(r) { return r.json(); })
       .then(function(result) {

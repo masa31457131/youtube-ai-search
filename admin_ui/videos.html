@@ -296,8 +296,11 @@
 
     async function loadVideos() {
       try {
+        var authData = JSON.parse(auth);
+        var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
+        
         var response = await fetch('/admin/api/videos', {
-          headers: { 'Authorization': 'Basic ' + auth }
+          headers: { 'Authorization': authHeader }
         });
 
         if (!response.ok) {
@@ -420,10 +423,13 @@
       video.description = document.getElementById('editDescription').value;
 
       try {
+        var authData = JSON.parse(auth);
+        var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
+        
         var response = await fetch('/admin/api/videos', {
           method: 'PUT',
           headers: {
-            'Authorization': 'Basic ' + auth,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(videos)

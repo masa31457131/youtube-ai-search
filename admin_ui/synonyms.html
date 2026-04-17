@@ -157,8 +157,11 @@
 
     async function loadSynonyms() {
       try {
+        var authData = JSON.parse(auth);
+        var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
+        
         var response = await fetch('/admin/api/synonyms', {
-          headers: { 'Authorization': 'Basic ' + auth }
+          headers: { 'Authorization': authHeader }
         });
 
         if (!response.ok) throw new Error('読み込み失敗');
@@ -282,10 +285,13 @@
 
     async function saveSynonyms() {
       try {
+        var authData = JSON.parse(auth);
+        var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
+        
         var response = await fetch('/admin/api/synonyms', {
           method: 'PUT',
           headers: {
-            'Authorization': 'Basic ' + auth,
+            'Authorization': authHeader,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(synonymsData)

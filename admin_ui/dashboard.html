@@ -502,8 +502,9 @@
           alert('FAQ検索を無効にしました。\nメイン画面をリロードすると反映されます。');
         }
       })
-      .catch(function() {
-        alert('設定の更新に失敗しました');
+      .catch(function(error) {
+        console.error('設定更新エラー:', error);
+        alert('設定の更新に失敗しました。\nエラー: ' + error.message + '\n\nブラウザのコンソール(F12)を確認してください。');
       });
     }
 

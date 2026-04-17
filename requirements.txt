@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+python-multipart
 sentence-transformers
 faiss-cpu
 requests
@@ -11,4 +12,3 @@ torch
 numpy
 google-api-python-client
 faster-whisper
-chardet

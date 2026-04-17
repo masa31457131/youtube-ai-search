@@ -219,6 +219,7 @@
           <tr>
             <th>ID</th>
             <th>カテゴリ</th>
+            <th style="width:80px;">言語</th>
             <th>質問</th>
             <th style="width:140px;">操作</th>
           </tr>
@@ -258,6 +259,14 @@
           <input type="text" id="fieldCategory" class="form-input" placeholder="起動・画面" />
         </div>
         <div class="form-group">
+          <label class="form-label">言語 <span style="color: #dc2626;">*</span></label>
+          <select id="fieldLanguage" class="form-input">
+            <option value="">-- 選択してください --</option>
+            <option value="ja">🇯🇵 日本語</option>
+            <option value="en">🇺🇸 English</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label class="form-label">質問</label>
           <input type="text" id="fieldQuestion" class="form-input" placeholder="質問内容を入力" />
         </div>
@@ -271,7 +280,7 @@
           <textarea id="fieldSteps" class="form-textarea" placeholder="手順1&#10;手順2&#10;手順3"></textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">ワンポイントアドバイス</label>
+          <label class="form-label">ヒント</label>
           <textarea id="fieldNote" class="form-textarea" placeholder="補足情報やアドバイスを入力" style="min-height: 80px;"></textarea>
           <div class="form-hint">手順の下部に表示されます</div>
         </div>
@@ -394,14 +403,26 @@
       var tbody = document.getElementById('faqTbody');
       tbody.innerHTML = '';
       if (items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:32px;color:#6b7280;">FAQがありません。</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:#6b7280;">FAQがありません。</td></tr>';
         return;
       }
       items.forEach(function(item) {
         var tr = document.createElement('tr');
+        
+        // 言語バッジ
+        var langBadge = '';
+        if (item.language === 'ja') {
+          langBadge = '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#dbeafe;color:#1e40af;">🇯🇵 日本語</span>';
+        } else if (item.language === 'en') {
+          langBadge = '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#fef3c7;color:#92400e;">🇺🇸 English</span>';
+        } else {
+          langBadge = '<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;background:#fef2f2;color:#991b1b;">⚠️ 未設定</span>';
+        }
+        
         tr.innerHTML =
           '<td><code style="font-size:11px;background:#f3f4f6;padding:2px 6px;border-radius:4px;">' + esc(item.id || '') + '</code></td>' +
           '<td><span class="badge badge-brand">' + esc(item.category || '') + '</span></td>' +
+          '<td>' + langBadge + '</td>' +
           '<td style="max-width:400px;">' + esc(item.question || '') + '</td>' +
           '<td><div class="action-btns">' +
             '<button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + esc(item.id) + '\')">編集</button>' +
@@ -429,6 +450,7 @@
       document.getElementById('fieldId').value = '';
       document.getElementById('fieldId').disabled = false;
       document.getElementById('fieldCategory').value = '';
+      document.getElementById('fieldLanguage').value = '';
       document.getElementById('fieldQuestion').value = '';
       document.getElementById('fieldAnswer').value = '';
       document.getElementById('fieldSteps').value = '';
@@ -446,6 +468,7 @@
       document.getElementById('fieldId').value = item.id || '';
       document.getElementById('fieldId').disabled = true;
       document.getElementById('fieldCategory').value = item.category || '';
+      document.getElementById('fieldLanguage').value = item.language || '';
       document.getElementById('fieldQuestion').value = item.question || '';
       document.getElementById('fieldAnswer').value = item.answer || '';
       document.getElementById('fieldSteps').value = (item.steps || []).join('\n');
@@ -463,6 +486,7 @@
     function saveFaq() {
       var id = document.getElementById('fieldId').value.trim();
       var category = document.getElementById('fieldCategory').value.trim();
+      var language = document.getElementById('fieldLanguage').value;
       var question = document.getElementById('fieldQuestion').value.trim();
       var answer = document.getElementById('fieldAnswer').value.trim();
       var stepsRaw = document.getElementById('fieldSteps').value;
@@ -472,10 +496,12 @@
       var keywords = kwRaw.split(',').map(function(k) { return k.trim(); }).filter(Boolean);
 
       if (!id || !question) { showToast('IDと質問は必須です', 'error'); return; }
+      if (!language) { showToast('言語を選択してください', 'error'); return; }
 
       var itemData = { 
         id: id, 
         category: category, 
+        language: language,
         question: question, 
         answer: answer,
         steps: steps, 

@@ -14,14 +14,41 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; font-size: 14px; }
     header { background: #001529; color: #fff; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); gap: 12px; }
-    .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
     .header-title { font-size: 16px; font-weight: 700; }
     nav { display: flex; gap: 4px; overflow-x: auto; }
     nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 13px; white-space: nowrap; transition: all 0.2s; }
     nav a:hover, nav a.active { background: rgba(255,255,255,0.12); color: #fff; }
-    .btn-logout { background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer; padding: 7px 12px; font-size: 13px; border-radius: 6px; font-family: inherit; white-space: nowrap; }
+    .btn-logout { background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer; padding: 7px 12px; font-size: 13px; border-radius: 6px; font-family: inherit; }
     .btn-logout:hover { background: rgba(255,255,255,0.1); color: #fff; }
     main { flex: 1; max-width: 1000px; margin: 0 auto; width: 100%; padding: 24px; }
+    
+    .lang-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+    .lang-tab {
+      padding: 10px 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+    .lang-tab:hover {
+      color: var(--brand);
+    }
+    .lang-tab.active {
+      color: var(--brand);
+      border-bottom-color: var(--brand);
+    }
+    
     .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
     .toolbar-title { font-size: 20px; font-weight: 700; flex: 1; }
     .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.2s; }
@@ -33,7 +60,7 @@
     .btn-outline:hover { border-color: var(--brand); color: var(--brand); }
     .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
     .btn-danger { background: var(--danger); color: #fff; }
-    .card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); }
+    .card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); padding: 20px; }
     .synonym-list { list-style: none; }
     .synonym-item { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
     .synonym-item:last-child { border-bottom: none; }
@@ -42,271 +69,239 @@
     .syn-tag { background: var(--brand-light); color: var(--brand); padding: 3px 10px; border-radius: 12px; font-size: 12px; }
     .action-btns { display: flex; gap: 6px; flex-shrink: 0; }
     .loading { text-align: center; padding: 40px; color: var(--text-muted); }
-    .spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 10px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: flex-start; justify-content: center; padding: 60px 16px; overflow-y: auto; backdrop-filter: blur(2px); }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state h3 { margin-bottom: 8px; font-size: 16px; }
+    
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; display: none; align-items: center; justify-content: center; }
     .modal-overlay.active { display: flex; }
-    .modal-box { background: #fff; border-radius: 12px; width: 100%; max-width: 500px; margin: auto; box-shadow: var(--shadow-md); animation: modalIn 0.2s ease; }
-    @keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-    .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .modal-title { font-size: 17px; font-weight: 700; }
-    .modal-close { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-muted); padding: 4px 8px; border-radius: 6px; }
-    .modal-close:hover { background: var(--bg); }
-    .modal-body { padding: 20px 24px; }
-    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-box { background: #fff; border-radius: 12px; width: 90%; max-width: 500px; box-shadow: var(--shadow-md); padding: 24px; }
+    .modal-header { font-size: 18px; font-weight: 700; margin-bottom: 20px; }
     .form-group { margin-bottom: 16px; }
-    .form-label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .form-input, .form-textarea { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; transition: border-color 0.2s; }
-    .form-input:focus, .form-textarea:focus { border-color: var(--brand); }
-    .form-textarea { resize: vertical; min-height: 80px; }
-    .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-    .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; background: var(--text); color: #fff; border-radius: 8px; font-size: 13px; z-index: 9999; opacity: 0; transform: translateY(8px); transition: all 0.3s; }
-    .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.success { background: var(--success); }
-    .toast.error { background: var(--danger); }
-    footer { background: var(--white); border-top: 1px solid var(--border); padding: 16px 24px; text-align: center; color: var(--text-muted); font-size: 12px; }
-    @media (max-width: 600px) { header { padding: 0 12px; } .header-title { display: none; } main { padding: 16px 12px; } .synonym-item { flex-direction: column; align-items: flex-start; gap: 8px; } .synonym-term { min-width: unset; } }
-
-    /* Progress Bar */
-    .progress-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
-      z-index: 10000; display: none; align-items: center; justify-content: center;
-    }
-    .progress-overlay.active { display: flex; }
-    .progress-box {
-      background: var(--white); border-radius: 12px; padding: 32px;
-      min-width: 350px; text-align: center; box-shadow: var(--shadow-md);
-    }
-    .progress-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
-    .progress-bar-container {
-      background: var(--bg); border-radius: 8px; height: 8px;
-      overflow: hidden; margin-bottom: 12px;
-    }
-    .progress-bar {
-      background: var(--brand); height: 100%; width: 0%;
-      transition: width 0.3s ease; border-radius: 8px;
-    }
-    .progress-text { font-size: 13px; color: var(--text-muted); }
-
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; }
+    .form-group input { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; }
+    footer { background: #001529; color: rgba(255,255,255,0.6); padding: 16px 24px; text-align: center; font-size: 12px; }
   </style>
 </head>
 <body>
   <header>
     <div class="header-left">
-      <span style="font-size:20px;">🏢</span>
+      <span style="font-size:22px;">🏢</span>
       <span class="header-title">ACS FAQ Manager</span>
     </div>
     <nav>
       <a href="/admin/dashboard">ダッシュボード</a>
       <a href="/admin/videos">動画データ</a>
       <a href="/admin/synonyms" class="active">同義語</a>
-      <a href="/admin/faq">FAQ編集</a>
-      <a href="/admin/logs">ログ閲覧</a>
+      <a href="/admin/faq">FAQ</a>
+      <a href="/admin/logs">ログ</a>
     </nav>
     <button class="btn-logout" onclick="logout()">ログアウト</button>
   </header>
 
   <main>
     <div class="toolbar">
-      <div class="toolbar-title">📚 同義語編集</div>
-      <button class="btn btn-primary" onclick="openCreateModal()">＋ 追加</button>
-      <button class="btn btn-success" onclick="saveAll()">💾 一括保存</button>
+      <span class="toolbar-title">📚 同義語編集</span>
       <button class="btn btn-outline" onclick="exportSynonyms()">📥 エクスポート</button>
-      <button class="btn btn-outline" onclick="document.getElementById('importFile').click()">📤 インポート</button>
-      <input type="file" id="importFile" accept=".json" style="display:none;" onchange="importSynonyms(event)">
+      <button class="btn btn-outline" onclick="importSynonyms()">📤 インポート</button>
+      <button class="btn btn-primary" onclick="openAddModal()">＋追加</button>
+      <button class="btn btn-success" onclick="saveSynonyms()">💾 一括保存</button>
+    </div>
+
+    <div class="lang-tabs">
+      <button class="lang-tab active" data-lang="ja" onclick="switchLang('ja')">🇯🇵 日本語</button>
+      <button class="lang-tab" data-lang="en" onclick="switchLang('en')">🇺🇸 English</button>
     </div>
 
     <div class="card">
-      <div id="loadingArea" class="loading"><span class="spinner"></span> 読み込み中...</div>
-      <ul class="synonym-list" id="synonymList" style="display:none;"></ul>
+      <div id="synonymContainer"></div>
     </div>
   </main>
 
-  <!-- 編集/作成モーダル -->
-  <div class="modal-overlay" id="editModal">
+  <footer>Copyright © 2026 Toray Advanced Computer Solution, Inc.</footer>
+
+  <!-- 追加/編集モーダル -->
+  <div id="editModal" class="modal-overlay">
     <div class="modal-box">
-      <div class="modal-header">
-        <div class="modal-title" id="modalTitle">同義語追加</div>
-        <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-header">同義語を追加</div>
+      <div class="form-group">
+        <label>用語（キー）</label>
+        <input type="text" id="termInput" placeholder="例: プロッタ">
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">代表語</label>
-          <input type="text" id="fieldTerm" class="form-input" placeholder="例: PC" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">同義語（1行1語または カンマ区切り）</label>
-          <textarea id="fieldSyns" class="form-textarea" placeholder="パソコン&#10;コンピューター&#10;端末"></textarea>
-          <div class="form-hint">1行1語または「, 」区切りで入力してください</div>
-        </div>
+      <div class="form-group">
+        <label>同義語（カンマ区切り）</label>
+        <input type="text" id="synonymsInput" placeholder="例: プロッター, 大判プリンタ">
       </div>
-      <div class="modal-footer">
+      <div class="form-actions">
         <button class="btn btn-outline" onclick="closeModal()">キャンセル</button>
-        <button class="btn btn-primary" onclick="saveSynonym()">保存</button>
+        <button class="btn btn-primary" onclick="saveEntry()">保存</button>
       </div>
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
-
-  <footer>Copyright © 2026 Toray Advanced Computer Solution, Inc.</footer>
+  <!-- インポート用の隠しファイル入力 -->
+  <input type="file" id="fileInput" accept=".json" style="display:none;" onchange="handleFileSelect(event)">
 
   <script>
     var auth = localStorage.getItem('admin_auth');
     if (!auth) { window.location.href = '/admin'; }
-    var authData = JSON.parse(auth);
-    var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
 
-    var synonymData = {};
+    var synonymsData = { ja: {}, en: {} };
+    var currentLang = 'ja';
     var editingTerm = null;
 
-    function logout() { localStorage.removeItem('admin_auth'); window.location.href = '/admin'; }
-
-    function showProgress(title, text) {
-      var overlay = document.getElementById('progressOverlay');
-      var titleEl = document.getElementById('progressTitle');
-      var textEl = document.getElementById('progressText');
-      var bar = document.getElementById('progressBar');
-      
-      titleEl.textContent = title || '処理中...';
-      textEl.textContent = text || 'お待ちください...';
-      bar.style.width = '0%';
-      overlay.classList.add('active');
+    function logout() {
+      localStorage.removeItem('admin_auth');
+      window.location.href = '/admin';
     }
 
-    function updateProgress(percent, text) {
-      var bar = document.getElementById('progressBar');
-      var textEl = document.getElementById('progressText');
-      
-      bar.style.width = percent + '%';
-      if (text) textEl.textContent = text;
-    }
-
-    function hideProgress() {
-      var overlay = document.getElementById('progressOverlay');
-      overlay.classList.remove('active');
-    }
-
-        function load() {
-      fetch('/admin/api/synonyms', { headers: { 'Authorization': authHeader } })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-          synonymData = data || {};
-          render();
-          document.getElementById('loadingArea').style.display = 'none';
-          document.getElementById('synonymList').style.display = '';
-        })
-        .catch(function() {
-          document.getElementById('loadingArea').innerHTML = '<p style="color:#ef4444;padding:24px;">読み込みに失敗しました。</p>';
+    async function loadSynonyms() {
+      try {
+        var response = await fetch('/admin/api/synonyms', {
+          headers: { 'Authorization': 'Basic ' + auth }
         });
+
+        if (!response.ok) throw new Error('読み込み失敗');
+
+        var data = await response.json();
+        
+        // 古い形式の場合は新しい形式に変換
+        if (!data.ja && !data.en) {
+          synonymsData = { ja: data, en: {} };
+        } else {
+          synonymsData = data;
+        }
+        
+        renderSynonyms();
+      } catch (error) {
+        console.error('Error loading synonyms:', error);
+        document.getElementById('synonymContainer').innerHTML = 
+          '<div class="empty-state"><h3>エラー</h3><p>' + error.message + '</p></div>';
+      }
     }
 
-    function render() {
-      var list = document.getElementById('synonymList');
-      var terms = Object.keys(synonymData);
+    function switchLang(lang) {
+      currentLang = lang;
+      
+      document.querySelectorAll('.lang-tab').forEach(function(tab) {
+        if (tab.getAttribute('data-lang') === lang) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+      
+      renderSynonyms();
+    }
+
+    function renderSynonyms() {
+      var container = document.getElementById('synonymContainer');
+      var langSynonyms = synonymsData[currentLang] || {};
+      var terms = Object.keys(langSynonyms);
+
       if (terms.length === 0) {
-        list.innerHTML = '<li style="padding:32px;text-align:center;color:#6b7280;">同義語がありません。</li>';
+        container.innerHTML = '<div class="empty-state"><h3>同義語がありません</h3><p>「＋追加」ボタンから同義語を登録してください</p></div>';
         return;
       }
-      list.innerHTML = '';
+
+      var html = '<ul class="synonym-list">';
       terms.forEach(function(term) {
-        var syns = synonymData[term] || [];
-        var li = document.createElement('li');
-        li.className = 'synonym-item';
-        var tags = syns.map(function(s) { return '<span class="syn-tag">' + esc(s) + '</span>'; }).join('');
-        li.innerHTML =
-          '<div class="synonym-term">' + esc(term) + '</div>' +
-          '<div class="synonym-values">' + (tags || '<span style="color:#9ca3af;font-size:12px;">（なし）</span>') + '</div>' +
-          '<div class="action-btns">' +
-            '<button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + esc(term) + '\')">編集</button>' +
-            '<button class="btn btn-danger btn-sm" onclick="deleteTerm(\'' + esc(term) + '\')">削除</button>' +
-          '</div>';
-        list.appendChild(li);
+        var syns = langSynonyms[term] || [];
+        var synsHtml = syns.map(function(s) { return '<span class="syn-tag">' + escapeHtml(s) + '</span>'; }).join('');
+        
+        html += '<li class="synonym-item">';
+        html += '<div class="synonym-term">' + escapeHtml(term) + '</div>';
+        html += '<div class="synonym-values">' + synsHtml + '</div>';
+        html += '<div class="action-btns">';
+        html += '<button class="btn btn-outline btn-sm" onclick="editEntry(\'' + escapeHtml(term) + '\')">編集</button>';
+        html += '<button class="btn btn-danger btn-sm" onclick="deleteEntry(\'' + escapeHtml(term) + '\')">削除</button>';
+        html += '</div>';
+        html += '</li>';
       });
+      html += '</ul>';
+
+      container.innerHTML = html;
     }
 
-    function openCreateModal() {
+    function openAddModal() {
       editingTerm = null;
-      document.getElementById('modalTitle').textContent = '同義語追加';
-      document.getElementById('fieldTerm').value = '';
-      document.getElementById('fieldTerm').disabled = false;
-      document.getElementById('fieldSyns').value = '';
+      document.getElementById('termInput').value = '';
+      document.getElementById('termInput').disabled = false;
+      document.getElementById('synonymsInput').value = '';
+      document.querySelector('.modal-header').textContent = '同義語を追加';
       document.getElementById('editModal').classList.add('active');
-      document.body.style.overflow = 'hidden';
     }
 
-    function openEditModal(term) {
+    function editEntry(term) {
       editingTerm = term;
-      document.getElementById('modalTitle').textContent = '同義語編集: ' + term;
-      document.getElementById('fieldTerm').value = term;
-      document.getElementById('fieldTerm').disabled = true;
-      var syns = synonymData[term] || [];
-      document.getElementById('fieldSyns').value = syns.join('\n');
+      var langSynonyms = synonymsData[currentLang] || {};
+      var syns = langSynonyms[term] || [];
+      
+      document.getElementById('termInput').value = term;
+      document.getElementById('termInput').disabled = true;
+      document.getElementById('synonymsInput').value = syns.join(', ');
+      document.querySelector('.modal-header').textContent = '同義語を編集';
       document.getElementById('editModal').classList.add('active');
-      document.body.style.overflow = 'hidden';
     }
 
     function closeModal() {
       document.getElementById('editModal').classList.remove('active');
-      document.body.style.overflow = '';
+      editingTerm = null;
     }
 
-    function saveSynonym() {
-      var term = document.getElementById('fieldTerm').value.trim();
-      var synsRaw = document.getElementById('fieldSyns').value;
-      var syns = synsRaw.split(/[\n,]/).map(function(s) { return s.trim(); }).filter(Boolean);
-      if (!term) { showToast('代表語を入力してください', 'error'); return; }
-      synonymData[term] = syns;
-      closeModal();
-      render();
-      showToast('追加しました（一括保存ボタンで確定）', 'success');
-    }
+    function saveEntry() {
+      var term = document.getElementById('termInput').value.trim();
+      var synonymsInput = document.getElementById('synonymsInput').value.trim();
 
-    function deleteTerm(term) {
-      if (!confirm('「' + term + '」を削除しますか？')) return;
-      delete synonymData[term];
-      render();
-      showToast('削除しました（一括保存ボタンで確定）');
-    }
+      if (!term) {
+        alert('用語を入力してください');
+        return;
+      }
 
-    function saveAll() {
-      showProgress('同義語保存', '保存中...');
-      updateProgress(30, 'データを送信中...');
+      var syns = synonymsInput.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+
+      if (!synonymsData[currentLang]) {
+        synonymsData[currentLang] = {};
+      }
+
+      synonymsData[currentLang][term] = syns;
       
-      fetch('/admin/api/synonyms', {
-        method: 'PUT',
-        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify(synonymData)
-      })
-      .then(function(r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        updateProgress(80, 'サーバー処理中...');
-        return r.json();
-      })
-      .then(function(result) {
-        updateProgress(100, '完了しました');
-        setTimeout(function() {
-          hideProgress();
-          showToast('保存しました (' + result.count + '件)', 'success');
-        }, 500);
-      })
-      .catch(function(err) {
-        console.error('Save error:', err);
-        hideProgress();
-        showToast('保存に失敗しました: ' + err.message, 'error');
-      });
+      closeModal();
+      renderSynonyms();
     }
 
-    function showToast(msg, type) {
-      var el = document.getElementById('toast');
-      el.textContent = msg;
-      el.className = 'toast show' + (type ? ' ' + type : '');
-      setTimeout(function() { el.className = 'toast'; }, 3000);
+    function deleteEntry(term) {
+      if (!confirm('「' + term + '」を削除しますか？')) return;
+      
+      if (synonymsData[currentLang]) {
+        delete synonymsData[currentLang][term];
+      }
+      
+      renderSynonyms();
     }
 
-    // エクスポート機能
+    async function saveSynonyms() {
+      try {
+        var response = await fetch('/admin/api/synonyms', {
+          method: 'PUT',
+          headers: {
+            'Authorization': 'Basic ' + auth,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(synonymsData)
+        });
+
+        if (!response.ok) throw new Error('保存失敗');
+
+        alert('保存しました');
+      } catch (error) {
+        console.error('Error saving synonyms:', error);
+        alert('エラー: ' + error.message);
+      }
+    }
+
     function exportSynonyms() {
-      var dataStr = JSON.stringify(synonymData, null, 2);
+      var dataStr = JSON.stringify(synonymsData, null, 2);
       var blob = new Blob([dataStr], { type: 'application/json' });
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
@@ -314,11 +309,13 @@
       a.download = 'synonyms_' + new Date().toISOString().split('T')[0] + '.json';
       a.click();
       URL.revokeObjectURL(url);
-      showToast('同義語をエクスポートしました', 'success');
     }
 
-    // インポート機能
-    function importSynonyms(event) {
+    function importSynonyms() {
+      document.getElementById('fileInput').click();
+    }
+
+    function handleFileSelect(event) {
       var file = event.target.files[0];
       if (!file) return;
 
@@ -327,54 +324,27 @@
         try {
           var imported = JSON.parse(e.target.result);
           
-          // 確認ダイアログ
-          var count = Object.keys(imported).length;
-          if (!confirm('同義語 ' + count + ' 件をインポートしますか？\n現在のデータは上書きされます。')) {
-            return;
+          if (confirm('インポートしたデータで上書きしますか？\n現在のデータは失われます。')) {
+            synonymsData = imported;
+            renderSynonyms();
+            alert('インポートしました。「一括保存」ボタンで保存してください。');
           }
-
-          // データを置き換え
-          synonymData = imported;
-          renderList();
-          showToast('同義語 ' + count + ' 件をインポートしました', 'success');
-          
-          // 保存を促す
-          setTimeout(function() {
-            if (confirm('インポートしたデータを保存しますか？')) {
-              saveAll();
-            }
-          }, 1000);
-        } catch (err) {
-          console.error('Import error:', err);
-          showToast('インポートに失敗しました: ' + err.message, 'error');
+        } catch (error) {
+          alert('エラー: JSONファイルが不正です');
         }
       };
       reader.readAsText(file);
       
-      // ファイル選択をリセット
       event.target.value = '';
     }
 
-        function esc(str) {
-      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
 
-    document.getElementById('editModal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
-    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
-
-    load();
+    loadSynonyms();
   </script>
-
-  <!-- Progress Overlay -->
-  <div class="progress-overlay" id="progressOverlay">
-    <div class="progress-box">
-      <div class="progress-title" id="progressTitle">処理中...</div>
-      <div class="progress-bar-container">
-        <div class="progress-bar" id="progressBar"></div>
-      </div>
-      <div class="progress-text" id="progressText">お待ちください...</div>
-    </div>
-  </div>
-
 </body>
 </html>

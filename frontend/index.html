@@ -696,8 +696,16 @@
       <span style="font-size:26px;">🏢</span>
       <div>
         <span class="header-logo-text">東レACS</span>
-        <span class="header-logo-sub">サポート検索システム</span>
+        <span class="header-logo-sub" id="headerSubtitle">サポート検索システム</span>
       </div>
+    </div>
+    <div class="language-switcher">
+      <button class="lang-btn active" data-lang="ja" onclick="switchLanguage('ja')">
+        <span class="lang-flag">🇯🇵</span> 日本語
+      </button>
+      <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')">
+        <span class="lang-flag">🇺🇸</span> English
+      </button>
     </div>
   </header>
 
@@ -816,6 +824,102 @@
 
   <script>
   // ================================================================
+  // 多言語対応
+  // ================================================================
+  
+  var currentLanguage = localStorage.getItem('language') || 'ja';
+  
+  var translations = {
+    ja: {
+      headerSubtitle: 'サポート検索システム',
+      heroTitle: 'サポート検索',
+      heroSub: 'FAQ・サポート動画をまとめて検索できます',
+      searchPlaceholder: 'キーワードを入力... (例: パスワード, 起動, 印刷)',
+      emptyTitle: '検索してみましょう',
+      emptyDesc: 'FAQ（よくある質問）とサポート動画を同時に検索します。<br>操作方法・トラブル対応など、気になるキーワードを入れてみましょう。',
+      faqTitle: 'FAQ（よくある質問）',
+      videoTitle: 'サポート動画',
+      noFaqResult: '該当するFAQが見つかりませんでした。',
+      noVideoResult: '該当する動画が見つかりませんでした。',
+      faqPreparing: '準備中',
+      prevPage: '前へ',
+      nextPage: '次へ',
+      close: '閉じる',
+      watchOnYoutube: 'YouTubeで見る',
+      count: '件'
+    },
+    en: {
+      headerSubtitle: 'Support Search System',
+      heroTitle: 'Support Search',
+      heroSub: 'Search FAQ and support videos',
+      searchPlaceholder: 'Enter keywords... (e.g., password, startup, print)',
+      emptyTitle: 'Let's search',
+      emptyDesc: 'Search FAQ and support videos simultaneously.<br>Enter keywords about operations, troubleshooting, etc.',
+      faqTitle: 'FAQ (Frequently Asked Questions)',
+      videoTitle: 'Support Videos',
+      noFaqResult: 'No matching FAQ found.',
+      noVideoResult: 'No matching videos found.',
+      faqPreparing: 'Preparing',
+      prevPage: 'Previous',
+      nextPage: 'Next',
+      close: 'Close',
+      watchOnYoutube: 'Watch on YouTube',
+      count: ' items'
+    }
+  };
+  
+  function switchLanguage(lang) {
+    currentLanguage = lang;
+    localStorage.setItem('language', lang);
+    
+    // ボタンのアクティブ状態を切り替え
+    document.querySelectorAll('.lang-btn').forEach(function(btn) {
+      if (btn.getAttribute('data-lang') === lang) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+    
+    // UIテキストを更新
+    updateUIText();
+    
+    // 検索結果がある場合は再検索
+    if (lastQuery) {
+      doSearch(lastQuery);
+    }
+  }
+  
+  function updateUIText() {
+    var t = translations[currentLanguage];
+    
+    document.getElementById('headerSubtitle').textContent = t.headerSubtitle;
+    document.getElementById('heroTitle').textContent = t.heroTitle;
+    document.getElementById('heroSub').textContent = t.heroSub;
+    document.getElementById('searchInput').placeholder = t.searchPlaceholder;
+    
+    // 空の状態のテキスト
+    var emptyTitle = document.querySelector('.empty-title');
+    var emptyDesc = document.querySelector('.empty-desc');
+    if (emptyTitle) emptyTitle.textContent = t.emptyTitle;
+    if (emptyDesc) emptyDesc.innerHTML = t.emptyDesc;
+  }
+  
+  function t(key) {
+    return translations[currentLanguage][key] || key;
+  }
+  
+  // ページ読み込み時に言語を適用
+  document.addEventListener('DOMContentLoaded', function() {
+    switchLanguage(currentLanguage);
+  });
+  
+  // ================================================================
+  // グローバル変数
+  // ================================================================
+  
+  
+  // ================================================================
   // 状態管理
   // ================================================================
   var PAGE_SIZE = 9;
@@ -928,14 +1032,14 @@
     // FAQ検索がOFFの場合はスキップ
     var faqPromise;
     if (faqSearchEnabled) {
-      faqPromise = fetch('/faq/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
+      faqPromise = fetch('/faq/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1&language=' + currentLanguage)
         .then(function(r) { return r.json(); })
         .catch(function() { return { items: [], total_visible: 0 }; });
     } else {
       faqPromise = Promise.resolve({ items: [], total_visible: 0 });
     }
 
-    var vidPromise = fetch('/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1')
+    var vidPromise = fetch('/search?query=' + encodeURIComponent(expanded) + '&offset=0&limit=50&paged=1&language=' + currentLanguage)
       .then(function(r) { return r.json(); })
       .catch(function() { return { items: [], total_visible: 0 }; });
 

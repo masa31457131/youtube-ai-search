@@ -193,6 +193,14 @@
       color: var(--text-muted);
       background: var(--white);
       border-radius: var(--radius);
+    }
+    
+    .faq-preparing-image {
+      margin-top: 30px;
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
       border: 2px dashed var(--border);
     }
 
@@ -1126,7 +1134,7 @@
     if (pageItems.length === 0) {
       // FAQ検索がONでかつ全件数が0の場合は「準備中」を表示
       if (faqSearchEnabled && faqState.total === 0) {
-        list.innerHTML = '<div class="faq-preparing">準備中</div>';
+        list.innerHTML = '<div class="faq-preparing">準備中<br><img src="/static/keyword_search_guide.png" alt="キーワード検索ガイド" class="faq-preparing-image"></div>';
       } else {
         list.innerHTML = '<div class="no-result">該当するFAQが見つかりませんでした。</div>';
       }

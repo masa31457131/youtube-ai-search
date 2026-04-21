@@ -214,6 +214,11 @@
           <option value="">⚠️ 言語未設定</option>
         </select>
         <input type="text" id="searchInput" placeholder="タイトル、説明文で検索..." oninput="filterVideos()">
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <button class="btn" onclick="exportData()">📥 エクスポート</button>
+          <button class="btn btn-primary" onclick="document.getElementById('importFile').click()">📤 インポート</button>
+          <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+        </div>
       </div>
 
       <div style="overflow-x: auto;">
@@ -456,6 +461,82 @@
     }
 
     // ページ読み込み時
+
+    // エクスポート機能
+    function exportData() {
+      var dataStr = JSON.stringify(videos, null, 2);
+      var dataBlob = new Blob([dataStr], { type: 'application/json' });
+      var url = URL.createObjectURL(dataBlob);
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = 'video_data_' + new Date().toISOString().split('T')[0] + '.json';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      alert('データをエクスポートしました');
+    }
+
+    // インポート機能
+    async function importData(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+
+      if (!confirm('インポートすると現在のデータに追加されます。\n続行しますか？')) {
+        event.target.value = '';
+        return;
+      }
+
+      var reader = new FileReader();
+      reader.onload = async function(e) {
+        try {
+          var importedData = JSON.parse(e.target.result);
+          
+          if (!Array.isArray(importedData)) {
+            throw new Error('JSONファイルの形式が正しくありません（配列である必要があります）');
+          }
+
+          // データをマージ（重複チェック）
+          var existingNos = new Set(videos.map(function(v) { return v.no; }));
+          var newVideos = importedData.filter(function(v) {
+            return !existingNos.has(v.no);
+          });
+
+          if (newVideos.length === 0) {
+            alert('新しいデータがありません（すべて既存データと重複しています）');
+            event.target.value = '';
+            return;
+          }
+
+          videos = videos.concat(newVideos);
+
+          // サーバーに保存
+          var authData = JSON.parse(auth);
+          var authHeader = 'Basic ' + btoa(authData.username + ':' + authData.password);
+          
+          var response = await fetch('/admin/api/videos', {
+            method: 'PUT',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(videos)
+          });
+
+          if (!response.ok) {
+            throw new Error('サーバーへの保存に失敗しました');
+          }
+
+          alert(newVideos.length + ' 件のデータをインポートしました');
+          loadVideos();
+        } catch (error) {
+          alert('インポートエラー: ' + error.message);
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
     loadVideos();
   </script>
 </body>

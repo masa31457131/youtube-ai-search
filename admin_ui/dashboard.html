@@ -523,21 +523,30 @@
       var auth = JSON.parse(localStorage.getItem('admin_auth'));
       var authHeader = 'Basic ' + btoa(auth.username + ':' + auth.password);
 
+      // 現在の設定を取得してから更新
       fetch('/admin/api/config', {
-        method: 'PUT',
-        headers: {
-          'Authorization': authHeader,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          similarity_threshold: threshold
-        })
+        headers: { 'Authorization': authHeader }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(config) {
+        // 閾値のみ変更
+        config.similarity_threshold = threshold;
+        
+        return fetch('/admin/api/config', {
+          method: 'PUT',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(config)
+        });
       })
       .then(function(r) { return r.json(); })
       .then(function() {
         alert('検索精度の閾値を ' + threshold + ' に設定しました。');
       })
-      .catch(function() {
+      .catch(function(error) {
+        console.error('閾値保存エラー:', error);
         alert('設定の保存に失敗しました');
       });
     }

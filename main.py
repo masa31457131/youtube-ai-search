@@ -321,8 +321,8 @@ def log_search(query: str):
         print(f"âš ï¸ Log write failed: {e}")
 
 def parse_logs() -> List[Dict[str, Any]]:
-    """ログパース（管理画面用）- search_logs.jsonを読み込む"""
-    log_file = BASE_DIR / "search_logs.json"
+    """ログパース（管理画面用）- search_logs.csvを読み込む"""
+    log_file = SEARCH_LOG_PATH  # search_logs.csv
     
     if not log_file.exists():
         return []
@@ -330,24 +330,25 @@ def parse_logs() -> List[Dict[str, Any]]:
     rows = []
     try:
         with open(log_file, "r", encoding="utf-8") as f:
-            logs = json.load(f)
-        
-        for log in logs:
-            try:
-                # timestampをdatetimeに変換
-                timestamp = log.get("timestamp", "")
-                if timestamp:
-                    # ISO形式のタイムスタンプをパース
-                    dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-                    rows.append({
-                        "dt": dt,
-                        "query": log.get("query", ""),
-                        "result_type": log.get("result_type", ""),
-                        "result_id": log.get("result_id", "")
-                    })
-            except Exception as e:
-                # パースエラーは無視
-                pass
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) >= 2:
+                    try:
+                        # timestamp, query
+                        timestamp_str = row[0]
+                        query = row[1]
+                        
+                        # ISO形式のタイムスタンプをパース
+                        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                        rows.append({
+                            "dt": dt,
+                            "query": query,
+                            "result_type": "",
+                            "result_id": ""
+                        })
+                    except Exception as e:
+                        # パースエラーは無視
+                        pass
     except Exception as e:
         print(f"❌ Failed to parse logs: {e}")
         return []

@@ -427,7 +427,8 @@ def initialize_files():
                 "faq_search_enabled": True,
                 "similarity_threshold": 0.3,
                 "semantic_weight": 0.6,
-                "title_weight": 0.4
+                "title_weight": 0.4,
+                "language_switcher_enabled": False
             }
             with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(default_config, f, ensure_ascii=False, indent=2)

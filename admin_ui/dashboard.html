@@ -306,6 +306,14 @@
       </div>
       
       <div class="settings-row">
+        <div>
+          <div class="settings-label">言語切り替えボタン</div>
+          <div class="settings-desc">メイン画面に日本語/英語切り替えボタンを表示します</div>
+        </div>
+        <div class="toggle-switch" id="languageSwitcherToggle" onclick="toggleLanguageSwitcher()"></div>
+      </div>
+      
+      <div class="settings-row">
         <div style="flex: 1;">
           <div class="settings-label">検索精度の閾値</div>
           <div class="settings-desc">値が高いほど検索結果が厳密になります（0.0 - 1.0）</div>
@@ -507,6 +515,48 @@
         alert('設定の更新に失敗しました。\nエラー: ' + error.message + '\n\nブラウザのコンソール(F12)を確認してください。');
       });
     }
+
+    function toggleLanguageSwitcher() {
+      var toggle = document.getElementById('languageSwitcherToggle');
+      var isActive = toggle.classList.contains('active');
+      var newState = !isActive;
+
+      var auth = JSON.parse(localStorage.getItem('admin_auth'));
+      var authHeader = 'Basic ' + btoa(auth.username + ':' + auth.password);
+
+      // 現在の設定を取得してから更新
+      fetch('/admin/api/config', {
+        headers: { 'Authorization': authHeader }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(config) {
+        config.language_switcher_enabled = newState;
+        
+        return fetch('/admin/api/config', {
+          method: 'PUT',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(config)
+        });
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        if (newState) {
+          toggle.classList.add('active');
+          alert('言語切り替えボタンを有効にしました。\nメイン画面をリロードすると反映されます。');
+        } else {
+          toggle.classList.remove('active');
+          alert('言語切り替えボタンを無効にしました。\nメイン画面をリロードすると反映されます。');
+        }
+      })
+      .catch(function(error) {
+        console.error('言語切り替え設定エラー:', error);
+        alert('設定の更新に失敗しました');
+      });
+    }
+
 
         // ページ読み込み時にランキング取得
     loadRankings();

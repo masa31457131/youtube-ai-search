@@ -703,11 +703,11 @@
     <div class="header-logo">
       <span style="font-size:26px;">🏢</span>
       <div>
-        <span class="header-logo-text">東レACS</span>
+        <!-- <span class="header-logo-text">東レACS</span> -->
         <span class="header-logo-sub" id="headerSubtitle">サポート検索システム</span>
       </div>
     </div>
-    <div class="language-switcher">
+    <div class="language-switcher" id="languageSwitcher" style="display: none;">
       <button class="lang-btn active" data-lang="ja" onclick="switchLanguage('ja')">
         <span class="lang-flag">🇯🇵</span> 日本語
       </button>
@@ -951,6 +951,16 @@
         faqSearchEnabled = config.faq_search_enabled !== false;
         console.log('🔍 FAQ検索: ' + (faqSearchEnabled ? 'enabled' : 'disabled'));
         updateFaqSectionVisibility();
+        
+        // 言語切り替えボタンの表示/非表示
+        var languageSwitcher = document.getElementById('languageSwitcher');
+        if (config.language_switcher_enabled === true) {
+          languageSwitcher.style.display = 'flex';
+          console.log('🌐 言語切り替えボタン: 表示');
+        } else {
+          languageSwitcher.style.display = 'none';
+          console.log('🌐 言語切り替えボタン: 非表示');
+        }
       })
       .catch(function(error) {
         console.error('❌ Config load error:', error);

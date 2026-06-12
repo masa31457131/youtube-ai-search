@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ファイル管理 - ACS FAQ Manager</title>
+  <style>
+    :root {
+      --brand: #0066cc; --brand-dark: #004fa3; --brand-light: #e8f0fb;
+      --bg: #f6f7fb; --white: #fff; --text: #111827; --text-muted: #6b7280;
+      --border: #e5e7eb; --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --danger: #ef4444; --success: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Meiryo", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; font-size: 14px; }
+    header { background: #001529; color: #fff; padding: 0 24px; display: flex; justify-content: space-between; align-items: center; height: 56px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); gap: 12px; }
+    .header-left { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .header-title { font-size: 16px; font-weight: 700; }
+    nav { display: flex; gap: 4px; overflow-x: auto; }
+    nav a { color: rgba(255,255,255,0.8); text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 13px; white-space: nowrap; transition: all 0.2s; }
+    nav a:hover, nav a.active { background: rgba(255,255,255,0.12); color: #fff; }
+    .btn-logout { background: none; border: none; color: rgba(255,255,255,0.8); cursor: pointer; padding: 7px 12px; font-size: 13px; border-radius: 6px; font-family: inherit; white-space: nowrap; }
+    .btn-logout:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    main { flex: 1; max-width: 1100px; margin: 0 auto; width: 100%; padding: 24px; }
+
+    /* ツールバー */
+    .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .toolbar-title { font-size: 20px; font-weight: 700; flex: 1; }
+
+    /* ボタン */
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.2s; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-outline { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--brand); color: var(--brand); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* カテゴリタブ */
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; }
+    .tab { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: #fff; color: var(--text-muted); transition: all 0.2s; }
+    .tab:hover { border-color: var(--brand); color: var(--brand); }
+    .tab.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+    /* ドロップゾーン */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px;
+      text-align: center; background: #fff; cursor: pointer; transition: all 0.2s;
+      margin-bottom: 20px;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--brand); background: var(--brand-light);
+    }
+    .drop-zone-icon { font-size: 40px; margin-bottom: 12px; }
+    .drop-zone-text { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .drop-zone-sub { font-size: 13px; color: var(--text-muted); }
+
+    /* カード */
+    .card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: hidden; }
+
+    /* テーブル */
+    table { width: 100%; border-collapse: collapse; }
+    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; background: #f9fafb; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+    .file-icon { font-size: 20px; margin-right: 6px; }
+    .file-name { font-weight: 600; }
+    .file-size { color: var(--text-muted); }
+    .file-date { color: var(--text-muted); font-size: 12px; }
+
+    /* URLコピー */
+    .url-box { display: flex; align-items: center; gap: 6px; }
+    .url-text { font-size: 11px; color: var(--brand); background: var(--brand-light); padding: 3px 8px; border-radius: 4px; font-family: monospace; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .copy-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px; border-radius: 4px; transition: background 0.2s; }
+    .copy-btn:hover { background: var(--border); }
+
+    /* アップロード進捗 */
+    .upload-progress { margin-top: 12px; display: none; }
+    .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--brand); border-radius: 3px; transition: width 0.3s; }
+    .progress-text { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    /* 空状態 */
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state-text { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+
+    /* ローディング */
+    .loading { text-align: center; padding: 40px; color: var(--text-muted); }
+    .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ストレージ使用量 */
+    .storage-bar { background: #f9fafb; border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+    .storage-info { flex: 1; }
+    .storage-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+    .storage-usage { font-size: 18px; font-weight: 700; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge-pdf { background: #fef2f2; color: #dc2626; }
+    .badge-zip { background: #fefce8; color: #ca8a04; }
+    .badge-exe { background: #eff6ff; color: #2563eb; }
+    .badge-doc { background: #f0fdf4; color: #16a34a; }
+    .badge-other { background: #f9fafb; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-left">
+      <div class="header-title">🔧 ACS FAQ Manager</div>
+    </div>
+    <nav>
+      <a href="/admin/dashboard">ダッシュボード</a>
+      <a href="/admin/videos">動画データ</a>
+      <a href="/admin/synonyms">同義語</a>
+      <a href="/admin/faq">FAQ編集</a>
+      <a href="/admin/logs">ログ閲覧</a>
+      <a href="/admin/files" class="active">ファイル管理</a>
+    </nav>
+    <button class="btn-logout" onclick="logout()">ログアウト</button>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="toolbar-title">📁 ファイル管理</div>
+      <select id="categorySelect" onchange="switchCategory(this.value)">
+        <option value="all">すべてのカテゴリ</option>
+        <option value="manuals">📄 手順書・マニュアル</option>
+        <option value="tools">🔧 便利ツール</option>
+        <option value="installers">💿 インストーラー</option>
+        <option value="other">📦 その他</option>
+      </select>
+    </div>
+
+    <!-- ストレージ情報 -->
+    <div class="storage-bar">
+      <div class="storage-info">
+        <div class="storage-label">ファイル総数</div>
+        <div class="storage-usage" id="totalCount">読み込み中...</div>
+      </div>
+      <div class="storage-info">
+        <div class="storage-label">合計サイズ</div>
+        <div class="storage-usage" id="totalSize">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- ドロップゾーン -->
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="drop-zone-icon">📤</div>
+      <div class="drop-zone-text">クリックまたはドラッグでファイルをアップロード</div>
+      <div class="drop-zone-sub">PDF、Word、Excel、ZIP、EXE など全形式対応</div>
+    </div>
+    <input type="file" id="fileInput" style="display:none" onchange="uploadFiles(this.files)" multiple>
+
+    <!-- アップロード進捗 -->
+    <div class="upload-progress" id="uploadProgress">
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      <div class="progress-text" id="progressText">アップロード中...</div>
+    </div>
+
+    <!-- ファイル一覧 -->
+    <div class="card">
+      <div id="fileList">
+        <div class="loading"><span class="spinner"></span>読み込み中...</div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    var auth = localStorage.getItem('admin_auth');
+    if (!auth) { window.location.href = '/admin'; }
+
+    var currentCategory = 'all';
+    var allFiles = [];
+
+    function logout() {
+      localStorage.removeItem('admin_auth');
+      window.location.href = '/admin';
+    }
+
+    function getAuthHeader() {
+      var authData = JSON.parse(auth);
+      return 'Basic ' + btoa(authData.username + ':' + authData.password);
+    }
+
+    // ファイルアイコン
+    function fileIcon(filename) {
+      var ext = filename.split('.').pop().toLowerCase();
+      var icons = {
+        'pdf': '📄', 'doc': '📝', 'docx': '📝',
+        'xls': '📊', 'xlsx': '📊',
+        'ppt': '📋', 'pptx': '📋',
+        'zip': '🗜️', 'tar': '🗜️', 'gz': '🗜️',
+        'exe': '⚙️', 'msi': '⚙️',
+        'reg': '🔧', 'bat': '🔧',
+        'png': '🖼️', 'jpg': '🖼️', 'gif': '🖼️',
+        'txt': '📃', 'csv': '📃',
+      };
+      return icons[ext] || '📦';
+    }
+
+    // ファイル種別バッジ
+    function fileBadge(filename) {
+      var ext = filename.split('.').pop().toLowerCase();
+      var badges = {
+        'pdf': '<span class="badge badge-pdf">PDF</span>',
+        'zip': '<span class="badge badge-zip">ZIP</span>',
+        'exe': '<span class="badge badge-exe">EXE</span>',
+        'msi': '<span class="badge badge-exe">MSI</span>',
+        'docx': '<span class="badge badge-doc">Word</span>',
+        'xlsx': '<span class="badge badge-doc">Excel</span>',
+      };
+      return badges[ext] || '<span class="badge badge-other">' + ext.toUpperCase() + '</span>';
+    }
+
+    // 日付フォーマット
+    function formatDate(isoStr) {
+      var d = new Date(isoStr);
+      return d.getFullYear() + '/' +
+        String(d.getMonth()+1).padStart(2,'0') + '/' +
+        String(d.getDate()).padStart(2,'0') + ' ' +
+        String(d.getHours()).padStart(2,'0') + ':' +
+        String(d.getMinutes()).padStart(2,'0');
+    }
+
+    // URLをコピー
+    function copyUrl(url) {
+      var full = location.origin + url;
+      navigator.clipboard.writeText(full).then(function() {
+        alert('URLをコピーしました:\n' + full);
+      });
+    }
+
+    // ファイル一覧を読み込む
+    async function loadFiles() {
+      try {
+        var response = await fetch('/admin/api/files?category=' + currentCategory, {
+          headers: { 'Authorization': getAuthHeader() }
+        });
+        if (!response.ok) throw new Error('読み込み失敗: ' + response.status);
+        var data = await response.json();
+        allFiles = data.files || [];
+        renderFiles(allFiles);
+        updateStorageInfo(allFiles);
+      } catch (error) {
+        document.getElementById('fileList').innerHTML =
+          '<div class="empty-state"><div class="empty-state-icon">⚠️</div>' +
+          '<div class="empty-state-text">読み込みエラー: ' + error.message + '</div></div>';
+      }
+    }
+
+    // ストレージ情報を更新
+    function updateStorageInfo(files) {
+      document.getElementById('totalCount').textContent = files.length + ' ファイル';
+      var totalBytes = files.reduce(function(sum, f) { return sum + f.size; }, 0);
+      document.getElementById('totalSize').textContent = formatBytes(totalBytes);
+    }
+
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+      if (bytes < 1024*1024*1024) return (bytes/1024/1024).toFixed(1) + ' MB';
+      return (bytes/1024/1024/1024).toFixed(2) + ' GB';
+    }
+
+    // ファイル一覧をレンダリング
+    function renderFiles(files) {
+      var el = document.getElementById('fileList');
+
+      if (files.length === 0) {
+        el.innerHTML =
+          '<div class="empty-state">' +
+          '<div class="empty-state-icon">📂</div>' +
+          '<div class="empty-state-text">ファイルがありません</div>' +
+          '<p style="font-size:13px;color:var(--text-muted);">上のエリアにファイルをドロップしてアップロードしてください</p>' +
+          '</div>';
+        return;
+      }
+
+      var html = '<table><thead><tr>' +
+        '<th>ファイル名</th>' +
+        '<th>カテゴリ</th>' +
+        '<th>サイズ</th>' +
+        '<th>更新日時</th>' +
+        '<th>URL</th>' +
+        '<th style="text-align:right">操作</th>' +
+        '</tr></thead><tbody>';
+
+      files.forEach(function(f) {
+        html += '<tr>' +
+          '<td><span class="file-icon">' + fileIcon(f.filename) + '</span>' +
+          '<span class="file-name">' + escHtml(f.filename) + '</span>&nbsp;' +
+          fileBadge(f.filename) + '</td>' +
+          '<td>' + escHtml(f.category_label) + '</td>' +
+          '<td class="file-size">' + escHtml(f.size_label) + '</td>' +
+          '<td class="file-date">' + formatDate(f.modified) + '</td>' +
+          '<td>' +
+            '<div class="url-box">' +
+              '<span class="url-text" title="' + escHtml(f.url) + '">' + escHtml(f.url) + '</span>' +
+              '<button class="copy-btn" onclick="copyUrl(\'' + escHtml(f.url) + '\')" title="URLをコピー">📋</button>' +
+              '<a href="' + escHtml(f.url) + '" target="_blank" style="font-size:14px;text-decoration:none" title="開く">🔗</a>' +
+            '</div>' +
+          '</td>' +
+          '<td style="text-align:right">' +
+            '<button class="btn btn-danger btn-sm" onclick="deleteFile(\'' +
+            escHtml(f.category) + '\',\'' + escHtml(f.filename) + '\')">削除</button>' +
+          '</td>' +
+          '</tr>';
+      });
+
+      html += '</tbody></table>';
+      el.innerHTML = html;
+    }
+
+    // カテゴリ切り替え
+    function switchCategory(cat) {
+      currentCategory = cat;
+      loadFiles();
+    }
+
+    // ファイルアップロード
+    async function uploadFiles(files) {
+      if (!files || files.length === 0) return;
+
+      var category = document.getElementById('categorySelect').value;
+      if (category === 'all') {
+        category = prompt(
+          'アップロード先のカテゴリを選択してください:\n' +
+          '1: 手順書・マニュアル (manuals)\n' +
+          '2: 便利ツール (tools)\n' +
+          '3: インストーラー (installers)\n' +
+          '4: その他 (other)\n\n' +
+          '番号を入力してください:'
+        );
+        var catMap = { '1': 'manuals', '2': 'tools', '3': 'installers', '4': 'other' };
+        category = catMap[category] || 'other';
+      }
+
+      var progress = document.getElementById('uploadProgress');
+      var fill = document.getElementById('progressFill');
+      var progressText = document.getElementById('progressText');
+      progress.style.display = 'block';
+
+      var successCount = 0;
+      var errorMessages = [];
+
+      for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        var percent = Math.round((i / files.length) * 100);
+        fill.style.width = percent + '%';
+        progressText.textContent = file.name + ' をアップロード中... (' + (i+1) + '/' + files.length + ')';
+
+        try {
+          var formData = new FormData();
+          formData.append('file', file);
+
+          var response = await fetch('/admin/api/files/' + category, {
+            method: 'POST',
+            headers: { 'Authorization': getAuthHeader() },
+            body: formData
+          });
+
+          if (response.status === 409) {
+            if (!confirm(file.name + ' は既に存在します。上書きしますか？')) {
+              continue;
+            }
+            // 削除して再アップロード
+            await fetch('/admin/api/files/' + category + '/' + encodeURIComponent(file.name), {
+              method: 'DELETE',
+              headers: { 'Authorization': getAuthHeader() }
+            });
+            response = await fetch('/admin/api/files/' + category, {
+              method: 'POST',
+              headers: { 'Authorization': getAuthHeader() },
+              body: formData
+            });
+          }
+
+          if (!response.ok) {
+            var err = await response.json();
+            throw new Error(err.detail || 'アップロード失敗');
+          }
+
+          successCount++;
+        } catch (error) {
+          errorMessages.push(file.name + ': ' + error.message);
+        }
+      }
+
+      fill.style.width = '100%';
+      progressText.textContent = '完了';
+      setTimeout(function() { progress.style.display = 'none'; }, 1500);
+
+      if (errorMessages.length > 0) {
+        alert('一部のファイルでエラーが発生しました:\n' + errorMessages.join('\n'));
+      } else {
+        alert(successCount + ' 件のファイルをアップロードしました');
+      }
+
+      // ファイル入力をリセット
+      document.getElementById('fileInput').value = '';
+      loadFiles();
+    }
+
+    // ファイル削除
+    async function deleteFile(category, filename) {
+      if (!confirm(filename + ' を削除しますか？\nこの操作は取り消せません。')) return;
+
+      try {
+        var response = await fetch('/admin/api/files/' + category + '/' + encodeURIComponent(filename), {
+          method: 'DELETE',
+          headers: { 'Authorization': getAuthHeader() }
+        });
+        if (!response.ok) throw new Error('削除失敗');
+        loadFiles();
+      } catch (error) {
+        alert('削除エラー: ' + error.message);
+      }
+    }
+
+    // ドラッグ&ドロップ
+    var dropZone = document.getElementById('dropZone');
+
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', function() {
+      dropZone.classList.remove('drag-over');
+    });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      uploadFiles(e.dataTransfer.files);
+    });
+
+    // HTMLエスケープ
+    function escHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // 初期化
+    loadFiles();
+  </script>
+</body>
+</html>

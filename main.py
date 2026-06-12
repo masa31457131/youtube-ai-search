@@ -5,7 +5,7 @@
 - æ—¢å­˜ã®é™çš„ãƒ•ã‚¡ã‚¤ãƒ«æ§‹æˆã¨ã®äº’æ›æ€§ç¶­æŒ
 """
 
-from fastapi import FastAPI, Query, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, Query, HTTPException, Depends, BackgroundTasks, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -47,16 +47,26 @@ ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "abc123")
 
 BASE_DIR = pathlib.Path(__file__).parent
-DATA_PATH = BASE_DIR / "data.json"
-SYNONYMS_PATH = BASE_DIR / "synonyms.json"
-FAQ_PATH = BASE_DIR / "faq.json"
-CONFIG_PATH = BASE_DIR / "config.json"
-USERS_PATH = BASE_DIR / "users.json"
-SEARCH_LOG_PATH = BASE_DIR / "search_logs.csv"
 
-# é™çš„ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
-frontend_path = BASE_DIR / "frontend"
-admin_path = BASE_DIR / "admin_ui"
+# Persistent Disk対応: 環境変数 DATA_DIR が設定されている場合はそちらを使用
+# Render.comでは DATA_DIR=/data を環境変数に設定する
+_DATA_DIR_ENV = os.getenv("DATA_DIR", "")
+DATA_DIR = pathlib.Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else BASE_DIR
+
+# データファイルパス（Disk上に保持）
+DATA_PATH        = DATA_DIR / "data.json"
+SYNONYMS_PATH    = DATA_DIR / "synonyms.json"
+FAQ_PATH         = DATA_DIR / "faq.json"
+CONFIG_PATH      = DATA_DIR / "config.json"
+USERS_PATH       = DATA_DIR / "users.json"
+SEARCH_LOG_PATH  = DATA_DIR / "search_logs.csv"
+
+# アップロードファイルパス（Disk上に保持）
+FILES_DIR        = DATA_DIR / "files"
+FILES_MANUALS    = FILES_DIR / "manuals"
+FILES_TOOLS      = FILES_DIR / "tools"
+FILES_INSTALLERS = FILES_DIR / "installers"
+FILES_OTHER      = FILES_DIR / "other"
 
 # ============================================
 # ã‚°ãƒ­ãƒ¼ãƒãƒ«çŠ¶æ…‹ç®¡ç†
@@ -418,8 +428,17 @@ def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
 # ============================================
 
 def initialize_files():
-    """必要なファイルを初期化"""
+    """必要なファイルを初期化（Persistent Disk対応）"""
     try:
+        # Persistent Disk上のディレクトリを作成
+        for d in [DATA_DIR, FILES_DIR, FILES_MANUALS, FILES_TOOLS, FILES_INSTALLERS, FILES_OTHER]:
+            if not d.exists():
+                d.mkdir(parents=True, exist_ok=True)
+                print(f"📁 Created directory: {d}")
+        
+        print(f"📂 Data directory: {DATA_DIR}")
+        print(f"📂 Files directory: {FILES_DIR}")
+
         # config.json の初期化
         if not CONFIG_PATH.exists():
             print("📁 Creating config.json...")
@@ -1924,6 +1943,14 @@ def serve_admin_logs():
     if not f.exists():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
 
+@app.get("/admin/files", response_class=HTMLResponse, include_in_schema=False)
+def serve_admin_files():
+    """ファイル管理ページ"""
+    f = admin_path / "files.html"
+    if not f.exists():
+        return HTMLResponse("<h1>files.html not found</h1>", status_code=404)
+    return f.read_text(encoding="utf-8")
+
 @app.get("/admin/password", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_password():
     """管理画面 - パスワード変更"""
@@ -2318,6 +2345,188 @@ async def get_config():
             "semantic_weight": SEMANTIC_WEIGHT,
             "title_weight": TITLE_WEIGHT
         }
+
+
+# ============================================================
+# ファイル管理API (Persistent Disk)
+# ============================================================
+
+# カテゴリとディレクトリのマッピング
+FILE_CATEGORIES = {
+    "manuals":    FILES_MANUALS,
+    "tools":      FILES_TOOLS,
+    "installers": FILES_INSTALLERS,
+    "other":      FILES_OTHER,
+}
+
+CATEGORY_LABELS = {
+    "manuals":    "手順書・マニュアル",
+    "tools":      "便利ツール",
+    "installers": "インストーラー",
+    "other":      "その他",
+}
+
+# ダウンロード時にインライン表示するMIMEタイプ（PDFなど）
+INLINE_MIME_TYPES = {
+    ".pdf": "application/pdf",
+}
+
+# ファイルのMIMEタイプマッピング
+MIME_TYPES = {
+    ".pdf":  "application/pdf",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".doc":  "application/msword",
+    ".xls":  "application/vnd.ms-excel",
+    ".zip":  "application/zip",
+    ".exe":  "application/octet-stream",
+    ".msi":  "application/octet-stream",
+    ".reg":  "application/octet-stream",
+    ".txt":  "text/plain; charset=utf-8",
+    ".png":  "image/png",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif":  "image/gif",
+}
+
+def get_mime_type(filename: str) -> str:
+    """ファイルのMIMEタイプを取得"""
+    ext = pathlib.Path(filename).suffix.lower()
+    return MIME_TYPES.get(ext, "application/octet-stream")
+
+def get_file_category_dir(category: str) -> pathlib.Path:
+    """カテゴリのディレクトリを取得"""
+    if category not in FILE_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category: {category}")
+    return FILE_CATEGORIES[category]
+
+@app.get("/admin/api/files", dependencies=[Depends(verify_admin)])
+async def list_files(category: str = "all"):
+    """ファイル一覧を取得"""
+    result = []
+
+    categories = FILE_CATEGORIES if category == "all" else {category: FILE_CATEGORIES.get(category)}
+    if category != "all" and category not in FILE_CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Invalid category: {category}")
+
+    for cat_key, cat_dir in categories.items():
+        if not cat_dir or not cat_dir.exists():
+            continue
+        for f in sorted(cat_dir.iterdir()):
+            if f.is_file():
+                stat = f.stat()
+                result.append({
+                    "category":      cat_key,
+                    "category_label": CATEGORY_LABELS.get(cat_key, cat_key),
+                    "filename":      f.name,
+                    "size":          stat.st_size,
+                    "size_label":    _format_size(stat.st_size),
+                    "modified":      datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+                    "url":           f"/files/{cat_key}/{f.name}",
+                    "mime_type":     get_mime_type(f.name),
+                })
+
+    return {"files": result, "total": len(result)}
+
+@app.post("/admin/api/files/{category}", dependencies=[Depends(verify_admin)])
+async def upload_file(category: str, file: UploadFile):
+    """ファイルをアップロード"""
+    cat_dir = get_file_category_dir(category)
+
+    # ファイル名のサニタイズ（パストラバーサル対策）
+    safe_name = pathlib.Path(file.filename).name
+    if not safe_name or safe_name.startswith('.'):
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    dest = cat_dir / safe_name
+
+    # 既存ファイルのチェック
+    if dest.exists():
+        raise HTTPException(status_code=409, detail=f"File already exists: {safe_name}")
+
+    # ファイルを保存
+    try:
+        with open(dest, "wb") as f:
+            while chunk := await file.read(1024 * 1024):  # 1MBずつ読み込み
+                f.write(chunk)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+
+    stat = dest.stat()
+    print(f"📤 File uploaded: {category}/{safe_name} ({_format_size(stat.st_size)})")
+
+    return {
+        "status":        "ok",
+        "category":      category,
+        "filename":      safe_name,
+        "size":          stat.st_size,
+        "size_label":    _format_size(stat.st_size),
+        "url":           f"/files/{category}/{safe_name}",
+    }
+
+@app.delete("/admin/api/files/{category}/{filename}", dependencies=[Depends(verify_admin)])
+async def delete_file(category: str, filename: str):
+    """ファイルを削除"""
+    cat_dir = get_file_category_dir(category)
+
+    # パストラバーサル対策
+    safe_name = pathlib.Path(filename).name
+    target = cat_dir / safe_name
+
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    target.unlink()
+    print(f"🗑️ File deleted: {category}/{safe_name}")
+    return {"status": "ok", "deleted": safe_name}
+
+@app.get("/files/{category}/{filename}")
+async def download_file(category: str, filename: str):
+    """ファイルをダウンロード（認証不要・FAQから参照用）"""
+    if category not in FILE_CATEGORIES:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # パストラバーサル対策
+    safe_name = pathlib.Path(filename).name
+    target = FILE_CATEGORIES[category] / safe_name
+
+    if not target.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    mime = get_mime_type(safe_name)
+    ext  = pathlib.Path(safe_name).suffix.lower()
+
+    # PDFはブラウザでインライン表示、それ以外はダウンロード
+    if ext in INLINE_MIME_TYPES:
+        disposition = f"inline; filename*=UTF-8\'\'{safe_name}"
+    else:
+        import urllib.parse
+        encoded_name = urllib.parse.quote(safe_name)
+        disposition = f"attachment; filename*=UTF-8\'\'{encoded_name}"
+
+    def iter_file():
+        with open(target, "rb") as f:
+            while chunk := f.read(1024 * 1024):
+                yield chunk
+
+    return StreamingResponse(
+        iter_file(),
+        media_type=mime,
+        headers={"Content-Disposition": disposition}
+    )
+
+def _format_size(size_bytes: int) -> str:
+    """ファイルサイズを人間が読みやすい形式に変換"""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 ** 2:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 ** 3:
+        return f"{size_bytes / 1024 ** 2:.1f} MB"
+    else:
+        return f"{size_bytes / 1024 ** 3:.1f} GB"
+
 
 @app.get("/admin/api/config", dependencies=[Depends(verify_admin)])
 async def get_admin_config():

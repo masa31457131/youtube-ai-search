@@ -68,6 +68,10 @@ FILES_TOOLS      = FILES_DIR / "tools"
 FILES_INSTALLERS = FILES_DIR / "installers"
 FILES_OTHER      = FILES_DIR / "other"
 
+# 静的ファイルパス（コードと同梱、デプロイ毎にリセットされる）
+frontend_path = BASE_DIR / "frontend"
+admin_path    = BASE_DIR / "admin_ui"
+
 # ============================================
 # ã‚°ãƒ­ãƒ¼ãƒãƒ«çŠ¶æ…‹ç®¡ç†
 # ============================================

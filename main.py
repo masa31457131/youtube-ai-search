@@ -339,18 +339,27 @@ def parse_logs() -> List[Dict[str, Any]]:
     log_file = SEARCH_LOG_PATH  # search_logs.csv
     
     if not log_file.exists():
+        print(f"⚠️ Log file not found: {log_file}")
         return []
     
     rows = []
+    skipped = 0
     try:
         with open(log_file, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
-            for row in reader:
+            for i, row in enumerate(reader):
+                # ヘッダー行をスキップ（1行目 or "timestamp"という文字列の行）
+                if i == 0 and len(row) >= 1 and row[0].lower() == "timestamp":
+                    continue
                 if len(row) >= 2:
                     try:
-                        # timestamp, query
-                        timestamp_str = row[0]
-                        query = row[1]
+                        timestamp_str = row[0].strip()
+                        query = row[1].strip()
+                        
+                        # 空クエリはスキップ
+                        if not query:
+                            skipped += 1
+                            continue
                         
                         # ISO形式のタイムスタンプをパース
                         dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
@@ -361,13 +370,15 @@ def parse_logs() -> List[Dict[str, Any]]:
                             "result_id": ""
                         })
                     except Exception as e:
-                        # パースエラーは無視
-                        pass
+                        skipped += 1
+                        continue
     except Exception as e:
         print(f"❌ Failed to parse logs: {e}")
         return []
     
+    print(f"📊 Logs parsed: {len(rows)} rows, {skipped} skipped")
     return rows
+
 
 # ============================================
 # èªè¨¼
@@ -442,6 +453,44 @@ def initialize_files():
         
         print(f"📂 Data directory: {DATA_DIR}")
         print(f"📂 Files directory: {FILES_DIR}")
+
+        # ------------------------------------------------------------
+        # Persistent Disk導入時の既存データ移行
+        # DATA_DIR がソースコードと異なる場合（Disk使用時）、
+        # ソースコードに同梱されている既存のデータファイルが存在し、
+        # かつ Disk側にまだファイルが無い場合は、初回のみコピーする。
+        # これにより、Disk導入前に蓄積していたデータが失われない。
+        # ------------------------------------------------------------
+        if DATA_DIR != BASE_DIR:
+            migration_targets = [
+                ("data.json",      BASE_DIR / "data.json",      DATA_PATH),
+                ("faq.json",       BASE_DIR / "faq.json",       FAQ_PATH),
+                ("synonyms.json",  BASE_DIR / "synonyms.json",  SYNONYMS_PATH),
+                ("config.json",    BASE_DIR / "config.json",    CONFIG_PATH),
+                ("users.json",     BASE_DIR / "users.json",     USERS_PATH),
+                ("search_logs.csv", BASE_DIR / "search_logs.csv", SEARCH_LOG_PATH),
+            ]
+            for label, src, dst in migration_targets:
+                try:
+                    if src.exists() and src.is_file():
+                        # Disk側が未作成、または空/デフォルトのままの場合のみコピー
+                        should_copy = False
+                        if not dst.exists():
+                            should_copy = True
+                        else:
+                            # Disk側が極端に小さい（空配列やデフォルトのみ）場合も移行対象とする
+                            try:
+                                if dst.stat().st_size <= 4 and src.stat().st_size > 4:
+                                    should_copy = True
+                            except Exception:
+                                pass
+
+                        if should_copy:
+                            import shutil
+                            shutil.copy2(src, dst)
+                            print(f"📦 Migrated existing {label} from source to Disk ({src} → {dst})")
+                except Exception as e:
+                    print(f"⚠️ Migration check failed for {label}: {e}")
 
         # config.json の初期化
         if not CONFIG_PATH.exists():

@@ -325,15 +325,6 @@ def build_optimized_index(embeddings: np.ndarray) -> faiss.Index:
     
     return index
 
-def log_search(query: str):
-    """æ¤œç´¢ãƒ­ã‚°è¨˜éŒ²"""
-    try:
-        with open(SEARCH_LOG_PATH, "a", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([datetime.now(timezone.utc).isoformat(), query])
-    except Exception as e:
-        print(f"âš ï¸ Log write failed: {e}")
-
 def parse_logs() -> List[Dict[str, Any]]:
     """
     ログパース（管理画面用）
@@ -638,8 +629,6 @@ async def search_videos(
     if not state.video_index:
         return {"items": [], "has_more": False, "total_visible": 0}
     
-    log_search(f"video:{query}")
-    
     normalized_query = normalize_text(query)
     expanded_query = expand_with_synonyms(normalized_query, state.synonyms, language or "ja")
     
@@ -791,8 +780,6 @@ async def search_faq(
             }
         
         return {"items": items, "fallback": True}
-    
-    log_search(f"faq:{query}")
     
     # 設定から閾値を取得
     config = await get_config()

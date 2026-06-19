@@ -335,47 +335,49 @@ def log_search(query: str):
         print(f"âš ï¸ Log write failed: {e}")
 
 def parse_logs() -> List[Dict[str, Any]]:
-    """ログパース（管理画面用）- search_logs.csvを読み込む"""
-    log_file = SEARCH_LOG_PATH  # search_logs.csv
-    
-    if not log_file.exists():
-        print(f"⚠️ Log file not found: {log_file}")
+    """
+    ログパース（管理画面用）
+    CSVフォーマット: timestamp, type, query, result_id
+    ヘッダー行は自動スキップ
+    """
+    if not SEARCH_LOG_PATH.exists():
+        print(f"⚠️ Log file not found: {SEARCH_LOG_PATH}")
         return []
-    
+
     rows = []
     skipped = 0
     try:
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(SEARCH_LOG_PATH, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             for i, row in enumerate(reader):
-                # ヘッダー行をスキップ（1行目 or "timestamp"という文字列の行）
-                if i == 0 and len(row) >= 1 and row[0].lower() == "timestamp":
+                # ヘッダー行スキップ
+                if i == 0 and len(row) >= 1 and row[0].strip().lower() == "timestamp":
                     continue
-                if len(row) >= 2:
-                    try:
-                        timestamp_str = row[0].strip()
-                        query = row[1].strip()
-                        
-                        # 空クエリはスキップ
-                        if not query:
-                            skipped += 1
-                            continue
-                        
-                        # ISO形式のタイムスタンプをパース
-                        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                        rows.append({
-                            "dt": dt,
-                            "query": query,
-                            "result_type": "",
-                            "result_id": ""
-                        })
-                    except Exception as e:
+                if len(row) < 1:
+                    continue
+                try:
+                    timestamp_str = row[0].strip()
+                    result_type   = row[1].strip() if len(row) > 1 else ""
+                    query         = row[2].strip() if len(row) > 2 else ""
+                    result_id     = row[3].strip() if len(row) > 3 else ""
+
+                    if not timestamp_str:
                         skipped += 1
                         continue
+
+                    dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+                    rows.append({
+                        "dt":          dt,
+                        "result_type": result_type,
+                        "query":       query,
+                        "result_id":   result_id,
+                    })
+                except Exception:
+                    skipped += 1
     except Exception as e:
         print(f"❌ Failed to parse logs: {e}")
         return []
-    
+
     print(f"📊 Logs parsed: {len(rows)} rows, {skipped} skipped")
     return rows
 
@@ -577,7 +579,7 @@ async def lifespan(app: FastAPI):
     if not SEARCH_LOG_PATH.exists():
         with open(SEARCH_LOG_PATH, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["timestamp", "query"])
+            writer.writerow(["timestamp", "type", "query", "result_id"])
     
     # ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªä½œæˆ
     admin_path.mkdir(parents=True, exist_ok=True)
@@ -1889,27 +1891,52 @@ async def process_transcription(video_id: str, video_data: dict):
 
 @app.get("/admin/api/logs/months", dependencies=[Depends(verify_admin)])
 async def get_log_months():
-    """åˆ©ç”¨å¯èƒ½ãªæœˆä¸€è¦§"""
-    rows = parse_logs()
-    months = set(r["dt"].strftime("%Y-%m") for r in rows)
-    return {"months": sorted(months, reverse=True)}
+    """利用可能な月一覧"""
+    rows   = parse_logs()
+    months = sorted(set(r["dt"].strftime("%Y-%m") for r in rows), reverse=True)
+    return {"months": months, "total": len(rows)}
 
 @app.get("/admin/api/logs/summary", dependencies=[Depends(verify_admin)])
 async def get_log_summary(month: str = Query(...)):
-    """æœˆåˆ¥ã‚µãƒžãƒªãƒ¼"""
+    """月別サマリー（type別集計付き）"""
     rows = parse_logs()
-    day_counter = Counter()
-    query_counter = Counter()
-    
+
+    day_counter   = Counter()
+    faq_counter   = Counter()
+    video_counter = Counter()
+    faq_count     = 0
+    video_count   = 0
+
     for r in rows:
-        if r["dt"].strftime("%Y-%m") == month:
-            day_counter[r["dt"].strftime("%Y-%m-%d")] += 1
-            query_counter[r["query"]] += 1
-    
-    days = [{"day": d, "count": c} for d, c in sorted(day_counter.items())]
-    top_queries = [{"query": q, "count": c} for q, c in query_counter.most_common(50)]
-    
-    return {"month": month, "days": days, "top_queries": top_queries}
+        if r["dt"].strftime("%Y-%m") != month:
+            continue
+        day_counter[r["dt"].strftime("%Y-%m-%d")] += 1
+        rtype = r.get("result_type", "")
+        query = r.get("query", "")
+        if rtype == "faq":
+            faq_counter[query] += 1
+            faq_count += 1
+        elif rtype == "video":
+            video_counter[query] += 1
+            video_count += 1
+        else:
+            faq_counter[query] += 1
+
+    days      = [{"day": d, "count": c} for d, c in sorted(day_counter.items())]
+    top_faq   = [{"query": q, "count": c} for q, c in faq_counter.most_common(50)]
+    top_video = [{"query": q, "count": c} for q, c in video_counter.most_common(50)]
+    total     = sum(day_counter.values())
+
+    return {
+        "month":       month,
+        "total":       total,
+        "faq_count":   faq_count,
+        "video_count": video_count,
+        "days":        days,
+        "top_faq":     top_faq,
+        "top_video":   top_video,
+    }
+
 
 @app.get("/admin/api/logs/export", dependencies=[Depends(verify_admin)])
 async def export_logs():
@@ -2069,32 +2096,25 @@ def serve_admin_logs_html():
 
 @app.post("/api/log_search")
 async def log_search_api(log_data: dict):
-    """æ¤œç´¢ãƒ­ã‚°ã‚’è¨˜éŒ²"""
-    import json
-    from pathlib import Path
-    
-    log_file = Path("search_logs.json")
-    logs = []
-    
-    if log_file.exists():
-        try:
-            with open(log_file, 'r', encoding='utf-8') as f:
-                logs = json.load(f)
-        except:
-            logs = []
-    
-    logs.append({
-        'query': log_data.get('query'),
-        'result_type': log_data.get('result_type'),
-        'result_id': log_data.get('result_id'),
-        'timestamp': log_data.get('timestamp')
-    })
-    
-    # æœ€æ–°1000ä»¶ã®ã¿ä¿æŒ
-    with open(log_file, 'w', encoding='utf-8') as f:
-        json.dump(logs[-1000:], f, ensure_ascii=False, indent=2)
-    
-    return {'status': 'logged'}
+    """
+    クリックログを記録（FAQ/動画をクリックした時に呼ばれる）
+    CSVフォーマット: timestamp, type, query, result_id
+    """
+    try:
+        timestamp   = log_data.get("timestamp") or datetime.now(timezone.utc).isoformat()
+        result_type = str(log_data.get("result_type") or "")
+        query       = str(log_data.get("query") or "")
+        result_id   = str(log_data.get("result_id") or "")
+
+        with open(SEARCH_LOG_PATH, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([timestamp, result_type, query, result_id])
+
+        print(f"📝 Log: type={result_type} query={query} id={result_id}")
+    except Exception as e:
+        print(f"⚠️ Log write failed: {e}")
+
+    return {"status": "logged"}
 
 @app.get("/api/ranking/faq")
 async def get_faq_ranking(limit: int = 10):

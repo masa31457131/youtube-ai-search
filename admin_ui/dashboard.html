@@ -73,67 +73,6 @@
     .page-desc { color: var(--text-muted); font-size: 13px; }
 
     /* Ranking Section */
-    .ranking-section {
-      margin-top: 32px;
-    }
-    .ranking-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
-      gap: 20px;
-      margin-top: 16px;
-    }
-    .ranking-card {
-      background: var(--white);
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--border);
-    }
-    .ranking-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid var(--border);
-    }
-    .ranking-icon { font-size: 24px; }
-    .ranking-title { font-size: 16px; font-weight: 700; }
-    .ranking-list { list-style: none; }
-    .ranking-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-bottom: 1px solid #f3f4f6;
-      transition: background 0.2s;
-    }
-    .ranking-item:hover { background: #f9fafb; }
-    .ranking-item:last-child { border-bottom: none; }
-    .ranking-rank {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--brand);
-      min-width: 28px;
-      text-align: center;
-    }
-    .ranking-content { flex: 1; }
-    .ranking-question {
-      font-size: 13px;
-      font-weight: 600;
-      margin-bottom: 4px;
-      line-height: 1.4;
-    }
-    .ranking-category {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-    .ranking-count {
-      font-size: 14px;
-      font-weight: 700;
-      color: var(--brand);
-    }
-    .ranking-empty {
       text-align: center;
       padding: 32px;
       color: var(--text-muted);
@@ -337,37 +276,6 @@
       </div>
     </div>
 
-        <!-- ランキングセクション -->
-    <div class="ranking-section">
-      <div class="page-header">
-        <h2 class="page-title" style="font-size: 18px;">クリックランキング</h2>
-        <p class="page-desc">よく参照されているFAQと動画</p>
-      </div>
-      
-      <div class="ranking-grid">
-        <!-- FAQランキング -->
-        <div class="ranking-card">
-          <div class="ranking-header">
-            <div class="ranking-icon">📝</div>
-            <div class="ranking-title">FAQランキング TOP10</div>
-          </div>
-          <ol class="ranking-list" id="faqRanking">
-            <li class="ranking-empty">読み込み中...</li>
-          </ol>
-        </div>
-
-        <!-- 動画ランキング -->
-        <div class="ranking-card">
-          <div class="ranking-header">
-            <div class="ranking-icon">🎬</div>
-            <div class="ranking-title">動画ランキング TOP10</div>
-          </div>
-          <ol class="ranking-list" id="videoRanking">
-            <li class="ranking-empty">読み込み中...</li>
-          </ol>
-        </div>
-      </div>
-    </div>
     </div>
   </main>
 
@@ -383,67 +291,6 @@
     }
 
     // ランキング読み込み
-    function loadRankings() {
-      var auth = JSON.parse(localStorage.getItem('admin_auth'));
-      var authHeader = 'Basic ' + btoa(auth.username + ':' + auth.password);
-
-      // FAQランキング取得
-      fetch('/api/ranking/faq?limit=10', {
-        headers: { 'Authorization': authHeader }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var list = document.getElementById('faqRanking');
-        if (!data.ranking || data.ranking.length === 0) {
-          list.innerHTML = '<li class="ranking-empty">データがありません</li>';
-          return;
-        }
-        list.innerHTML = '';
-        data.ranking.forEach(function(item, index) {
-          var li = document.createElement('li');
-          li.className = 'ranking-item';
-          li.innerHTML = 
-            '<div class="ranking-rank">' + (index + 1) + '</div>' +
-            '<div class="ranking-content">' +
-              '<div class="ranking-question">' + escapeHtml(item.question) + '</div>' +
-              '<div class="ranking-category">' + escapeHtml(item.category) + '</div>' +
-            '</div>' +
-            '<div class="ranking-count">' + item.click_count + '回</div>';
-          list.appendChild(li);
-        });
-      })
-      .catch(function() {
-        document.getElementById('faqRanking').innerHTML = '<li class="ranking-empty">読み込みに失敗しました</li>';
-      });
-
-      // 動画ランキング取得
-      fetch('/api/ranking/video?limit=10', {
-        headers: { 'Authorization': authHeader }
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var list = document.getElementById('videoRanking');
-        if (!data.ranking || data.ranking.length === 0) {
-          list.innerHTML = '<li class="ranking-empty">データがありません</li>';
-          return;
-        }
-        list.innerHTML = '';
-        data.ranking.forEach(function(item, index) {
-          var li = document.createElement('li');
-          li.className = 'ranking-item';
-          li.innerHTML = 
-            '<div class="ranking-rank">' + (index + 1) + '</div>' +
-            '<div class="ranking-content">' +
-              '<div class="ranking-question">' + escapeHtml(item.title) + '</div>' +
-            '</div>' +
-            '<div class="ranking-count">' + item.click_count + '回</div>';
-          list.appendChild(li);
-        });
-      })
-      .catch(function() {
-        document.getElementById('videoRanking').innerHTML = '<li class="ranking-empty">読み込みに失敗しました</li>';
-      });
-    }
 
     function escapeHtml(str) {
       if (!str) return '';
@@ -565,7 +412,6 @@
 
 
         // ページ読み込み時にランキング取得
-    loadRankings();
 
     function updateThresholdDisplay(value) {
       var threshold = (value / 100).toFixed(2);

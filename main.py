@@ -2046,6 +2046,7 @@ def serve_admin_logs():
     if not f.exists():
         return HTMLResponse("<h1>admin logs.html not found</h1>", status_code=404)
 
+    return f.read_text(encoding="utf-8")
 @app.get("/admin/files", response_class=HTMLResponse, include_in_schema=False)
 def serve_admin_files():
     """ファイル管理ページ"""

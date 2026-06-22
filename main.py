@@ -2142,76 +2142,44 @@ async def log_search_api(log_data: dict):
 
 @app.get("/api/ranking/faq")
 async def get_faq_ranking(limit: int = 10):
-    """FAQクリックランキング"""
-    from pathlib import Path
-    from collections import Counter
-    
-    log_file = Path("search_logs.json")
-    if not log_file.exists():
-        return {"ranking": []}
-    
-    try:
-        with open(log_file, 'r', encoding='utf-8') as f:
-            logs = json.load(f)
-    except:
-        return {"ranking": []}
-    
-    # FAQのクリックを集計
-    faq_clicks = [log['result_id'] for log in logs if log.get('result_type') == 'faq' and log.get('result_id')]
-    counter = Counter(faq_clicks)
-    
-    # FAQの詳細情報を取得
+    """FAQクリックランキング（CSVログから集計）"""
+    rows = parse_logs()
+    counter = Counter(
+        r["result_id"] for r in rows
+        if r.get("result_type") == "faq" and r.get("result_id")
+    )
     await state.ensure_faq_loaded()
-    
     ranking = []
     for faq_id, count in counter.most_common(limit):
-        # FAQ情報を検索
-        faq_item = next((item for item in state.faq_items_flat if item.get('id') == faq_id), None)
+        faq_item = next((item for item in state.faq_items_flat if item.get("id") == faq_id), None)
         if faq_item:
             ranking.append({
-                'id': faq_id,
-                'question': faq_item.get('question', ''),
-                'category': faq_item.get('category', ''),
-                'click_count': count
+                "id": faq_id,
+                "question": faq_item.get("question", ""),
+                "category": faq_item.get("category", ""),
+                "click_count": count
             })
-    
     return {"ranking": ranking}
 
 @app.get("/api/ranking/video")
 async def get_video_ranking(limit: int = 10):
-    """動画クリックランキング"""
-    from pathlib import Path
-    from collections import Counter
-    
-    log_file = Path("search_logs.json")
-    if not log_file.exists():
-        return {"ranking": []}
-    
-    try:
-        with open(log_file, 'r', encoding='utf-8') as f:
-            logs = json.load(f)
-    except:
-        return {"ranking": []}
-    
-    # 動画のクリックを集計
-    video_clicks = [log['result_id'] for log in logs if log.get('result_type') == 'video' and log.get('result_id')]
-    counter = Counter(video_clicks)
-    
-    # 動画の詳細情報を取得
+    """動画クリックランキング（CSVログから集計）"""
+    rows = parse_logs()
+    counter = Counter(
+        r["result_id"] for r in rows
+        if r.get("result_type") == "video" and r.get("result_id")
+    )
     await state.ensure_video_loaded()
-    
     ranking = []
     for video_id, count in counter.most_common(limit):
-        # 動画情報を検索
-        video_item = next((item for item in state.videos if item.get('video_id') == video_id), None)
+        video_item = next((item for item in state.videos if item.get("video_id") == video_id), None)
         if video_item:
             ranking.append({
-                'video_id': video_id,
-                'title': video_item.get('title', ''),
-                'thumbnail': video_item.get('thumbnail', ''),
-                'click_count': count
+                "video_id": video_id,
+                "title": video_item.get("title", ""),
+                "thumbnail": video_item.get("thumbnail", ""),
+                "click_count": count
             })
-    
     return {"ranking": ranking}
 
 

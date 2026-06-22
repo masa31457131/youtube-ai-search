@@ -1354,7 +1354,15 @@
   // ================================================================
   // ログ記録
   // ================================================================
+  // 同一セッションで同じアイテムのログを1回だけ送信するためのSet
+  var loggedItems = new Set();
+
   function logClick(query, resultType, resultId) {
+    // 同じ結果への重複ログを防止
+    var key = resultType + ':' + resultId;
+    if (loggedItems.has(key)) return;
+    loggedItems.add(key);
+
     fetch('/api/log_search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

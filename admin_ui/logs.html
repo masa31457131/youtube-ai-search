@@ -6,77 +6,64 @@
   <title>ログ閲覧 - ACS FAQ Manager</title>
   <style>
     :root {
-      --brand:#0066cc; --brand-dark:#004fa3; --brand-light:#e8f0fb;
-      --bg:#f6f7fb; --white:#fff; --text:#111827; --muted:#6b7280;
-      --border:#e5e7eb; --shadow:0 1px 3px rgba(0,0,0,0.08);
-      --faq:#10b981; --video:#f59e0b;
+      --brand:#0066cc;--brand-dark:#004fa3;--brand-light:#e8f0fb;
+      --bg:#f6f7fb;--white:#fff;--text:#111827;--muted:#6b7280;
+      --border:#e5e7eb;--shadow:0 1px 3px rgba(0,0,0,0.08);
+      --faq:#10b981;--video:#f59e0b;
     }
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Meiryo",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;font-size:14px;}
     header{background:#001529;color:#fff;padding:0 24px;display:flex;justify-content:space-between;align-items:center;height:56px;box-shadow:0 2px 8px rgba(0,0,0,0.15);gap:12px;flex-shrink:0;}
-    .h-left{display:flex;align-items:center;gap:10px;flex-shrink:0;}
-    .h-title{font-size:16px;font-weight:700;}
+    .hl{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+    .ht{font-size:16px;font-weight:700;}
     nav{display:flex;gap:4px;overflow-x:auto;}
     nav a{color:rgba(255,255,255,0.8);text-decoration:none;padding:7px 12px;border-radius:6px;font-size:13px;white-space:nowrap;}
     nav a:hover,nav a.active{background:rgba(255,255,255,0.12);color:#fff;}
-    .btn-logout{background:none;border:none;color:rgba(255,255,255,0.8);cursor:pointer;padding:7px 12px;font-size:13px;border-radius:6px;font-family:inherit;white-space:nowrap;}
-    .btn-logout:hover{background:rgba(255,255,255,0.1);color:#fff;}
+    .logout{background:none;border:none;color:rgba(255,255,255,0.8);cursor:pointer;padding:7px 12px;font-size:13px;border-radius:6px;font-family:inherit;white-space:nowrap;}
+    .logout:hover{background:rgba(255,255,255,0.1);color:#fff;}
     main{flex:1;max-width:1200px;margin:0 auto;width:100%;padding:24px;}
     .toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
-    .toolbar-title{font-size:20px;font-weight:700;flex:1;}
+    .tt{font-size:20px;font-weight:700;flex:1;}
     select{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;}
     .btn{display:inline-block;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:#fff;color:var(--text);}
     .btn:hover{border-color:var(--brand);color:var(--brand);}
-    /* 統計カード */
     .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
     .stat{background:#fff;border-radius:12px;border:1px solid var(--border);padding:16px 20px;box-shadow:var(--shadow);}
-    .stat-label{font-size:12px;color:var(--muted);margin-bottom:4px;}
-    .stat-value{font-size:26px;font-weight:700;}
-    .stat-value.brand{color:var(--brand);}
-    .stat-value.faq{color:var(--faq);}
-    .stat-value.video{color:var(--video);}
-    /* タブ */
+    .sl{font-size:12px;color:var(--muted);margin-bottom:4px;}
+    .sv{font-size:26px;font-weight:700;}
     .tabs{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;}
     .tab{padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;}
     .tab.active{color:var(--brand);border-bottom-color:var(--brand);}
-    /* グリッド */
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
     .card{background:#fff;border-radius:12px;box-shadow:var(--shadow);border:1px solid var(--border);padding:20px;}
-    .card-title{font-size:15px;font-weight:700;margin-bottom:14px;}
-    /* テーブル */
+    .ct{font-size:15px;font-weight:700;margin-bottom:14px;}
     table{width:100%;border-collapse:collapse;}
     th{padding:9px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:#f9fafb;}
     td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;}
     tr:last-child td{border-bottom:none;}
     tr:hover td{background:#fafafa;}
-    /* バー */
-    .bar-wrap{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);}
-    .bar-wrap:last-child{border-bottom:none;}
-    .bar-rank{font-size:11px;color:var(--muted);min-width:20px;text-align:right;}
-    .bar-label{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .bar-track{width:100px;height:8px;background:var(--border);border-radius:4px;flex-shrink:0;}
-    .bar-fill{height:100%;border-radius:4px;}
-    .bar-fill.faq{background:var(--faq);}
-    .bar-fill.video{background:var(--video);}
-    .bar-fill.brand{background:var(--brand);}
-    .bar-count{font-size:12px;color:var(--muted);min-width:40px;text-align:right;}
-    /* 状態 */
+    .bw{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);}
+    .bw:last-child{border-bottom:none;}
+    .br{font-size:11px;color:var(--muted);min-width:20px;text-align:right;}
+    .bl{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .bt{width:100px;height:8px;background:var(--border);border-radius:4px;flex-shrink:0;}
+    .bf{height:100%;border-radius:4px;}
+    .bf.brand{background:var(--brand);}
+    .bf.faq{background:var(--faq);}
+    .bf.video{background:var(--video);}
+    .bc{font-size:12px;color:var(--muted);min-width:40px;text-align:right;}
     .loading{text-align:center;padding:60px;color:var(--muted);}
-    .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px;}
+    .sp{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .empty{text-align:center;padding:60px;color:var(--muted);}
-    .error-box{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 18px;color:#dc2626;margin-bottom:16px;display:none;}
+    .errbox{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 18px;color:#dc2626;margin-bottom:16px;}
     footer{background:#fff;border-top:1px solid var(--border);padding:16px 24px;text-align:center;color:var(--muted);font-size:12px;}
-    @media(max-width:700px){.h-title{display:none;}.grid2{grid-template-columns:1fr;}.bar-track{width:70px;}}
+    @media(max-width:700px){.ht{display:none;}.grid2{grid-template-columns:1fr;}.bt{width:70px;}}
   </style>
 </head>
 <body>
-
 <header>
-  <div class="h-left">
-    <span style="font-size:20px">🔧</span>
-    <span class="h-title">ACS FAQ Manager</span>
-  </div>
+  <div class="hl"><span style="font-size:20px">🔧</span><span class="ht">ACS FAQ Manager</span></div>
   <nav>
     <a href="/admin/dashboard">ダッシュボード</a>
     <a href="/admin/videos">動画データ</a>
@@ -85,146 +72,151 @@
     <a href="/admin/logs" class="active">ログ閲覧</a>
     <a href="/admin/files">ファイル管理</a>
   </nav>
-  <button class="btn-logout" onclick="logout()">ログアウト</button>
+  <button class="logout" onclick="logout()">ログアウト</button>
 </header>
-
 <main>
   <div class="toolbar">
-    <div class="toolbar-title">📊 ログ閲覧</div>
-    <select id="monthSelect" onchange="loadSummary()">
-      <option value="">月を選択...</option>
-    </select>
+    <div class="tt">📊 ログ閲覧</div>
+    <select id="monthSel" onchange="loadSummary()"><option value="">月を選択...</option></select>
     <button class="btn" onclick="exportCsv()">📥 CSV出力</button>
+    <button class="btn" onclick="openDebug()">🔍 診断</button>
   </div>
-
-  <div id="errorBox" class="error-box"></div>
-
-  <!-- 統計カード -->
-  <div class="stats" id="statsRow" style="display:none;">
-    <div class="stat"><div class="stat-label">月間クリック数</div><div class="stat-value brand" id="stTotal">-</div></div>
-    <div class="stat"><div class="stat-label">FAQクリック</div><div class="stat-value faq" id="stFaq">-</div></div>
-    <div class="stat"><div class="stat-label">動画クリック</div><div class="stat-value video" id="stVideo">-</div></div>
-    <div class="stat"><div class="stat-label">計測日数</div><div class="stat-value brand" id="stDays">-</div></div>
+  <div id="errBox" class="errbox" style="display:none"></div>
+  <div class="stats" id="statsRow" style="display:none">
+    <div class="stat"><div class="sl">月間クリック数</div><div class="sv" id="s1" style="color:var(--brand)">-</div></div>
+    <div class="stat"><div class="sl">FAQクリック</div><div class="sv" id="s2" style="color:var(--faq)">-</div></div>
+    <div class="stat"><div class="sl">動画クリック</div><div class="sv" id="s3" style="color:var(--video)">-</div></div>
+    <div class="stat"><div class="sl">計測日数</div><div class="sv" id="s4" style="color:var(--brand)">-</div></div>
   </div>
-
-  <!-- タブ -->
-  <div class="tabs" id="tabRow" style="display:none;">
+  <div class="tabs" id="tabRow" style="display:none">
     <button class="tab active" onclick="switchTab('all')"   id="tab-all">📋 全体</button>
     <button class="tab"        onclick="switchTab('faq')"   id="tab-faq">🟢 FAQ</button>
     <button class="tab"        onclick="switchTab('video')" id="tab-video">🟡 動画</button>
   </div>
-
-  <div id="loadingArea" class="loading"><span class="spinner"></span>読み込み中...</div>
-  <div id="emptyArea" style="display:none;" class="empty">
+  <div id="loadArea" class="loading"><span class="sp"></span>読み込み中...</div>
+  <div id="emptyArea" style="display:none" class="empty">
     <div style="font-size:48px;margin-bottom:12px">📭</div>
-    <div>ログデータがありません</div>
-    <p style="margin-top:8px;font-size:13px">FAQや動画の検索結果をクリックするとここにログが表示されます</p>
+    <p>ログデータがありません</p>
+    <p style="margin-top:8px;font-size:13px">FAQや動画の検索結果をクリックするとここに記録されます</p>
   </div>
-
-  <!-- コンテンツ -->
-  <div id="contentArea" style="display:none;"></div>
+  <div id="content" style="display:none"></div>
 </main>
-
 <footer>Copyright &copy; 2026 Toray Advanced Computer Solution, Inc.</footer>
-
 <script>
-  /* ---- 認証（dashboardと完全同一パターン） ---- */
+  /* ================================================================
+     認証 - dashboard.htmlと完全同一パターン
+  ================================================================ */
   var auth = localStorage.getItem('admin_auth');
   if (!auth) { window.location.href = '/admin'; }
 
-  function getH() {
+  function logout() { localStorage.removeItem('admin_auth'); window.location.href = '/admin'; }
+
+  /* dashboard.htmlと同じ方式: fetch内でその都度JSON.parse */
+  function makeAuthHeader() {
     var a = JSON.parse(localStorage.getItem('admin_auth'));
     return 'Basic ' + btoa(a.username + ':' + a.password);
   }
-  function logout() { localStorage.removeItem('admin_auth'); window.location.href = '/admin'; }
 
-  /* ---- 状態 ---- */
+  /* ================================================================
+     状態
+  ================================================================ */
   var currentData = null;
   var currentTab  = 'all';
 
-  /* ---- ユーティリティ ---- */
+  /* ================================================================
+     ユーティリティ
+  ================================================================ */
   function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
-  function show(id)  { document.getElementById(id).style.display = ''; }
-  function hide(id)  { document.getElementById(id).style.display = 'none'; }
-  function showError(msg) {
-    var el = document.getElementById('errorBox');
+  function $s(id, v) { document.getElementById(id).style.display = v === 'none' ? 'none' : ''; }
+  function err(msg)  {
+    var el = document.getElementById('errBox');
     el.textContent = '⚠️ ' + msg;
     el.style.display = '';
-    hide('loadingArea');
+    $s('loadArea', 'none');
   }
 
-  /* ---- 月一覧 ---- */
+  /* ================================================================
+     月一覧の読み込み
+  ================================================================ */
   function loadMonths() {
-    show('loadingArea');
-    hide('contentArea'); hide('emptyArea'); hide('statsRow');
-    hide('tabRow');
-    document.getElementById('errorBox').style.display = 'none';
+    $s('loadArea', '');
+    $s('content', 'none');
+    $s('emptyArea', 'none');
+    $s('statsRow', 'none');
+    $s('tabRow', 'none');
+    document.getElementById('errBox').style.display = 'none';
 
-    fetch('/admin/api/logs/months', { headers: { 'Authorization': getH() } })
-      .then(function(r) {
-        if (r.status === 401) { window.location.href = '/admin'; return null; }
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(d) {
-        if (!d) return;
-        var months = d.months || [];
-        var sel = document.getElementById('monthSelect');
-        while (sel.options.length > 1) sel.remove(1);
-        months.forEach(function(m) {
-          var o = document.createElement('option');
-          o.value = m; o.textContent = m; sel.appendChild(o);
-        });
-        hide('loadingArea');
-        if (months.length > 0) { sel.value = months[0]; loadSummary(); }
-        else show('emptyArea');
-      })
-      .catch(function(e) { showError('月一覧の読み込みに失敗しました: ' + e.message); });
+    fetch('/admin/api/logs/months', {
+      headers: { 'Authorization': makeAuthHeader() }
+    })
+    .then(function(r) {
+      if (r.status === 401) { window.location.href = '/admin'; return null; }
+      if (!r.ok) { throw new Error('HTTP ' + r.status + ' - 認証を確認してください'); }
+      return r.json();
+    })
+    .then(function(d) {
+      if (!d) return;
+      var months = d.months || [];
+      var sel = document.getElementById('monthSel');
+      while (sel.options.length > 1) sel.remove(1);
+      months.forEach(function(m) {
+        var o = document.createElement('option');
+        o.value = m; o.textContent = m; sel.appendChild(o);
+      });
+      $s('loadArea', 'none');
+      if (months.length > 0) { sel.value = months[0]; loadSummary(); }
+      else $s('emptyArea', '');
+    })
+    .catch(function(e) { err('月一覧の読み込みに失敗: ' + e.message); });
   }
 
-  /* ---- 月別サマリー ---- */
+  /* ================================================================
+     月別サマリー
+  ================================================================ */
   function loadSummary() {
-    var month = document.getElementById('monthSelect').value;
+    var month = document.getElementById('monthSel').value;
     if (!month) return;
-    show('loadingArea');
-    hide('contentArea'); hide('statsRow'); hide('tabRow'); hide('emptyArea');
-    document.getElementById('errorBox').style.display = 'none';
+    $s('loadArea', '');
+    $s('content', 'none');
+    $s('statsRow', 'none');
+    $s('tabRow', 'none');
+    $s('emptyArea', 'none');
+    document.getElementById('errBox').style.display = 'none';
 
-    fetch('/admin/api/logs/summary?month=' + encodeURIComponent(month), { headers: { 'Authorization': getH() } })
-      .then(function(r) {
-        if (r.status === 401) { window.location.href = '/admin'; return null; }
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
-      .then(function(d) {
-        if (!d) return;
-        currentData = d;
-
-        /* 統計カード */
-        document.getElementById('stTotal').textContent = d.total       || 0;
-        document.getElementById('stFaq'  ).textContent = d.faq_count   || 0;
-        document.getElementById('stVideo').textContent = d.video_count || 0;
-        document.getElementById('stDays' ).textContent = (d.days || []).length;
-        show('statsRow');
-        show('tabRow');
-
-        hide('loadingArea');
-
-        if (!d.total) { show('emptyArea'); return; }
-
-        renderTab(currentTab);
-        show('contentArea');
-      })
-      .catch(function(e) { showError('データ読み込みに失敗しました: ' + e.message); });
+    fetch('/admin/api/logs/summary?month=' + encodeURIComponent(month), {
+      headers: { 'Authorization': makeAuthHeader() }
+    })
+    .then(function(r) {
+      if (r.status === 401) { window.location.href = '/admin'; return null; }
+      if (!r.ok) { throw new Error('HTTP ' + r.status); }
+      return r.json();
+    })
+    .then(function(d) {
+      if (!d) return;
+      currentData = d;
+      document.getElementById('s1').textContent = d.total       || 0;
+      document.getElementById('s2').textContent = d.faq_count   || 0;
+      document.getElementById('s3').textContent = d.video_count || 0;
+      document.getElementById('s4').textContent = (d.days||[]).length;
+      $s('statsRow', '');
+      $s('tabRow', '');
+      $s('loadArea', 'none');
+      if (!d.total) { $s('emptyArea', ''); return; }
+      renderTab(currentTab);
+      $s('content', '');
+    })
+    .catch(function(e) { err('データ読み込みに失敗: ' + e.message); });
   }
 
-  /* ---- タブ切り替え ---- */
+  /* ================================================================
+     タブ
+  ================================================================ */
   function switchTab(tab) {
     currentTab = tab;
     ['all','faq','video'].forEach(function(t) {
-      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+      document.getElementById('tab-'+t).classList.toggle('active', t===tab);
     });
     renderTab(tab);
   }
@@ -232,83 +224,83 @@
   function renderTab(tab) {
     if (!currentData) return;
     var html = '<div class="grid2">';
-
-    /* 左: 日別 */
-    html += '<div class="card"><div class="card-title">📅 日別クリック数</div>';
-    html += renderDays(currentData.days || []);
-    html += '</div>';
-
-    /* 右: キーワードランキング */
-    if (tab === 'all') {
-      /* FAQ＋動画を合算 */
-      var merged = mergeCounters(currentData.top_faq || [], currentData.top_video || []);
-      html += '<div class="card"><div class="card-title">🔍 人気キーワード（全体）TOP50</div>';
-      html += renderBars(merged, 'brand');
-    } else if (tab === 'faq') {
-      html += '<div class="card"><div class="card-title">🟢 FAQキーワード TOP50</div>';
-      html += renderBars(currentData.top_faq || [], 'faq');
+    html += '<div class="card"><div class="ct">📅 日別クリック数</div>' + renderDays(currentData.days||[]) + '</div>';
+    if (tab==='all') {
+      var m = merge(currentData.top_faq||[], currentData.top_video||[]);
+      html += '<div class="card"><div class="ct">🔍 人気キーワード（全体）TOP50</div>' + bars(m,'brand') + '</div>';
+    } else if (tab==='faq') {
+      html += '<div class="card"><div class="ct">🟢 FAQキーワード TOP50</div>' + bars(currentData.top_faq||[],'faq') + '</div>';
     } else {
-      html += '<div class="card"><div class="card-title">🟡 動画キーワード TOP50</div>';
-      html += renderBars(currentData.top_video || [], 'video');
+      html += '<div class="card"><div class="ct">🟡 動画キーワード TOP50</div>' + bars(currentData.top_video||[],'video') + '</div>';
     }
-    html += '</div></div>';
-
-    document.getElementById('contentArea').innerHTML = html;
+    html += '</div>';
+    document.getElementById('content').innerHTML = html;
   }
 
-  /* ---- 日別テーブル ---- */
   function renderDays(days) {
     if (!days.length) return '<div class="empty" style="padding:20px">データなし</div>';
-    var total = days.reduce(function(s, d) { return s + d.count; }, 0);
-    var html = '<table><thead><tr><th>日付</th><th style="text-align:right">件数</th></tr></thead><tbody>';
-    days.forEach(function(d) {
-      html += '<tr><td>' + esc(d.day) + '</td><td style="text-align:right"><b>' + d.count + '</b></td></tr>';
-    });
-    html += '<tr><td style="font-weight:700;background:#f9fafb">合計</td>'
-          + '<td style="text-align:right;font-weight:700;background:#f9fafb">' + total + '</td></tr>';
-    html += '</tbody></table>';
-    return html;
+    var total = days.reduce(function(s,d){return s+d.count;},0);
+    var h = '<table><thead><tr><th>日付</th><th style="text-align:right">件数</th></tr></thead><tbody>';
+    days.forEach(function(d){ h+='<tr><td>'+esc(d.day)+'</td><td style="text-align:right"><b>'+d.count+'</b></td></tr>'; });
+    h+='<tr><td style="font-weight:700;background:#f9fafb">合計</td><td style="text-align:right;font-weight:700;background:#f9fafb">'+total+'</td></tr>';
+    h+='</tbody></table>';
+    return h;
   }
 
-  /* ---- バーチャート ---- */
-  function renderBars(items, colorClass) {
+  function bars(items, cls) {
     if (!items.length) return '<div class="empty" style="padding:20px">データなし</div>';
     var max = items[0].count;
-    return items.map(function(q, i) {
-      var pct = max > 0 ? (q.count / max * 100).toFixed(1) : 0;
-      return '<div class="bar-wrap">'
-        + '<div class="bar-rank">' + (i+1) + '</div>'
-        + '<div class="bar-label" title="' + esc(q.query) + '">' + esc(q.query) + '</div>'
-        + '<div class="bar-track"><div class="bar-fill ' + colorClass + '" style="width:' + pct + '%"></div></div>'
-        + '<div class="bar-count">' + q.count + '回</div>'
-        + '</div>';
+    return items.map(function(q,i){
+      var p = max>0?(q.count/max*100).toFixed(1):0;
+      return '<div class="bw"><div class="br">'+(i+1)+'</div><div class="bl" title="'+esc(q.query)+'">'+esc(q.query)+'</div><div class="bt"><div class="bf '+cls+'" style="width:'+p+'%"></div></div><div class="bc">'+q.count+'回</div></div>';
     }).join('');
   }
 
-  /* ---- FAQ＋動画を合算 ---- */
-  function mergeCounters(faqList, videoList) {
-    var map = {};
-    faqList.forEach(function(x)   { map[x.query] = (map[x.query] || 0) + x.count; });
-    videoList.forEach(function(x) { map[x.query] = (map[x.query] || 0) + x.count; });
-    return Object.keys(map).map(function(q) { return { query: q, count: map[q] }; })
-      .sort(function(a,b) { return b.count - a.count; }).slice(0,50);
+  function merge(a, b) {
+    var m={};
+    a.forEach(function(x){m[x.query]=(m[x.query]||0)+x.count;});
+    b.forEach(function(x){m[x.query]=(m[x.query]||0)+x.count;});
+    return Object.keys(m).map(function(q){return{query:q,count:m[q]};}).sort(function(a,b){return b.count-a.count;}).slice(0,50);
   }
 
-  /* ---- CSV出力 ---- */
+  /* ================================================================
+     CSV出力
+  ================================================================ */
   function exportCsv() {
-    fetch('/admin/api/logs/export', { headers: { 'Authorization': getH() } })
-      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
-      .then(function(blob) {
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url; a.download = 'search_logs.csv';
-        document.body.appendChild(a); a.click();
-        document.body.removeChild(a); URL.revokeObjectURL(url);
-      })
-      .catch(function(e) { showError('CSV出力に失敗しました: ' + e.message); });
+    fetch('/admin/api/logs/export', { headers: { 'Authorization': makeAuthHeader() } })
+    .then(function(r){ if (!r.ok) throw new Error('HTTP '+r.status); return r.blob(); })
+    .then(function(blob){
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a');
+      a.href=url; a.download='search_logs.csv';
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    })
+    .catch(function(e){ err('CSV出力に失敗: '+e.message); });
   }
 
-  /* ---- 起動 ---- */
+  /* ================================================================
+     診断ページ
+  ================================================================ */
+  function openDebug() {
+    fetch('/admin/api/logs/debug', { headers: { 'Authorization': makeAuthHeader() } })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      alert('【ログ診断結果】\n\n' +
+        'パス: ' + d.search_log_path + '\n' +
+        'ファイル存在: ' + d.file_exists + '\n' +
+        'ファイルサイズ: ' + d.file_size_bytes + ' bytes\n' +
+        'パース件数: ' + d.parsed_row_count + ' 件\n\n' +
+        '先頭5行:\n' + (d.file_first_5_lines||[]).join('\n') + '\n\n' +
+        'サンプルデータ:\n' + JSON.stringify(d.sample_rows, null, 2)
+      );
+    })
+    .catch(function(e){ err('診断に失敗: '+e.message); });
+  }
+
+  /* ================================================================
+     起動
+  ================================================================ */
   loadMonths();
 </script>
 </body>

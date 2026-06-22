@@ -116,6 +116,14 @@
       transition: var(--transition);
       -webkit-appearance: none;
     }
+    /* ブラウザネイティブのクリアボタンを非表示 */
+    .search-input::-webkit-search-cancel-button,
+    .search-input::-webkit-search-decoration,
+    .search-input::-ms-clear {
+      display: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
 
     .search-input:focus {
       box-shadow: 0 4px 20px rgba(0,0,0,0.3), 0 0 0 3px rgba(255,255,255,0.3);
@@ -723,7 +731,7 @@
     <p class="hero-sub" id="heroSub">FAQ・サポート動画をまとめて検索できます</p>
     <div class="search-wrap">
       <input
-        type="search"
+        type="text"
         id="searchInput"
         class="search-input"
         placeholder="キーワードを入力... (例: パスワード, 起動, 印刷)"

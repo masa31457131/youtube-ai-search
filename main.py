@@ -1876,6 +1876,42 @@ async def process_transcription(video_id: str, video_data: dict):
 # ç®¡ç†API - ãƒ­ã‚°
 # ============================================
 
+@app.get("/admin/api/logs/debug", dependencies=[Depends(verify_admin)])
+async def debug_logs():
+    """ログデバッグ情報（問題調査用）"""
+    info = {
+        "data_dir":          str(DATA_DIR),
+        "search_log_path":   str(SEARCH_LOG_PATH),
+        "file_exists":       SEARCH_LOG_PATH.exists(),
+        "file_size_bytes":   0,
+        "file_first_5_lines": [],
+        "parsed_row_count":  0,
+        "sample_rows":       [],
+        "error":             None,
+    }
+    try:
+        if SEARCH_LOG_PATH.exists():
+            info["file_size_bytes"] = SEARCH_LOG_PATH.stat().st_size
+            with open(SEARCH_LOG_PATH, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+                info["file_first_5_lines"] = [l.rstrip() for l in lines[:5]]
+
+        rows = parse_logs()
+        info["parsed_row_count"] = len(rows)
+        info["sample_rows"] = [
+            {
+                "dt":          r["dt"].isoformat(),
+                "result_type": r["result_type"],
+                "query":       r["query"],
+                "result_id":   r["result_id"],
+            }
+            for r in rows[:5]
+        ]
+    except Exception as e:
+        info["error"] = str(e)
+
+    return info
+
 @app.get("/admin/api/logs/months", dependencies=[Depends(verify_admin)])
 async def get_log_months():
     """利用可能な月一覧"""

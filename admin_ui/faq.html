@@ -358,10 +358,6 @@
 
     function logout() { localStorage.removeItem('admin_auth'); window.location.href = '/admin'; }
 
-    function getHeaders() {
-      return { 'Authorization': authHeader, 'Content-Type': 'application/json' };
-    }
-
     // 読み込み
     function getAuth() {
       try {
@@ -386,8 +382,9 @@
       };
     }
 
-        function loadFaq() {
-      fetch('/admin/api/faq/items?limit=1000', { headers: { 'Authorization': authHeader } })
+    function loadFaq() {
+      var h = getHeaders();
+      fetch('/admin/api/faq/items?limit=1000', { headers: h })
         .then(function(r) { return r.json(); })
         .then(function(data) {
           allItems = data.items || [];

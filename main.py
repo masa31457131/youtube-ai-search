@@ -993,22 +993,59 @@ async def list_faq_items(offset: int = 0, limit: int = 50, q: str = ""):
     
     return {"items": page_items, "has_more": (offset + limit) < total, "total": total}
 
+def generate_faq_id(category: str) -> str:
+    """
+    FAQ IDを自動採番する。
+    「カテゴリ名-連番3桁」形式（例: パスワード-001）で、
+    既存データと重複しない最小の連番を割り当てる。
+    カテゴリ未指定時は「FAQ-連番」形式。
+    """
+    prefix = (category or "FAQ").strip() or "FAQ"
+
+    existing_ids = {f.get("id", "") for f in state.faq_items_flat}
+
+    max_num = 0
+    pattern = re.compile(r"^" + re.escape(prefix) + r"-(\d+)$")
+    for eid in existing_ids:
+        m = pattern.match(eid or "")
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+
+    next_num = max_num + 1
+    candidate = f"{prefix}-{next_num:03d}"
+
+    # 念のため重複がなくなるまでインクリメント（並行作成などのレアケース対策）
+    while candidate in existing_ids:
+        next_num += 1
+        candidate = f"{prefix}-{next_num:03d}"
+
+    return candidate
+
 @app.post("/admin/api/faq/item", dependencies=[Depends(verify_admin)])
 async def create_faq_item(item: dict, background_tasks: BackgroundTasks):
     """FAQæ–°è¦ä½œæˆ"""
-    faq_id = item.get("id")
-    if not faq_id:
-        raise HTTPException(400, "ID is required")
-    
     await state.ensure_faq_loaded()
-    if any(f.get("id") == faq_id for f in state.faq_items_flat):
-        raise HTTPException(400, f"ID '{faq_id}' already exists")
     
-    category = item.get("category", "ãã®ä»–")
-    if category not in state.faq_data:
-        state.faq_data[category] = []
+    faq_id = (item.get("id") or "").strip()
+    if faq_id:
+        # IDが指定されている場合は重複チェック
+        if any(f.get("id") == faq_id for f in state.faq_items_flat):
+            raise HTTPException(400, f"ID '{faq_id}' already exists")
+    else:
+        # ID未指定の場合は自動採番（カテゴリ名-連番）
+        faq_id = generate_faq_id(item.get("category", ""))
+        item = dict(item)
+        item["id"] = faq_id
     
-    state.faq_data[category].append(item)
+    # faqs配列形式（実データはこちらの形式: {"meta": {...}, "faqs": [...]}）
+    if "faqs" in state.faq_data and isinstance(state.faq_data["faqs"], list):
+        state.faq_data["faqs"].append(item)
+    else:
+        # カテゴリ辞書形式（後方互換）
+        category = item.get("category", "その他")
+        if category not in state.faq_data:
+            state.faq_data[category] = []
+        state.faq_data[category].append(item)
     
     with open(FAQ_PATH, "w", encoding="utf-8") as f:
         json.dump(state.faq_data, f, ensure_ascii=False, indent=2)
@@ -1251,6 +1288,41 @@ async def export_faqs():
         print(f"✅ Exporting {len(exported_faqs)} FAQs (category dict format)")
     
     return export_data
+
+@app.get("/admin/api/faq/export/template", dependencies=[Depends(verify_admin)])
+async def export_faq_template():
+    """
+    新規追加・更新用の空テンプレートJSONをエクスポート
+    項目（キー）のみ入ったサンプル1件を含む、記入用フォーマット
+    """
+    print("📄 FAQ template export requested")
+
+    template_data = {
+        "meta": {
+            "description": "このファイルはFAQインポート用のテンプレートです。faqsの配列にFAQを追加してインポートしてください。",
+            "note_id": "id を指定すると更新、省略すると新規作成（自動採番）されます。",
+            "note_language": "language は ja または en を指定してください。"
+        },
+        "faqs": [
+            {
+                "id": "",
+                "category": "",
+                "language": "ja",
+                "question": "",
+                "answer": "",
+                "steps": [
+                    ""
+                ],
+                "note": "",
+                "keywords": [
+                    ""
+                ]
+            }
+        ]
+    }
+
+    return template_data
+
 
 
 # ============================================

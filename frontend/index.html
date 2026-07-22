@@ -519,7 +519,8 @@
       font-size: 14px;
       line-height: 1.7;
       color: var(--text);
-      white-space: pre-wrap;
+      white-space: normal;
+      word-break: break-word;
     }
 
     /* Note section */
@@ -545,7 +546,19 @@
       font-size: 14px;
       line-height: 1.7;
       color: var(--text);
-      white-space: pre-wrap;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    /* FAQ本文中のリンク（回答・手順・ヒント共通） */
+    .faq-link {
+      color: var(--brand);
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    .faq-link:hover {
+      color: var(--brand-dark, var(--brand));
+      text-decoration: none;
     }
 
         .lb-steps-label {
@@ -1271,7 +1284,7 @@
     var answerSection = document.getElementById('lbAnswerSection');
     var answerText = document.getElementById('lbAnswerText');
     if (item.answer && item.answer.trim()) {
-      answerText.textContent = item.answer;
+      answerText.innerHTML = linkify(item.answer);
       answerSection.style.display = 'block';
     } else {
       answerSection.style.display = 'none';
@@ -1286,7 +1299,7 @@
     } else {
       steps.forEach(function(s) {
         var li = document.createElement('li');
-        li.innerHTML = '<span>' + esc(s) + '</span>';
+        li.innerHTML = '<span>' + linkify(s) + '</span>';
         stepsEl.appendChild(li);
       });
     }
@@ -1295,7 +1308,7 @@
     var noteSection = document.getElementById('lbNoteSection');
     var noteText = document.getElementById('lbNoteText');
     if (item.note && item.note.trim()) {
-      noteText.textContent = item.note;
+      noteText.innerHTML = linkify(item.note);
       noteSection.style.display = 'block';
     } else {
       noteSection.style.display = 'none';
@@ -1442,6 +1455,28 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  // ================================================================
+  // URL自動リンク化（FAQ回答・手順・ヒント用）
+  // HTMLエスケープしたうえで、URL文字列だけ<a>タグに変換する。
+  // 改行は<br>に変換する。
+  // ================================================================
+  function linkify(str) {
+    var escaped = esc(str);
+    // URLとして正当な文字のみにマッチ（日本語・全角文字などは含めない）
+    var urlPattern = /(https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]+)/g;
+    var linked = escaped.replace(urlPattern, function(url) {
+      // 末尾に付きがちな括弧・句読点はリンクの外に出す
+      var trail = '';
+      var m = url.match(/([)\].,;:]+)$/);
+      if (m) {
+        trail = m[1];
+        url = url.slice(0, url.length - trail.length);
+      }
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-link">' + url + '</a>' + trail;
+    });
+    return linked.replace(/\n/g, '<br>');
   }
   </script>
 

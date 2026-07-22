@@ -50,6 +50,47 @@
     .btn-outline { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
     .btn-outline:hover { border-color: var(--brand); color: var(--brand); }
 
+    /* ドロップダウンメニュー */
+    .dropdown { position: relative; display: inline-block; }
+    .dropdown-menu {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      min-width: 280px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      z-index: 100;
+      overflow: hidden;
+      padding: 6px;
+    }
+    .dropdown-menu.open { display: block; }
+    .dropdown-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      font-family: inherit;
+    }
+    .dropdown-item:hover { background: var(--bg); }
+    .dropdown-item-desc {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
     .card { background: var(--white); border-radius: 12px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); overflow: hidden; }
 
     table { width: 100%; border-collapse: collapse; }
@@ -207,7 +248,19 @@
     <div class="toolbar">
       <div class="toolbar-title">📝 FAQ編集</div>
       <input type="search" id="searchBox" class="search-box" placeholder="キーワードで絞り込み..." oninput="filterFaq()" />
-      <button class="btn btn-outline" onclick="exportFAQs()">📥 エクスポート</button>
+      <div class="dropdown" id="exportDropdown">
+        <button class="btn btn-outline" onclick="toggleExportMenu(event)">📥 エクスポート ▾</button>
+        <div class="dropdown-menu" id="exportMenu">
+          <button class="dropdown-item" onclick="exportFAQs(); closeExportMenu();">
+            📋 登録済みデータをエクスポート
+            <span class="dropdown-item-desc">現在登録されている全FAQを出力</span>
+          </button>
+          <button class="dropdown-item" onclick="exportFAQTemplate(); closeExportMenu();">
+            📝 追加・更新用テンプレートを出力
+            <span class="dropdown-item-desc">項目のみの空フォーマット（インポート用）</span>
+          </button>
+        </div>
+      </div>
       <button class="btn btn-outline" onclick="openImportModal()">📤 インポート</button>
       <button class="btn btn-danger" onclick="confirmDeleteAll()">🗑️ 一括削除</button>
       <button class="btn btn-primary" onclick="openCreateModal()">＋ 新規作成</button>
@@ -252,8 +305,8 @@
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">ID</label>
-          <input type="text" id="fieldId" class="form-input" placeholder="FAQ-0001" />
-          <div class="form-hint">新規作成時のみ設定可能</div>
+          <input type="text" id="fieldId" class="form-input" placeholder="自動採番されます（空欄でOK）" />
+          <div class="form-hint" id="fieldIdHint">新規作成時は空欄にすると自動採番されます（例: カテゴリ名-001）</div>
         </div>
         <div class="form-group">
           <label class="form-label">カテゴリ</label>
@@ -447,6 +500,8 @@
       document.getElementById('modalTitle').textContent = 'FAQ新規作成';
       document.getElementById('fieldId').value = '';
       document.getElementById('fieldId').disabled = false;
+      document.getElementById('fieldId').placeholder = '自動採番されます（空欄でOK）';
+      document.getElementById('fieldIdHint').textContent = '空欄にすると「カテゴリ名-連番」で自動採番されます';
       document.getElementById('fieldCategory').value = '';
       document.getElementById('fieldLanguage').value = '';
       document.getElementById('fieldQuestion').value = '';
@@ -465,6 +520,7 @@
       document.getElementById('modalTitle').textContent = 'FAQ編集';
       document.getElementById('fieldId').value = item.id || '';
       document.getElementById('fieldId').disabled = true;
+      document.getElementById('fieldIdHint').textContent = '編集時はIDを変更できません';
       document.getElementById('fieldCategory').value = item.category || '';
       document.getElementById('fieldLanguage').value = item.language || '';
       document.getElementById('fieldQuestion').value = item.question || '';
@@ -493,11 +549,11 @@
       var kwRaw = document.getElementById('fieldKeywords').value;
       var keywords = kwRaw.split(',').map(function(k) { return k.trim(); }).filter(Boolean);
 
-      if (!id || !question) { showToast('IDと質問は必須です', 'error'); return; }
+      if (!question) { showToast('質問は必須です', 'error'); return; }
       if (!language) { showToast('言語を選択してください', 'error'); return; }
+      // 新規作成時はID空欄OK（自動採番）。編集時は既存IDを維持。
 
       var itemData = { 
-        id: id, 
         category: category, 
         language: language,
         question: question, 
@@ -507,6 +563,9 @@
         keywords: keywords, 
         utterances: [question] 
       };
+      // IDが入力されている場合のみ付与（空欄なら自動採番に任せる）
+      if (id) { itemData.id = id; }
+      if (editingId) { itemData.id = editingId; }
 
       var url, method;
       if (editingId) {
@@ -532,12 +591,13 @@
         if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || 'エラー'); });
         return r.json();
       })
-      .then(function() {
+      .then(function(res) {
         updateProgress(100, '完了');
         setTimeout(function() {
           hideProgress();
           closeModal();
-          showToast(editingId ? '更新しました' : '作成しました', 'success');
+          var msg = editingId ? '更新しました' : ('作成しました（ID: ' + (res && res.id ? res.id : '') + '）');
+          showToast(msg, 'success');
           loadFaq();
         }, 500);
       })
@@ -654,6 +714,64 @@
       showToast('エクスポートに失敗しました: ' + err.message, 'error');
     });
   }
+
+  // テンプレート（項目のみの空フォーマット）エクスポート
+  function exportFAQTemplate() {
+    var auth = getAuth();
+    if (!auth) {
+      showToast('認証情報が見つかりません', 'error');
+      return;
+    }
+
+    showProgress('テンプレート出力', 'テンプレートを取得中...');
+    updateProgress(40, 'テンプレートを取得中...');
+
+    fetch('/admin/api/faq/export/template', {
+      headers: { 'Authorization': 'Basic ' + btoa(auth.username + ':' + auth.password) }
+    })
+    .then(function(res) {
+      if (!res.ok) { throw new Error('HTTP ' + res.status); }
+      updateProgress(70, 'ファイルを作成中...');
+      return res.json();
+    })
+    .then(function(data) {
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'faq_template_' + new Date().toISOString().slice(0,10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      updateProgress(100, '完了しました');
+      setTimeout(function() {
+        hideProgress();
+        showToast('追加・更新用テンプレートを出力しました', 'success');
+      }, 500);
+    })
+    .catch(function(err) {
+      console.error('Template export error:', err);
+      hideProgress();
+      showToast('テンプレート出力に失敗しました: ' + err.message, 'error');
+    });
+  }
+
+  // エクスポートドロップダウンの開閉
+  function toggleExportMenu(e) {
+    e.stopPropagation();
+    document.getElementById('exportMenu').classList.toggle('open');
+  }
+  function closeExportMenu() {
+    document.getElementById('exportMenu').classList.remove('open');
+  }
+  document.addEventListener('click', function(e) {
+    var dropdown = document.getElementById('exportDropdown');
+    if (dropdown && !dropdown.contains(e.target)) {
+      closeExportMenu();
+    }
+  });
 
   // ============================================
   // インポート機能

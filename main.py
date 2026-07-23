@@ -2035,13 +2035,22 @@ async def get_log_summary(month: str = Query(...)):
 
 @app.get("/admin/api/logs/export", dependencies=[Depends(verify_admin)])
 async def export_logs():
-    """ãƒ­ã‚°CSVã‚¨ã‚¯ã‚¹ãƒãƒ¼ãƒˆ"""
+    """ログCSVエクスポート"""
     if not SEARCH_LOG_PATH.exists():
         raise HTTPException(404, "No logs found")
     
     csv_data = SEARCH_LOG_PATH.read_text(encoding="utf-8")
+    
+    # Excelで開いたときに日本語が文字化けしないよう、UTF-8 BOMを付与する
+    bom = "\ufeff"
+    csv_bytes = (bom + csv_data).encode("utf-8")
+    
     headers = {"Content-Disposition": 'attachment; filename="search_logs.csv"'}
-    return StreamingResponse(iter([csv_data]), media_type="text/csv", headers=headers)
+    return StreamingResponse(
+        iter([csv_bytes]),
+        media_type="text/csv; charset=utf-8",
+        headers=headers
+    )
 
 # ============================================
 # é™çš„ãƒ•ã‚¡ã‚¤ãƒ«é…ä¿¡
@@ -2634,13 +2643,16 @@ async def download_file(category: str, filename: str):
     mime = get_mime_type(safe_name)
     ext  = pathlib.Path(safe_name).suffix.lower()
 
+    # HTTPヘッダーはASCIIのみ許可されるため、日本語等の非ASCII文字を含む
+    # ファイル名は必ずパーセントエンコードする（RFC 5987 / filename*）
+    import urllib.parse
+    encoded_name = urllib.parse.quote(safe_name)
+
     # PDFはブラウザでインライン表示、それ以外はダウンロード
     if ext in INLINE_MIME_TYPES:
-        disposition = f"inline; filename*=UTF-8\'\'{safe_name}"
+        disposition = f"inline; filename*=UTF-8''{encoded_name}"
     else:
-        import urllib.parse
-        encoded_name = urllib.parse.quote(safe_name)
-        disposition = f"attachment; filename*=UTF-8\'\'{encoded_name}"
+        disposition = f"attachment; filename*=UTF-8''{encoded_name}"
 
     def iter_file():
         with open(target, "rb") as f:

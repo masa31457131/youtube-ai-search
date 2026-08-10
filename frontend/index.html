@@ -644,6 +644,35 @@
       gap: 4px;
     }
 
+    /* FAQ本文中のファイルリンク（PDF/Office/ZIP/EXE等、画像以外） */
+    .faq-file-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 4px 0;
+      padding: 6px 12px;
+      background: var(--white, #fff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--brand);
+      font-size: 13px;
+      max-width: 100%;
+      transition: var(--transition);
+    }
+    .faq-file-link:hover {
+      border-color: var(--brand);
+      background: var(--brand-light, #eef2ff);
+    }
+    .faq-file-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .faq-file-name {
+      word-break: break-all;
+      text-decoration: underline;
+    }
+
         .lb-steps-label {
       font-size: 12px;
       font-weight: 700;
@@ -1556,19 +1585,44 @@
   // URL自動リンク化・画像埋め込み（FAQ回答・手順・ヒント用）
   // HTMLエスケープしたうえで、URL文字列を変換する。
   // 画像ファイル（拡張子で判定）の場合は<img>タグで表示し、
-  // それ以外のURLは<a>タグでリンク化する。改行は<br>に変換する。
+  // それ以外のファイルURL（PDF/Office/ZIP/EXE等）はファイル名付きの
+  // わかりやすいリンクに、それ以外の通常URLはそのままリンクにする。
+  // 改行は<br>に変換する。
   //
-  // 画像URLは日本語ファイル名やスペースを含むケースがあるため、
-  // 「行末 or 空白 or 句読点・括弧」が来るまでを画像URLの範囲とみなす、
+  // ファイルのURLは日本語ファイル名やスペースを含むケースがあるため、
+  // 「行末 or 空白 or 句読点・括弧」が来るまでをURLの範囲とみなす、
   // 通常URLとは別の緩いパターンで先に検出する。
   // ================================================================
 
-  // 画像URL用: 改行・タグ開始が来るまでの間で、既知の画像拡張子
-  // （クエリパラメータが続く場合も含む）を探す。日本語・スペースを許容。
-  var IMAGE_URL_PATTERN = /(https?:\/\/[^\n<]*?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s\u3000)\]。、,.，．<]*)?)(?=[\s\u3000)\]。、,.，．]|$)/gi;
+  var IMAGE_EXTS = 'png|jpe?g|gif|webp|svg|bmp';
+  var OTHER_FILE_EXTS = 'pdf|docx?|xlsx?|pptx?|zip|rar|7z|exe|msi|reg|csv|txt';
 
-  // 通常URL用: ASCII文字のみの厳密パターン（画像以外）
+  // ファイルURL用（画像・画像以外どちらも含む）: 改行・タグ開始が来るまでの間で
+  // 既知の拡張子（クエリパラメータが続く場合も含む）を探す。日本語・スペースを許容。
+  var FILE_URL_PATTERN = new RegExp(
+    '(https?:\\/\\/[^\\n<]*?\\.(?:' + IMAGE_EXTS + '|' + OTHER_FILE_EXTS + ')(?:\\?[^\\s\\u3000)\\]。、,.，．<]*)?)(?=[\\s\\u3000)\\]。、,.，．]|$)',
+    'gi'
+  );
+  var IMAGE_EXT_TEST = new RegExp('\\.(' + IMAGE_EXTS + ')(?:\\?.*)?$', 'i');
+
+  // 通常URL用: ASCII文字のみの厳密パターン（拡張子を持たないURL等）
   var PLAIN_URL_PATTERN = /(https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]+)/g;
+
+  // ファイル種別ごとのアイコン
+  var FILE_ICONS = {
+    pdf: '📄', doc: '📝', docx: '📝', xls: '📊', xlsx: '📊',
+    ppt: '📋', pptx: '📋', zip: '🗜️', rar: '🗜️', '7z': '🗜️',
+    exe: '⚙️', msi: '⚙️', reg: '🔧', csv: '📃', txt: '📃'
+  };
+
+  function isImageUrl(url) {
+    return IMAGE_EXT_TEST.test(url);
+  }
+
+  function getFileIcon(filename) {
+    var ext = (filename.split('.').pop() || '').toLowerCase();
+    return FILE_ICONS[ext] || '📎';
+  }
 
   // 画像の読み込みに失敗した場合、通常のリンク表示に差し替える
   function handleFaqImageError(imgEl) {
@@ -1602,13 +1656,13 @@
   function linkify(str) {
     var escaped = esc(str);
 
-    // 1. まず画像URLを検出し、一意なプレースホルダーに退避する
-    //    （通常URLパターンが誤って割り込むのを防ぐため）
-    var images = [];
-    var withPlaceholders = escaped.replace(IMAGE_URL_PATTERN, function(url) {
-      var idx = images.length;
-      images.push(url);
-      return '\u0000IMG' + idx + '\u0000';
+    // 1. まずファイルURL（画像／PDF等どちらも）を検出し、
+    //    一意なプレースホルダーに退避する（通常URLパターンとの衝突防止）
+    var files = [];
+    var withPlaceholders = escaped.replace(FILE_URL_PATTERN, function(url) {
+      var idx = files.length;
+      files.push(url);
+      return '\u0000FILE' + idx + '\u0000';
     });
 
     // 2. 残りのテキストに対して通常URLをリンク化
@@ -1623,18 +1677,30 @@
       return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-link">' + url + '</a>' + trail;
     });
 
-    // 3. プレースホルダーを画像表示用HTMLに復元
-    linked = linked.replace(/\u0000IMG(\d+)\u0000/g, function(_, idxStr) {
-      var url = images[parseInt(idxStr, 10)];
-      // 属性値として安全に埋め込むため、シングルクォート由来の問題を避けて
-      // 属性はダブルクォートで統一し、JS文字列側はシングルクォートでエスケープする
-      var jsUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      return '<span class="faq-image-wrap">' +
-               '<img src="' + url + '" alt="" class="faq-inline-image" loading="lazy" ' +
-                    'onerror="handleFaqImageError(this)" ' +
-                    'onclick="openImageLightbox(\'' + jsUrl + '\')">' +
-               '<span class="faq-image-hint">🔍 クリックで拡大</span>' +
-             '</span>';
+    // 3. プレースホルダーを画像 or ファイルリンク表示用HTMLに復元
+    linked = linked.replace(/\u0000FILE(\d+)\u0000/g, function(_, idxStr) {
+      var url = files[parseInt(idxStr, 10)];
+
+      if (isImageUrl(url)) {
+        // 画像URLはその場に埋め込み表示（クリックで拡大）
+        var jsUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        return '<span class="faq-image-wrap">' +
+                 '<img src="' + url + '" alt="" class="faq-inline-image" loading="lazy" ' +
+                      'onerror="handleFaqImageError(this)" ' +
+                      'onclick="openImageLightbox(\'' + jsUrl + '\')">' +
+                 '<span class="faq-image-hint">🔍 クリックで拡大</span>' +
+               '</span>';
+      }
+
+      // 画像以外のファイル（PDF/Office/ZIP/EXE等）はファイル名＋アイコン付きリンク
+      var filenameRaw = url.split('/').pop().split('?')[0];
+      var filename = filenameRaw;
+      try { filename = decodeURIComponent(filenameRaw); } catch (e) { /* デコード不可な場合はそのまま */ }
+      var icon = getFileIcon(filename);
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-file-link">' +
+               '<span class="faq-file-icon">' + icon + '</span>' +
+               '<span class="faq-file-name">' + esc(filename) + '</span>' +
+             '</a>';
     });
 
     return linked.replace(/\n/g, '<br>');

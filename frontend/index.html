@@ -467,6 +467,57 @@
 
     .lightbox-close:hover { background: var(--border); color: var(--text); }
 
+    /* Image Lightbox（FAQ本文内の画像拡大表示） */
+    .img-lightbox-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      cursor: zoom-out;
+      animation: fadeIn 0.2s ease;
+    }
+    .img-lightbox-overlay.active {
+      display: flex;
+    }
+    .img-lightbox-image {
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+      cursor: default;
+      animation: modalIn 0.2s ease;
+    }
+    .img-lightbox-close {
+      position: fixed;
+      top: 20px; right: 24px;
+      width: 40px; height: 40px;
+      border: none;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      z-index: 1001;
+    }
+    .img-lightbox-close:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
     /* FAQ Lightbox */
     .lb-faq-header {
       padding: 24px 24px 16px;
@@ -562,20 +613,35 @@
     }
 
     /* FAQ本文中に埋め込まれる画像（回答・手順・ヒント共通） */
-    .faq-image-link {
+    .faq-image-wrap {
       display: block;
       margin: 10px 0;
+      position: relative;
     }
     .faq-inline-image {
       display: block;
       max-width: 100%;
-      max-height: 360px;
+      max-height: 320px;
       width: auto;
       height: auto;
+      object-fit: contain;
       border-radius: 8px;
       border: 1px solid var(--border, #e5e7eb);
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       cursor: zoom-in;
+      transition: var(--transition);
+    }
+    .faq-inline-image:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      transform: scale(1.01);
+    }
+    .faq-image-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
         .lb-steps-label {
@@ -865,6 +931,12 @@
     </div>
   </div>
 
+  <!-- Image Lightbox（FAQ本文内の画像拡大表示用） -->
+  <div class="img-lightbox-overlay" id="imgLightbox">
+    <button class="img-lightbox-close" id="imgLbClose" aria-label="閉じる">✕</button>
+    <img id="imgLbImage" class="img-lightbox-image" src="" alt="">
+  </div>
+
   <!-- FOOTER -->
   <footer>
     Copyright © 2026 Toray Advanced Computer Solution, Inc.
@@ -1059,6 +1131,7 @@
     // Lightbox閉じる
     document.getElementById('faqLbClose').addEventListener('click', closeFaqLb);
     document.getElementById('vidLbClose').addEventListener('click', closeVidLb);
+    document.getElementById('imgLbClose').addEventListener('click', closeImageLightbox);
 
     document.getElementById('faqLightbox').addEventListener('click', function(e) {
       if (e.target === this) closeFaqLb();
@@ -1066,9 +1139,12 @@
     document.getElementById('vidLightbox').addEventListener('click', function(e) {
       if (e.target === this) closeVidLb();
     });
+    document.getElementById('imgLightbox').addEventListener('click', function(e) {
+      if (e.target === this) closeImageLightbox();
+    });
 
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') { closeFaqLb(); closeVidLb(); }
+      if (e.key === 'Escape') { closeFaqLb(); closeVidLb(); closeImageLightbox(); }
     });
   })();
 
@@ -1481,19 +1557,23 @@
   // HTMLエスケープしたうえで、URL文字列を変換する。
   // 画像ファイル（拡張子で判定）の場合は<img>タグで表示し、
   // それ以外のURLは<a>タグでリンク化する。改行は<br>に変換する。
+  //
+  // 画像URLは日本語ファイル名やスペースを含むケースがあるため、
+  // 「行末 or 空白 or 句読点・括弧」が来るまでを画像URLの範囲とみなす、
+  // 通常URLとは別の緩いパターンで先に検出する。
   // ================================================================
-  var IMAGE_EXT_PATTERN = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;
 
-  function isImageUrl(url) {
-    // クエリパラメータやフラグメントを除いた末尾の拡張子で判定
-    var withoutQuery = url.split(/[?#]/)[0];
-    return IMAGE_EXT_PATTERN.test(withoutQuery);
-  }
+  // 画像URL用: 改行・タグ開始が来るまでの間で、既知の画像拡張子
+  // （クエリパラメータが続く場合も含む）を探す。日本語・スペースを許容。
+  var IMAGE_URL_PATTERN = /(https?:\/\/[^\n<]*?\.(?:png|jpe?g|gif|webp|svg|bmp)(?:\?[^\s\u3000)\]。、,.，．<]*)?)(?=[\s\u3000)\]。、,.，．]|$)/gi;
+
+  // 通常URL用: ASCII文字のみの厳密パターン（画像以外）
+  var PLAIN_URL_PATTERN = /(https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]+)/g;
 
   // 画像の読み込みに失敗した場合、通常のリンク表示に差し替える
   function handleFaqImageError(imgEl) {
     var url = imgEl.getAttribute('src');
-    var wrapper = imgEl.closest('a.faq-image-link');
+    var wrapper = imgEl.closest('.faq-image-wrap');
     if (!wrapper) return;
     var link = document.createElement('a');
     link.href = url;
@@ -1505,11 +1585,34 @@
   }
   window.handleFaqImageError = handleFaqImageError;
 
+  // 画像クリック時にライトボックスで拡大表示
+  function openImageLightbox(url) {
+    var overlay = document.getElementById('imgLightbox');
+    var img = document.getElementById('imgLbImage');
+    img.src = url;
+    overlay.classList.add('active');
+  }
+  function closeImageLightbox() {
+    var overlay = document.getElementById('imgLightbox');
+    overlay.classList.remove('active');
+    document.getElementById('imgLbImage').src = '';
+  }
+  window.openImageLightbox = openImageLightbox;
+
   function linkify(str) {
     var escaped = esc(str);
-    // URLとして正当な文字のみにマッチ（日本語・全角文字などは含めない）
-    var urlPattern = /(https?:\/\/[A-Za-z0-9\-._~:\/?#\[\]@!$&*+,;=%]+)/g;
-    var linked = escaped.replace(urlPattern, function(url) {
+
+    // 1. まず画像URLを検出し、一意なプレースホルダーに退避する
+    //    （通常URLパターンが誤って割り込むのを防ぐため）
+    var images = [];
+    var withPlaceholders = escaped.replace(IMAGE_URL_PATTERN, function(url) {
+      var idx = images.length;
+      images.push(url);
+      return '\u0000IMG' + idx + '\u0000';
+    });
+
+    // 2. 残りのテキストに対して通常URLをリンク化
+    var linked = withPlaceholders.replace(PLAIN_URL_PATTERN, function(url) {
       // 末尾に付きがちな括弧・句読点はリンクの外に出す
       var trail = '';
       var m = url.match(/([)\].,;:]+)$/);
@@ -1517,19 +1620,26 @@
         trail = m[1];
         url = url.slice(0, url.length - trail.length);
       }
-
-      if (isImageUrl(url)) {
-        // 画像URLの場合はその場に画像を表示する。
-        // クリックで元画像を新しいタブで開けるようリンクでも囲む。
-        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-image-link">' +
-               '<img src="' + url + '" alt="" class="faq-inline-image" loading="lazy" onerror="handleFaqImageError(this)">' +
-               '</a>' + trail;
-      }
-
       return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-link">' + url + '</a>' + trail;
     });
+
+    // 3. プレースホルダーを画像表示用HTMLに復元
+    linked = linked.replace(/\u0000IMG(\d+)\u0000/g, function(_, idxStr) {
+      var url = images[parseInt(idxStr, 10)];
+      // 属性値として安全に埋め込むため、シングルクォート由来の問題を避けて
+      // 属性はダブルクォートで統一し、JS文字列側はシングルクォートでエスケープする
+      var jsUrl = url.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      return '<span class="faq-image-wrap">' +
+               '<img src="' + url + '" alt="" class="faq-inline-image" loading="lazy" ' +
+                    'onerror="handleFaqImageError(this)" ' +
+                    'onclick="openImageLightbox(\'' + jsUrl + '\')">' +
+               '<span class="faq-image-hint">🔍 クリックで拡大</span>' +
+             '</span>';
+    });
+
     return linked.replace(/\n/g, '<br>');
   }
+
   </script>
 
 </body>

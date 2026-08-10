@@ -561,6 +561,23 @@
       text-decoration: none;
     }
 
+    /* FAQ本文中に埋め込まれる画像（回答・手順・ヒント共通） */
+    .faq-image-link {
+      display: block;
+      margin: 10px 0;
+    }
+    .faq-inline-image {
+      display: block;
+      max-width: 100%;
+      max-height: 360px;
+      width: auto;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid var(--border, #e5e7eb);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      cursor: zoom-in;
+    }
+
         .lb-steps-label {
       font-size: 12px;
       font-weight: 700;
@@ -604,6 +621,8 @@
       line-height: 1.6;
       color: var(--text);
       padding-top: 3px;
+      min-width: 0;
+      flex: 1;
     }
 
     .lb-keywords {
@@ -1458,10 +1477,34 @@
   }
 
   // ================================================================
-  // URL自動リンク化（FAQ回答・手順・ヒント用）
-  // HTMLエスケープしたうえで、URL文字列だけ<a>タグに変換する。
-  // 改行は<br>に変換する。
+  // URL自動リンク化・画像埋め込み（FAQ回答・手順・ヒント用）
+  // HTMLエスケープしたうえで、URL文字列を変換する。
+  // 画像ファイル（拡張子で判定）の場合は<img>タグで表示し、
+  // それ以外のURLは<a>タグでリンク化する。改行は<br>に変換する。
   // ================================================================
+  var IMAGE_EXT_PATTERN = /\.(png|jpe?g|gif|webp|svg|bmp)$/i;
+
+  function isImageUrl(url) {
+    // クエリパラメータやフラグメントを除いた末尾の拡張子で判定
+    var withoutQuery = url.split(/[?#]/)[0];
+    return IMAGE_EXT_PATTERN.test(withoutQuery);
+  }
+
+  // 画像の読み込みに失敗した場合、通常のリンク表示に差し替える
+  function handleFaqImageError(imgEl) {
+    var url = imgEl.getAttribute('src');
+    var wrapper = imgEl.closest('a.faq-image-link');
+    if (!wrapper) return;
+    var link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.className = 'faq-link';
+    link.textContent = url;
+    wrapper.replaceWith(link);
+  }
+  window.handleFaqImageError = handleFaqImageError;
+
   function linkify(str) {
     var escaped = esc(str);
     // URLとして正当な文字のみにマッチ（日本語・全角文字などは含めない）
@@ -1474,6 +1517,15 @@
         trail = m[1];
         url = url.slice(0, url.length - trail.length);
       }
+
+      if (isImageUrl(url)) {
+        // 画像URLの場合はその場に画像を表示する。
+        // クリックで元画像を新しいタブで開けるようリンクでも囲む。
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-image-link">' +
+               '<img src="' + url + '" alt="" class="faq-inline-image" loading="lazy" onerror="handleFaqImageError(this)">' +
+               '</a>' + trail;
+      }
+
       return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="faq-link">' + url + '</a>' + trail;
     });
     return linked.replace(/\n/g, '<br>');

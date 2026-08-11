@@ -20,6 +20,7 @@ import os
 import pathlib
 import csv
 import secrets
+import hashlib
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import re
@@ -75,6 +76,13 @@ FILES_TOOLS      = FILES_DIR / "tools"
 FILES_INSTALLERS = FILES_DIR / "installers"
 FILES_OTHER      = FILES_DIR / "other"
 
+# 動画embeddingキャッシュパス（Disk上に保持）
+# data.jsonの内容が変わらない限り、起動のたびに重いembedding計算を
+# 繰り返さずに済むよう、チャンクのベクトルをファイルとして保存しておく。
+CACHE_DIR                  = DATA_DIR / "cache"
+VIDEO_EMBEDDINGS_CACHE_PATH = CACHE_DIR / "video_embeddings.npy"
+VIDEO_CHUNK_META_CACHE_PATH = CACHE_DIR / "video_chunks_meta.json"
+
 # 静的ファイルパス（コードと同梱、デプロイ毎にリセットされる）
 frontend_path = BASE_DIR / "frontend"
 admin_path    = BASE_DIR / "admin_ui"
@@ -116,12 +124,12 @@ class AppState:
             print("âœ… Model loaded")
     
     async def ensure_video_loaded(self):
-        """å‹•ç”»ãƒ‡ãƒ¼ã‚¿ã®é…å»¶ãƒ­ãƒ¼ãƒ‰"""
+        """動画データの遅延ロード（embeddingキャッシュ対応）"""
         if not self.video_loaded:
             await self.ensure_model_loaded()
-            print("ðŸ”„ Loading video data...")
+            print("🔄 Loading video data...")
             
-            # ãƒ‡ãƒ¼ã‚¿èª­ã¿è¾¼ã¿
+            # データ読み込み
             if DATA_PATH.exists():
                 with open(DATA_PATH, "r", encoding="utf-8") as f:
                     self.videos = json.load(f)
@@ -130,42 +138,104 @@ class AppState:
                 with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
                     self.synonyms = json.load(f)
             
-            # コーパス構築（チャンク分割対応）
-            # transcriptが長い動画（モデルの最大トークン長128を超える場合）でも
-            # 全体を検索対象にするため、タイトル+説明文+transcriptチャンクの単位で
-            # 複数ベクトルを生成する。同じ動画の複数チャンクは video_chunk_map で
-            # 動画インデックスに紐付けられ、検索時にスコアを集約する。
-            self.text_corpus = []
-            self.video_chunk_map = []
+            # data.jsonの内容ハッシュを計算（embeddingキャッシュの整合性チェック用）
+            current_hash = _compute_file_hash(DATA_PATH)
+            
+            # ------------------------------------------------------------
+            # embeddingキャッシュの読み込みを試みる。
+            # data.jsonの内容とモデル名が前回キャッシュ作成時と一致していれば、
+            # 重いembedding計算をスキップしてキャッシュから復元する。
+            # ------------------------------------------------------------
+            cache_loaded = False
+            if VIDEO_EMBEDDINGS_CACHE_PATH.exists() and VIDEO_CHUNK_META_CACHE_PATH.exists():
+                try:
+                    with open(VIDEO_CHUNK_META_CACHE_PATH, "r", encoding="utf-8") as f:
+                        cache_meta = json.load(f)
+                    
+                    hash_match  = cache_meta.get("data_hash") == current_hash
+                    model_match = cache_meta.get("model") == EMBEDDING_MODEL
+                    chunk_settings_match = (
+                        cache_meta.get("chunk_max_chars") == VIDEO_CHUNK_MAX_CHARS and
+                        cache_meta.get("chunk_overlap") == VIDEO_CHUNK_OVERLAP
+                    )
+                    
+                    if hash_match and model_match and chunk_settings_match:
+                        self.text_corpus = cache_meta["text_corpus"]
+                        self.video_chunk_map = cache_meta["video_chunk_map"]
+                        self.video_embeddings = np.load(VIDEO_EMBEDDINGS_CACHE_PATH)
+                        cache_loaded = True
+                        print(f"⚡ Video embeddings loaded from cache: {len(self.text_corpus)} chunks (skipped re-encoding)")
+                    else:
+                        reason = []
+                        if not hash_match: reason.append("data.json changed")
+                        if not model_match: reason.append("model changed")
+                        if not chunk_settings_match: reason.append("chunk settings changed")
+                        print(f"♻️ Video embeddings cache invalid ({', '.join(reason)}), recomputing...")
+                except Exception as e:
+                    print(f"⚠️ Failed to load video embeddings cache: {e}")
+                    cache_loaded = False
+            
+            if not cache_loaded:
+                # ------------------------------------------------------------
+                # コーパス構築（チャンク分割対応）
+                # transcriptが長い動画（モデルの最大トークン長128を超える場合）でも
+                # 全体を検索対象にするため、タイトル+説明文+transcriptチャンクの単位で
+                # 複数ベクトルを生成する。同じ動画の複数チャンクは video_chunk_map で
+                # 動画インデックスに紐付けられ、検索時にスコアを集約する。
+                # ------------------------------------------------------------
+                self.text_corpus = []
+                self.video_chunk_map = []
 
-            for v_idx, v in enumerate(self.videos):
-                title = v.get("title", "") or ""
-                description = v.get("description", "") or ""
-                transcript = v.get("transcript", "") or ""
-                base = f"{title} {description}".strip()
+                for v_idx, v in enumerate(self.videos):
+                    title = v.get("title", "") or ""
+                    description = v.get("description", "") or ""
+                    transcript = v.get("transcript", "") or ""
+                    base = f"{title} {description}".strip()
 
-                if transcript:
-                    text_chunks = chunk_text(transcript)
-                    if not text_chunks:
-                        text_chunks = [""]
-                    for tc in text_chunks:
-                        combined = f"{base} {tc}".strip()
-                        self.text_corpus.append(normalize_text(combined))
+                    if transcript:
+                        text_chunks = chunk_text(transcript)
+                        if not text_chunks:
+                            text_chunks = [""]
+                        for tc in text_chunks:
+                            combined = f"{base} {tc}".strip()
+                            self.text_corpus.append(normalize_text(combined))
+                            self.video_chunk_map.append(v_idx)
+                    else:
+                        # transcriptが無い動画はタイトル+説明文のみで1チャンク
+                        self.text_corpus.append(normalize_text(base))
                         self.video_chunk_map.append(v_idx)
-                else:
-                    # transcriptが無い動画はタイトル+説明文のみで1チャンク
-                    self.text_corpus.append(normalize_text(base))
-                    self.video_chunk_map.append(v_idx)
 
-            # FAISS インデックス構築（チャンク単位）
-            if self.text_corpus:
-                self.video_embeddings = self.model.encode(
-                    self.text_corpus, 
-                    show_progress_bar=False,
-                    convert_to_numpy=True,
-                    batch_size=64
-                )
-                faiss.normalize_L2(self.video_embeddings)
+                # embedding計算（ここが最も重い処理）
+                if self.text_corpus:
+                    self.video_embeddings = self.model.encode(
+                        self.text_corpus, 
+                        show_progress_bar=False,
+                        convert_to_numpy=True,
+                        batch_size=64
+                    )
+                    faiss.normalize_L2(self.video_embeddings)
+                    
+                    # 次回起動時に再利用できるようDiskにキャッシュ保存
+                    try:
+                        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                        np.save(VIDEO_EMBEDDINGS_CACHE_PATH, self.video_embeddings)
+                        with open(VIDEO_CHUNK_META_CACHE_PATH, "w", encoding="utf-8") as f:
+                            json.dump({
+                                "data_hash": current_hash,
+                                "model": EMBEDDING_MODEL,
+                                "chunk_max_chars": VIDEO_CHUNK_MAX_CHARS,
+                                "chunk_overlap": VIDEO_CHUNK_OVERLAP,
+                                "text_corpus": self.text_corpus,
+                                "video_chunk_map": self.video_chunk_map,
+                                "created_at": datetime.now(timezone.utc).isoformat(),
+                            }, f, ensure_ascii=False)
+                        print(f"💾 Video embeddings cache saved: {len(self.text_corpus)} chunks")
+                    except Exception as e:
+                        print(f"⚠️ Failed to save video embeddings cache: {e}")
+            
+            # FAISS インデックス構築（キャッシュ読み込み時・新規計算時ともに毎回実行。
+            # インデックス構築自体はO(n)程度で高速なため、キャッシュ対象には含めない）
+            if self.video_embeddings is not None and len(self.video_embeddings) > 0:
                 self.video_index = build_optimized_index(self.video_embeddings)
             
             self.video_loaded = True
@@ -345,6 +415,20 @@ def chunk_text(text: str, max_chars: int = VIDEO_CHUNK_MAX_CHARS, overlap: int =
         chunks.append(current)
 
     return chunks if chunks else [text[:max_chars]]
+
+def _compute_file_hash(file_path: pathlib.Path) -> str:
+    """
+    ファイルの内容からSHA-256ハッシュ値を計算する。
+    embeddingキャッシュがdata.jsonの内容と一致しているかを判定するために使う。
+    """
+    if not file_path.exists():
+        return ""
+    h = hashlib.sha256()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
 
 
 def expand_with_synonyms(query: str, synonyms: Dict[str, Any], language: str = "ja") -> str:
@@ -561,7 +645,7 @@ def initialize_files():
     """必要なファイルを初期化（Persistent Disk対応）"""
     try:
         # Persistent Disk上のディレクトリを作成
-        for d in [DATA_DIR, FILES_DIR, FILES_MANUALS, FILES_TOOLS, FILES_INSTALLERS, FILES_OTHER]:
+        for d in [DATA_DIR, FILES_DIR, FILES_MANUALS, FILES_TOOLS, FILES_INSTALLERS, FILES_OTHER, CACHE_DIR]:
             if not d.exists():
                 d.mkdir(parents=True, exist_ok=True)
                 print(f"📁 Created directory: {d}")

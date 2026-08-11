@@ -42,6 +42,13 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.3  # 類似度スコアのしきい値（0.0-1.
 SEMANTIC_WEIGHT = 0.6  # セマンティック検索の重み（デフォルト: 60%）
 TITLE_WEIGHT = 0.4     # タイトル一致の重み（デフォルト: 40%）
 
+# 動画transcriptのチャンク分割設定
+# 使用モデル(paraphrase-multilingual-MiniLM-L12-v2)の最大シーケンス長は128トークン。
+# 日本語は概ね1トークン=1〜1.5文字のため、安全マージンを見て1チャンクを180文字以内に収める。
+# これによりtranscriptが長い動画でも全体を検索対象にできる（チャンク単位でベクトル化）。
+VIDEO_CHUNK_MAX_CHARS = 180   # 1チャンクあたりの最大文字数
+VIDEO_CHUNK_OVERLAP = 30      # チャンク間の重複文字数（文の境界をまたぐ内容の検索漏れを防ぐ）
+
 # ç®¡ç†è€…èªè¨¼
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASS = os.getenv("ADMIN_PASS", "abc123")
@@ -86,6 +93,7 @@ class AppState:
         self.model: Optional[SentenceTransformer] = None
         self.video_index: Optional[faiss.Index] = None
         self.video_embeddings: Optional[np.ndarray] = None
+        self.video_chunk_map: List[int] = []  # チャンクindex -> videosのインデックス（チャンク分割検索用）
         
         # FAQæ¤œç´¢ç”¨
         self.faq_data: Dict[str, Any] = {}
@@ -122,24 +130,46 @@ class AppState:
                 with open(SYNONYMS_PATH, "r", encoding="utf-8") as f:
                     self.synonyms = json.load(f)
             
-            # ã‚³ãƒ¼ãƒ‘ã‚¹æ§‹ç¯‰
+            # コーパス構築（チャンク分割対応）
+            # transcriptが長い動画（モデルの最大トークン長128を超える場合）でも
+            # 全体を検索対象にするため、タイトル+説明文+transcriptチャンクの単位で
+            # 複数ベクトルを生成する。同じ動画の複数チャンクは video_chunk_map で
+            # 動画インデックスに紐付けられ、検索時にスコアを集約する。
             self.text_corpus = []
-            for v in self.videos:
-                text = f"{v.get('title', '')} {v.get('description', '')} {v.get('transcript', '')}"
-                self.text_corpus.append(normalize_text(text))
-            
-            # FAISS ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æ§‹ç¯‰
+            self.video_chunk_map = []
+
+            for v_idx, v in enumerate(self.videos):
+                title = v.get("title", "") or ""
+                description = v.get("description", "") or ""
+                transcript = v.get("transcript", "") or ""
+                base = f"{title} {description}".strip()
+
+                if transcript:
+                    text_chunks = chunk_text(transcript)
+                    if not text_chunks:
+                        text_chunks = [""]
+                    for tc in text_chunks:
+                        combined = f"{base} {tc}".strip()
+                        self.text_corpus.append(normalize_text(combined))
+                        self.video_chunk_map.append(v_idx)
+                else:
+                    # transcriptが無い動画はタイトル+説明文のみで1チャンク
+                    self.text_corpus.append(normalize_text(base))
+                    self.video_chunk_map.append(v_idx)
+
+            # FAISS インデックス構築（チャンク単位）
             if self.text_corpus:
                 self.video_embeddings = self.model.encode(
                     self.text_corpus, 
                     show_progress_bar=False,
-                    convert_to_numpy=True
+                    convert_to_numpy=True,
+                    batch_size=64
                 )
                 faiss.normalize_L2(self.video_embeddings)
                 self.video_index = build_optimized_index(self.video_embeddings)
             
             self.video_loaded = True
-            print(f"âœ… Video data loaded: {len(self.videos)} videos")
+            print(f"✅ Video data loaded: {len(self.videos)} videos, {len(self.text_corpus)} chunks")
     
     async def ensure_faq_loaded(self):
         """FAQãƒ‡ãƒ¼ã‚¿ã®é…å»¶ãƒ­ãƒ¼ãƒ‰"""
@@ -210,7 +240,7 @@ class AppState:
                                     item["category"] = category_key
                                 self.faq_items_flat.append(item)
             
-            # ã‚³ãƒ¼ãƒ‘ã‚¹æ§‹ç¯‰ï¼ˆquestion / utterances / steps / keywords ã‚’çµ±åˆï¼‰
+            # コーパス構築（question / utterances / steps / answer / keywords / note を統合）
             # FAQ items合計のログ出力
             print(f"📊 Total FAQ items loaded: {len(self.faq_items_flat)}")
             
@@ -220,15 +250,17 @@ class AppState:
                     item.get("question", ""),
                     " ".join(item.get("utterances", [])),
                     " ".join(item.get("steps", [])),
+                    item.get("answer", ""),          # steps正規化されなかった場合の回答本文も対象に
                     " ".join(item.get("keywords", [])),
                     " ".join(item.get("tags", [])),  # tags も検索対象に
+                    item.get("note", ""),            # ヒント・補足情報も検索対象に
                     item.get("intent", ""),
                     item.get("category", ""),
                 ]
                 combined = " ".join(filter(None, text_parts))
                 self.faq_corpus.append(normalize_text(combined))
             
-            # FAISS ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹æ§‹ç¯‰
+            # FAISS インデックス構築
             if self.faq_corpus:
                 self.faq_embeddings = self.model.encode(
                     self.faq_corpus,
@@ -257,6 +289,64 @@ def normalize_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
+
+def chunk_text(text: str, max_chars: int = VIDEO_CHUNK_MAX_CHARS, overlap: int = VIDEO_CHUNK_OVERLAP) -> List[str]:
+    """
+    長いテキスト（動画のtranscript等）を、モデルの最大トークン長に収まる
+    サイズのチャンクに分割する。
+
+    句点（。！？）を優先した自然な区切りで分割し、1文がmax_charsを超える
+    場合は文字数で強制分割する。チャンク間にoverlap文字分の重複を持たせ、
+    文の境界をまたぐ内容が検索から漏れるのを防ぐ。
+
+    Args:
+        text: 分割対象のテキスト
+        max_chars: 1チャンクあたりの最大文字数
+        overlap: チャンク間の重複文字数
+
+    Returns:
+        チャンク文字列のリスト（textが空ならば空リスト）
+    """
+    if not text:
+        return []
+    text = text.strip()
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    # 句点等で分割（区切り文字自体は各文の末尾に残す）
+    sentences = re.split(r'(?<=[。！？\n])', text)
+    sentences = [s for s in sentences if s.strip()]
+    if not sentences:
+        sentences = [text]
+
+    chunks = []
+    current = ""
+
+    for sent in sentences:
+        # 1文自体がmax_charsを超える場合は文字数で強制分割
+        while len(sent) > max_chars:
+            if current:
+                chunks.append(current)
+                current = current[-overlap:] if len(current) > overlap else ""
+            chunks.append(sent[:max_chars])
+            sent = sent[max(max_chars - overlap, 1):]
+
+        if len(current) + len(sent) <= max_chars:
+            current += sent
+        else:
+            if current:
+                chunks.append(current)
+                current = current[-overlap:] if len(current) > overlap else ""
+            current += sent
+
+    if current.strip():
+        chunks.append(current)
+
+    return chunks if chunks else [text[:max_chars]]
+
+
 def expand_with_synonyms(query: str, synonyms: Dict[str, Any], language: str = "ja") -> str:
     """
     同義語展開（言語別対応）
@@ -281,31 +371,63 @@ def expand_with_synonyms(query: str, synonyms: Dict[str, Any], language: str = "
     
     return " ".join(expanded_terms)
 
+def _char_bigrams(text: str) -> list:
+    """文字bi-gram（2文字の連続組）のリストを生成する。
+    日本語は分かち書きされないため、単語分割の代わりに
+    文字N-gramで部分一致度を評価するのに用いる。"""
+    if len(text) < 2:
+        return [text] if text else []
+    return [text[i:i+2] for i in range(len(text) - 1)]
+
+
 def title_match_score(query: str, title: str) -> float:
     """
     タイトルへのキーワード一致度を計算（0.0～1.0）
-    
+
+    日本語クエリはスペース区切りなしで入力されることが多いため、
+    単語分割（str.split）だけでは複合語（例:「パスワード変更方法」）が
+    一致していても正しく評価できない。
+    そのため、以下の2種類のスコアのうち高い方を採用する:
+      1) スペース区切りの単語一致率（分かち書き入力・英語クエリ向け）
+      2) 文字bi-gramの一致率（日本語の複合語向け）
+
     Args:
         query: 検索クエリ
-        title: 動画タイトル
-    
+        title: 動画タイトル / FAQ質問文
+
     Returns:
         一致度スコア（0.0～1.0）
     """
     if not query or not title:
         return 0.0
-    
-    query_words = normalize_text(query).split()
+
+    query_norm = normalize_text(query)
     title_norm = normalize_text(title)
-    
-    if not query_words:
+
+    if not query_norm:
         return 0.0
-    
-    # クエリの各ワードがタイトルに含まれるかチェック
-    matched = sum(1 for word in query_words if word in title_norm)
-    
-    # 一致率を返す
-    return matched / len(query_words)
+
+    # クエリ全体がタイトルにそのまま含まれる場合は満点
+    if query_norm in title_norm:
+        return 1.0
+
+    # 1) スペース区切りの単語一致率
+    query_words = query_norm.split()
+    if len(query_words) > 1:
+        matched_words = sum(1 for w in query_words if w and w in title_norm)
+        word_score = matched_words / len(query_words)
+    else:
+        word_score = 0.0
+
+    # 2) 文字bi-gramの一致率（日本語の複合語に対応）
+    bigrams = _char_bigrams(query_norm.replace(' ', ''))
+    if bigrams:
+        matched_bigrams = sum(1 for bg in bigrams if bg in title_norm)
+        bigram_score = matched_bigrams / len(bigrams)
+    else:
+        bigram_score = 0.0
+
+    return max(word_score, bigram_score)
 
 
 def build_optimized_index(embeddings: np.ndarray) -> faiss.Index:
@@ -640,42 +762,58 @@ async def search_videos(
     query_embedding = state.model.encode([expanded_query], convert_to_numpy=True)
     faiss.normalize_L2(query_embedding)
     
-    # 最大取得件数を100件に拡大（質問2の対応）
-    k = min(offset + limit + 100, len(state.videos))
+    # チャンク単位で検索するため、動画数ではなく総チャンク数を基準に取得件数を決定。
+    # 同一動画の複数チャンクがヒットしても動画単位に集約するため、多めに取得する。
+    total_chunks = len(state.video_chunk_map)
+    k = min(max((offset + limit + 100) * 10, 500), total_chunks)
     distances, indices = state.video_index.search(query_embedding, k)
     
-    results = []
     # 設定から重み配分を取得
     semantic_weight = config.get("semantic_weight", SEMANTIC_WEIGHT)
     title_weight = config.get("title_weight", TITLE_WEIGHT)
     
-    all_scores = []  # 全スコアを記録
-    for idx, score in zip(indices[0], distances[0]):
-        if 0 <= idx < len(state.videos):
+    # チャンク単位のスコアを動画単位に集約する。
+    # 同じ動画から複数のチャンクがヒットした場合は、最もスコアの高い
+    # チャンクのスコアをその動画の意味検索スコアとして採用する。
+    # これによりtranscriptの後半・中盤にマッチする内容でも動画を検索できる。
+    best_score_per_video = {}   # video_idx -> semantic_score（最高値）
+    all_scores = []  # 全チャンクスコアを記録（デバッグ用）
+
+    for chunk_idx, score in zip(indices[0], distances[0]):
+        if 0 <= chunk_idx < len(state.video_chunk_map):
             all_scores.append(float(score))
-            video = state.videos[idx].copy()
-            
-            # 言語フィルタリング
-            video_lang = video.get("language", "ja")  # デフォルトは日本語
-            if language != "all" and video_lang != language:
-                continue
-            
-            # ハイブリッドスコアリング
-            semantic_score = float(score)
-            title_bonus = title_match_score(query, video.get("title", ""))
-            hybrid_score = semantic_score * semantic_weight + title_bonus * title_weight
-            
-            video["score"] = hybrid_score
-            video["semantic_score"] = semantic_score
-            video["title_score"] = title_bonus
-            
-            # 閾値チェック（セマンティックスコアで判定）
-            if semantic_score >= threshold:
-                results.append(video)
+            v_idx = state.video_chunk_map[chunk_idx]
+            s = float(score)
+            if v_idx not in best_score_per_video or s > best_score_per_video[v_idx]:
+                best_score_per_video[v_idx] = s
+
+    results = []
+    for v_idx, semantic_score in best_score_per_video.items():
+        if not (0 <= v_idx < len(state.videos)):
+            continue
+        video = state.videos[v_idx].copy()
+
+        # 言語フィルタリング
+        video_lang = video.get("language", "ja")  # デフォルトは日本語
+        if language != "all" and video_lang != language:
+            continue
+
+        # ハイブリッドスコアリング
+        title_bonus = title_match_score(query, video.get("title", ""))
+        hybrid_score = semantic_score * semantic_weight + title_bonus * title_weight
+
+        video["score"] = hybrid_score
+        video["semantic_score"] = semantic_score
+        video["title_score"] = title_bonus
+
+        # 閾値チェック（セマンティックスコアで判定）
+        if semantic_score >= threshold:
+            results.append(video)
     
     # デバッグ: 全体のスコア分布を表示
     if all_scores:
-        print(f"  Total candidates: {len(all_scores)}")
+        print(f"  Total candidate chunks: {len(all_scores)} (from {total_chunks} total chunks)")
+        print(f"  Unique videos matched: {len(best_score_per_video)}")
         print(f"  Score range: {min(all_scores):.3f} - {max(all_scores):.3f}")
         print(f"  Top 5 scores: {[f'{s:.3f}' for s in sorted(all_scores, reverse=True)[:5]]}")
         print(f"  Passed threshold ({threshold}): {len(results)} items")
@@ -697,7 +835,7 @@ async def search_videos(
         print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={threshold}")
         print(f"   Top 10 scores: {scores}")
     else:
-        print(f"🎬 Video search results: query='{query}', total=0, items=0, threshold={SIMILARITY_THRESHOLD}")
+        print(f"🎬 Video search results: query='{query}', total=0, items=0, threshold={threshold}")
     
     if paged:
         return {
@@ -735,9 +873,11 @@ async def search_faq(
         expanded_query = expand_with_synonyms(normalized_query, state.synonyms, language or "ja")
         print(f"   Normalized/expanded query: '{expanded_query}'")
         
-        # クエリを単語に分割
+        # クエリを単語に分割（分かち書き入力・英語クエリ向け）
         query_words = expanded_query.lower().split()
-        print(f"   Query words: {query_words}")
+        # クエリの文字bi-gram（日本語の複合語向け。スペースは除去して連結evaluate）
+        query_bigrams = _char_bigrams(expanded_query.lower().replace(' ', ''))
+        print(f"   Query words: {query_words}, bigrams: {len(query_bigrams)}")
         
         # 各FAQアイテムとのマッチングスコアを計算
         scored_items = []
@@ -749,11 +889,20 @@ async def search_faq(
                 " ".join(item.get("steps", [])),
                 " ".join(item.get("keywords", [])),
                 " ".join(item.get("tags", [])),
+                item.get("note", ""),
                 item.get("category", ""),
             ]).lower()
             
-            # マッチングスコアを計算（単語が含まれている数）
-            score = sum(1 for word in query_words if word in search_text)
+            # マッチングスコアを計算
+            # 1) 単語一致数（スペース区切り入力向け）
+            word_matches = sum(1 for word in query_words if word and word in search_text)
+            # 2) bi-gram一致率（日本語の複合語向け、0〜1に正規化してから重み付け）
+            bigram_ratio = 0.0
+            if query_bigrams:
+                bigram_matches = sum(1 for bg in query_bigrams if bg in search_text)
+                bigram_ratio = bigram_matches / len(query_bigrams)
+            # bi-gram一致率をおおよそ単語一致と同程度のスケールに合わせて加算
+            score = word_matches + bigram_ratio * max(len(query_words), 1)
             
             if score > 0:
                 item_copy = item.copy()
@@ -846,10 +995,10 @@ async def search_faq(
     # デバッグ: スコアの範囲を確認
     if results:
         scores = [r["score"] for r in results[:10]]  # 上位10件のスコア
-        print(f"🎬 Video search results: query='{query}', total={total}, items={len(items)}, threshold={threshold}")
+        print(f"📋 FAQ search results: query='{query}', total={total}, items={len(items)}, threshold={threshold}")
         print(f"   Top 10 scores: {scores}")
     else:
-        print(f"🎬 Video search results: query='{query}', total=0, items=0, threshold={SIMILARITY_THRESHOLD}")
+        print(f"📋 FAQ search results: query='{query}', total=0, items=0, threshold={threshold}")
     
     if paged:
         return {

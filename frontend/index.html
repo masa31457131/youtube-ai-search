@@ -684,21 +684,19 @@
 
     .lb-steps {
       list-style: none;
-      counter-reset: step;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
     .lb-steps li {
-      counter-increment: step;
       display: flex;
       gap: 12px;
       align-items: flex-start;
     }
 
-    .lb-steps li::before {
-      content: counter(step);
+    /* 通常の手順項目（番号あり） */
+    .lb-step-number {
       flex-shrink: 0;
       width: 26px; height: 26px;
       background: var(--brand);
@@ -711,7 +709,24 @@
       justify-content: center;
     }
 
-    .lb-steps li span {
+    /* 分類見出し行（【】で囲まれた行、番号なし） */
+    .lb-steps li.lb-step-category {
+      margin-top: 8px;
+    }
+    .lb-steps li.lb-step-category:first-child {
+      margin-top: 0;
+    }
+    .lb-step-category-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--brand);
+      background: var(--brand-light);
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .lb-step-text {
       font-size: 14px;
       line-height: 1.6;
       color: var(--text);
@@ -1415,15 +1430,36 @@
     }
 
     // 手順の表示
+    // 【】で囲まれた行は分類見出しとして扱い、番号を振らない。
+    // 分類見出しの直後から番号を1にリセットして付番する
+    // （同一手順内に複数の分類見出しがあれば、その都度1から付番）。
     var steps = item.steps || [];
     var stepsEl = document.getElementById('lbSteps');
     stepsEl.innerHTML = '';
     if (steps.length === 0) {
-      stepsEl.innerHTML = '<li><span>詳細情報がありません。</span></li>';
+      stepsEl.innerHTML = '<li><span class="lb-step-text">詳細情報がありません。</span></li>';
     } else {
+      var stepNumber = 0;
+      var categoryPattern = /^\s*【(.+?)】\s*$/;
+
       steps.forEach(function(s) {
+        var text = String(s || '');
+        var m = text.match(categoryPattern);
         var li = document.createElement('li');
-        li.innerHTML = '<span>' + linkify(s) + '</span>';
+
+        if (m) {
+          // 分類見出し行: 番号を振らずに表示し、以降の番号を1にリセット
+          stepNumber = 0;
+          li.className = 'lb-step-category';
+          li.innerHTML = '<span class="lb-step-category-label">' + esc(m[1]) + '</span>';
+        } else {
+          // 通常の手順項目: 連番を付与
+          stepNumber++;
+          li.innerHTML =
+            '<span class="lb-step-number">' + stepNumber + '</span>' +
+            '<span class="lb-step-text">' + linkify(text) + '</span>';
+        }
+
         stepsEl.appendChild(li);
       });
     }

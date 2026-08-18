@@ -43,6 +43,10 @@ DEFAULT_SIMILARITY_THRESHOLD = 0.3  # 類似度スコアのしきい値（0.0-1.
 SEMANTIC_WEIGHT = 0.6  # セマンティック検索の重み（デフォルト: 60%）
 TITLE_WEIGHT = 0.4     # タイトル一致の重み（デフォルト: 40%）
 
+# FAQ検索: キーワード一致度がこの値以上であれば、セマンティックスコアが
+# 閾値未満でも検索結果に含める（質問・回答・手順・キーワードへの直接一致を優先）
+FAQ_KEYWORD_MATCH_MIN_SCORE = 0.3
+
 # 動画transcriptのチャンク分割設定
 # 使用モデル(paraphrase-multilingual-MiniLM-L12-v2)の最大シーケンス長は128トークン。
 # 日本語は概ね1トークン=1〜1.5文字のため、安全マージンを見て1チャンクを180文字以内に収める。
@@ -512,6 +516,36 @@ def title_match_score(query: str, title: str) -> float:
         bigram_score = 0.0
 
     return max(word_score, bigram_score)
+def faq_keyword_match_score(query: str, item: Dict[str, Any]) -> float:
+    """
+    FAQ項目全体（質問・回答・手順・キーワード・タグ・補足）に対する
+    クエリの一致度を計算する。
+
+    embeddingによる意味検索だけでは、専門用語やキーワードの
+    完全一致・部分一致を拾いきれないことがあるため、
+    質問文だけでなく回答・手順・キーワード等も含めた全文をtitle_match_scoreと
+    同じロジック（単語一致 / 文字bi-gram一致の複合判定）で評価する。
+
+    Args:
+        query: 検索クエリ
+        item: FAQ項目（question/answer/steps/keywords/tags/noteを含む辞書）
+
+    Returns:
+        一致度スコア（0.0～1.0）
+    """
+    search_text_parts = [
+        item.get("question", "") or "",
+        item.get("answer", "") or "",
+        " ".join(item.get("steps", []) or []),
+        " ".join(item.get("utterances", []) or []),
+        " ".join(item.get("keywords", []) or []),
+        " ".join(item.get("tags", []) or []),
+        item.get("note", "") or "",
+    ]
+    combined_text = " ".join(filter(None, search_text_parts))
+    return title_match_score(query, combined_text)
+
+
 
 
 def build_optimized_index(embeddings: np.ndarray) -> faiss.Index:
@@ -968,13 +1002,14 @@ async def search_faq(
         for item in state.faq_items_flat:
             # 検索対象テキストを構築
             search_text = " ".join([
-                item.get("question", ""),
-                " ".join(item.get("utterances", [])),
-                " ".join(item.get("steps", [])),
-                " ".join(item.get("keywords", [])),
-                " ".join(item.get("tags", [])),
-                item.get("note", ""),
-                item.get("category", ""),
+                item.get("question", "") or "",
+                item.get("answer", "") or "",
+                " ".join(item.get("utterances", []) or []),
+                " ".join(item.get("steps", []) or []),
+                " ".join(item.get("keywords", []) or []),
+                " ".join(item.get("tags", []) or []),
+                item.get("note", "") or "",
+                item.get("category", "") or "",
             ]).lower()
             
             # マッチングスコアを計算
@@ -1045,17 +1080,22 @@ async def search_faq(
             if language != "all" and item_lang != language:
                 continue
             
-            # ハイブリッドスコアリング（FAQは質問文をタイトル扱い）
+            # ハイブリッドスコアリング
+            # 質問文だけでなく回答・手順・キーワード・タグ・補足も含めた
+            # 全文一致度（keyword_bonus）を計算し、embeddingが拾いきれない
+            # 専門用語・キーワードの完全一致検索を補完する。
             semantic_score = float(score)
-            title_bonus = title_match_score(query, item.get("question", ""))
-            hybrid_score = semantic_score * semantic_weight + title_bonus * title_weight
+            keyword_bonus = faq_keyword_match_score(query, item)
+            hybrid_score = semantic_score * semantic_weight + keyword_bonus * title_weight
             
             item["score"] = hybrid_score
             item["semantic_score"] = semantic_score
-            item["title_score"] = title_bonus
+            item["title_score"] = keyword_bonus
             
-            # 閾値チェック
-            if semantic_score >= threshold:
+            # 閾値チェック: セマンティックスコアが閾値以上、
+            # またはキーワード一致度が高い場合（質問・回答・手順・キーワードへの
+            # 直接一致）は意味検索のスコアが低くても結果に含める
+            if semantic_score >= threshold or keyword_bonus >= FAQ_KEYWORD_MATCH_MIN_SCORE:
                 results.append(item)
     
     # デバッグ: 全体のスコア分布を表示

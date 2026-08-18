@@ -192,26 +192,6 @@
       grid-template-columns: 1fr;
     }
 
-    /* 準備中表示 */
-    .faq-preparing {
-      text-align: center;
-      padding: 80px 20px;
-      font-size: 32px;
-      font-weight: 700;
-      color: var(--text-muted);
-      background: var(--white);
-      border-radius: var(--radius);
-    }
-    
-    .faq-preparing-image {
-      margin-top: 30px;
-      max-width: 75%;
-      height: auto;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      border: 2px dashed var(--border);
-    }
-
         .section-title {
       font-size: 16px;
       font-weight: 700;
@@ -840,9 +820,12 @@
     /* ========== NO RESULT ========== */
     .no-result {
       text-align: center;
-      padding: 30px 16px;
+      padding: 40px 16px;
       color: var(--text-muted);
-      font-size: 13px;
+      font-size: 14px;
+      line-height: 1.8;
+      background: var(--white);
+      border-radius: var(--radius);
     }
   </style>
 </head>
@@ -1302,12 +1285,9 @@
     var pageItems = faqState.items.slice(start, end);
 
     if (pageItems.length === 0) {
-      // FAQ検索がONでかつ全件数が0の場合は「準備中」を表示
-      if (faqSearchEnabled && faqState.total === 0) {
-        list.innerHTML = '<div class="faq-preparing">準備中<br><img src="/static/keyword_search_guide.png" alt="キーワード検索ガイド" class="faq-preparing-image"></div>';
-      } else {
-        list.innerHTML = '<div class="no-result">該当するFAQが見つかりませんでした。</div>';
-      }
+      // FAQ検索は公開済みのため「準備中」表示は行わず、
+      // 0件の場合は常に「該当するFAQが見つかりませんでした」を表示する
+      list.innerHTML = '<div class="no-result">😕 該当するFAQが見つかりませんでした。<br>別のキーワードでお試しください。</div>';
       pagination.style.display = 'none';
       return;
     }
